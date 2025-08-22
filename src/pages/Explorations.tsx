@@ -1,12 +1,27 @@
+
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Compass, Clock, Gem, Star, ArrowRight, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Compass, 
+  Clock, 
+  Star, 
+  Trophy,
+  Play,
+  Lock,
+  Heart,
+  Brain,
+  Sparkles,
+  Users,
+  Target,
+  BookOpen
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface Exploration {
   id: string;
@@ -17,12 +32,13 @@ interface Exploration {
   estimated_duration: number;
   crystal_reward: number;
   is_active: boolean;
+  questions: any[];
 }
 
 const Explorations = () => {
   const [explorations, setExplorations] = useState<Exploration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -37,7 +53,7 @@ const Explorations = () => {
         .from('explorations')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('difficulty_level', { ascending: true });
 
       if (error) throw error;
       setExplorations(data || []);
@@ -52,13 +68,13 @@ const Explorations = () => {
     }
   };
 
-  const startExploration = async (explorationId: string) => {
+  const startExploration = async (exploration: Exploration) => {
     try {
       const { data, error } = await supabase
         .from('exploration_sessions')
         .insert({
           user_id: user?.id,
-          exploration_id: explorationId,
+          exploration_id: exploration.id,
           status: 'in-progress'
         })
         .select()
@@ -66,7 +82,13 @@ const Explorations = () => {
 
       if (error) throw error;
 
-      navigate(`/exploration/${data.id}`);
+      toast({
+        title: "Exploration started!",
+        description: `Beginning your journey: ${exploration.title}`,
+      });
+
+      // Navigate to chat with session context
+      navigate(`/chat?session=${data.id}`);
     } catch (error: any) {
       toast({
         title: "Error starting exploration",
@@ -76,20 +98,29 @@ const Explorations = () => {
     }
   };
 
-  const categories = ['all', 'self-discovery', 'relationships', 'career', 'wellness', 'spirituality'];
-  
+  const getDifficultyColor = (level: string) => {
+    switch (level) {
+      case 'beginner': return 'bg-green-500/10 text-green-600';
+      case 'intermediate': return 'bg-yellow-500/10 text-yellow-600';
+      case 'advanced': return 'bg-red-500/10 text-red-600';
+      default: return 'bg-primary/10 text-primary';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'self-discovery': return <Heart className="w-4 h-4" />;
+      case 'relationships': return <Users className="w-4 h-4" />;
+      case 'personal-growth': return <Target className="w-4 h-4" />;
+      case 'healing': return <Sparkles className="w-4 h-4" />;
+      default: return <Brain className="w-4 h-4" />;
+    }
+  };
+
+  const categories = ['all', 'self-discovery', 'relationships', 'personal-growth', 'healing'];
   const filteredExplorations = selectedCategory === 'all' 
     ? explorations 
     : explorations.filter(e => e.category === selectedCategory);
-
-  const getDifficultyColor = (level: string) => {
-    switch (level) {
-      case 'beginner': return 'bg-green-500/20 text-green-300';
-      case 'intermediate': return 'bg-yellow-500/20 text-yellow-300';
-      case 'advanced': return 'bg-red-500/20 text-red-300';
-      default: return 'bg-gray-500/20 text-gray-300';
-    }
-  };
 
   if (loading) {
     return (
@@ -113,8 +144,52 @@ const Explorations = () => {
             </h1>
           </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Embark on guided journeys of self-discovery. Each exploration is designed to help you explore different aspects of your inner world with NewMe as your companion.
+            Embark on guided journeys of self-discovery. Each exploration is a structured conversation 
+            with your AI companion, designed to help you understand yourself more deeply.
           </p>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card className="glass-card border-glass">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+              </div>
+              <p className="text-2xl font-bold text-primary">{explorations.length}</p>
+              <p className="text-xs text-muted-foreground">Available</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card border-glass">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Trophy className="w-4 h-4 text-secondary" />
+              </div>
+              <p className="text-2xl font-bold text-secondary">0</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card border-glass">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Star className="w-4 h-4 text-accent" />
+              </div>
+              <p className="text-2xl font-bold text-accent">0</p>
+              <p className="text-xs text-muted-foreground">Crystals</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card border-glass">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Target className="w-4 h-4 text-green-500" />
+              </div>
+              <p className="text-2xl font-bold text-green-500">0%</p>
+              <p className="text-xs text-muted-foreground">Progress</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Category Filter */}
@@ -137,23 +212,22 @@ const Explorations = () => {
           {filteredExplorations.map((exploration) => (
             <Card key={exploration.id} className="glass-card border-glass hover:scale-105 transition-all duration-300 group">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2 group-hover:text-primary transition-colors">
-                      {exploration.title}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge className={getDifficultyColor(exploration.difficulty_level)}>
-                        {exploration.difficulty_level}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {exploration.category.replace('-', ' ')}
-                      </Badge>
-                    </div>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {getCategoryIcon(exploration.category)}
+                    <Badge variant="outline" className="text-xs">
+                      {exploration.category.replace('-', ' ')}
+                    </Badge>
                   </div>
-                  <Sparkles className="w-5 h-5 text-primary opacity-60" />
+                  <Badge className={`text-xs ${getDifficultyColor(exploration.difficulty_level)}`}>
+                    {exploration.difficulty_level}
+                  </Badge>
                 </div>
-                <CardDescription className="text-sm leading-relaxed">
+                
+                <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                  {exploration.title}
+                </CardTitle>
+                <CardDescription className="text-sm line-clamp-3">
                   {exploration.description}
                 </CardDescription>
               </CardHeader>
@@ -165,19 +239,25 @@ const Explorations = () => {
                     <span>{exploration.estimated_duration} min</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Gem className="w-4 h-4 text-primary" />
-                    <span className="text-primary font-medium">
-                      {exploration.crystal_reward} crystals
-                    </span>
+                    <Star className="w-4 h-4 text-yellow-400" />
+                    <span>{exploration.crystal_reward} crystals</span>
                   </div>
                 </div>
                 
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Questions</span>
+                    <span>{exploration.questions?.length || 10}/10</span>
+                  </div>
+                  <Progress value={100} className="h-2" />
+                </div>
+                
                 <Button 
-                  onClick={() => startExploration(exploration.id)}
-                  className="w-full glass-button group/btn"
+                  onClick={() => startExploration(exploration)}
+                  className="w-full bg-gradient-primary hover:opacity-90"
                 >
-                  <span>Begin Journey</span>
-                  <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/btn:translate-x-1" />
+                  <Play className="w-4 h-4 mr-2" />
+                  Begin Journey
                 </Button>
               </CardContent>
             </Card>
@@ -185,16 +265,17 @@ const Explorations = () => {
         </div>
 
         {filteredExplorations.length === 0 && (
-          <div className="text-center py-12">
-            <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No explorations found</h3>
-            <p className="text-muted-foreground">
-              {selectedCategory === 'all' 
-                ? "There are no active explorations at the moment."
-                : `No explorations found in the ${selectedCategory.replace('-', ' ')} category.`
-              }
-            </p>
-          </div>
+          <Card className="glass-card border-glass text-center py-12">
+            <CardContent>
+              <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Compass className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No explorations found</h3>
+              <p className="text-muted-foreground">
+                Try selecting a different category or check back later for new journeys.
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
