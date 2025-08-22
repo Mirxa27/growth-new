@@ -236,6 +236,39 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_wheel_areas: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          order_index: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          order_index: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          order_index?: number
+        }
+        Relationships: []
+      }
       breathing_practices: {
         Row: {
           audio_url: string | null
@@ -698,6 +731,39 @@ export type Database = {
           },
         ]
       }
+      personality_questions: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          options: Json
+          order_index: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          order_index: number
+          question_text: string
+          question_type?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          order_index?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -905,6 +971,44 @@ export type Database = {
             columns: ["achievement_id"]
             isOneToOne: false
             referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_balance_scores: {
+        Row: {
+          area_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          score: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          area_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          score: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          area_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          score?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_balance_scores_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "balance_wheel_areas"
             referencedColumns: ["id"]
           },
         ]
@@ -1288,6 +1392,10 @@ export type Database = {
         Args: { answers1: Json; answers2: Json }
         Returns: number
       }
+      complete_exploration_session: {
+        Args: { final_analysis_input: Json; session_id_input: string }
+        Returns: undefined
+      }
       get_admin_safe_profiles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1332,6 +1440,26 @@ export type Database = {
       is_admin: {
         Args: { uid: string }
         Returns: boolean
+      }
+      save_personality_assessment: {
+        Args: {
+          answers_input: Json
+          results_input: Json
+          user_id_input: string
+        }
+        Returns: string
+      }
+      start_exploration_session: {
+        Args: { exploration_id_input: string; user_id_input: string }
+        Returns: string
+      }
+      update_exploration_progress: {
+        Args: {
+          answer_input: string
+          question_index_input: number
+          session_id_input: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

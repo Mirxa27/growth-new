@@ -1,30 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Compass, 
-  Clock, 
-  Star, 
-  Trophy,
-  Play,
-  Lock,
-  Heart,
-  Brain,
-  Sparkles,
-  Users,
-  Target,
-  BookOpen
-} from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import type { Database } from '@/integrations/supabase/types';
-
-// Use the actual database type for explorations
-type DatabaseExploration = Database['public']['Tables']['explorations']['Row'];
+import { ExplorationSession } from '@/components/exploration/ExplorationSession';
+import { AnalysisResults } from '@/components/exploration/AnalysisResults';
+import { Clock, Star, Users, Sparkles, Play, ArrowLeft } from 'lucide-react';
 
 interface Exploration {
   id: string;
@@ -35,21 +19,18 @@ interface Exploration {
   estimated_duration: number;
   crystal_reward: number;
   is_active: boolean;
-  questions: any[];
-  analysis_structure: any;
-  facilitator_prompt: string;
-  higher_self_prompt: string;
-  created_at: string;
-  updated_at: string;
 }
 
-const Explorations = () => {
-  const [explorations, setExplorations] = useState<Exploration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+type ViewState = 'library' | 'session' | 'results';
+
+export default function Explorations() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [explorations, setExplorations] = useState<Exploration[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewState, setViewState] = useState<ViewState>('library');
+  const [selectedExploration, setSelectedExploration] = useState<Exploration | null>(null);
+  const [analysisResults, setAnalysisResults] = useState(null);
 
   useEffect(() => {
     fetchExplorations();
@@ -61,252 +42,216 @@ const Explorations = () => {
         .from('explorations')
         .select('*')
         .eq('is_active', true)
-        .order('difficulty_level', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Transform the database data to match our interface
-      const transformedData: Exploration[] = (data || []).map((item: DatabaseExploration) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        category: item.category,
-        difficulty_level: item.difficulty_level,
-        estimated_duration: item.estimated_duration,
-        crystal_reward: item.crystal_reward,
-        is_active: item.is_active,
-        questions: Array.isArray(item.questions) ? item.questions : [],
-        analysis_structure: typeof item.analysis_structure === 'object' ? item.analysis_structure : {},
-        facilitator_prompt: item.facilitator_prompt,
-        higher_self_prompt: item.higher_self_prompt,
-        created_at: item.created_at,
-        updated_at: item.updated_at
-      }));
-      
-      setExplorations(transformedData);
-    } catch (error: any) {
+      setExplorations(data || []);
+    } catch (error) {
+      console.error('Error fetching explorations:', error);
       toast({
-        title: "Error loading explorations",
-        description: error.message,
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to load explorations.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const startExploration = async (exploration: Exploration) => {
+  const handleStartExploration = (exploration: Exploration) => {
+    setSelectedExploration(exploration);
+    setViewState('session');
+  };
+
+  const handleSessionComplete = (analysis: any) => {
+    setAnalysisResults(analysis);
+    setViewState('results');
+  };
+
+  const handleBackToLibrary = () => {
+    setViewState('library');
+    setSelectedExploration(null);
+    setAnalysisResults(null);
+  };
+
+  const handleSaveToJournal = async () => {
+    if (!user || !analysisResults || !selectedExploration) return;
+
     try {
-      const { data, error } = await supabase
-        .from('exploration_sessions')
+      const { error } = await supabase
+        .from('journal_entries')
         .insert({
-          user_id: user?.id,
-          exploration_id: exploration.id,
-          status: 'in-progress'
-        })
-        .select()
-        .single();
+          user_id: user.id,
+          title: `${selectedExploration.title} - Analysis`,
+          content: JSON.stringify(analysisResults),
+          journey_id: selectedExploration.id
+        });
 
       if (error) throw error;
 
       toast({
-        title: "Exploration started!",
-        description: `Beginning your journey: ${exploration.title}`,
+        title: 'Saved!',
+        description: 'Your analysis has been saved to your journal.'
       });
-
-      // Navigate to chat with session context
-      navigate(`/chat?session=${data.id}`);
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error saving to journal:', error);
       toast({
-        title: "Error starting exploration",
-        description: error.message,
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to save analysis to journal.',
+        variant: 'destructive'
       });
     }
   };
 
   const getDifficultyColor = (level: string) => {
     switch (level) {
-      case 'beginner': return 'bg-green-500/10 text-green-600';
-      case 'intermediate': return 'bg-yellow-500/10 text-yellow-600';
-      case 'advanced': return 'bg-red-500/10 text-red-600';
-      default: return 'bg-primary/10 text-primary';
+      case 'beginner': return 'hsl(142, 71%, 45%)';
+      case 'intermediate': return 'hsl(45, 93%, 47%)';
+      case 'advanced': return 'hsl(346, 87%, 58%)';
+      default: return 'hsl(220, 85%, 57%)';
     }
   };
 
   const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'self-discovery': return <Heart className="w-4 h-4" />;
-      case 'relationships': return <Users className="w-4 h-4" />;
-      case 'personal-growth': return <Target className="w-4 h-4" />;
-      case 'healing': return <Sparkles className="w-4 h-4" />;
-      default: return <Brain className="w-4 h-4" />;
+    switch (category) {
+      case 'self-discovery': return Star;
+      case 'relationships': return Users;
+      case 'personal-growth': return Sparkles;
+      default: return Star;
     }
   };
 
-  const categories = ['all', 'self-discovery', 'relationships', 'personal-growth', 'healing'];
-  const filteredExplorations = selectedCategory === 'all' 
-    ? explorations 
-    : explorations.filter(e => e.category === selectedCategory);
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
+  // Show session interface
+  if (viewState === 'session' && selectedExploration) {
+    return (
+      <ExplorationSession
+        explorationId={selectedExploration.id}
+        onComplete={handleSessionComplete}
+        onCancel={handleBackToLibrary}
+      />
+    );
+  }
+
+  // Show analysis results
+  if (viewState === 'results' && analysisResults && selectedExploration) {
+    return (
+      <AnalysisResults
+        analysis={analysisResults}
+        exploration={selectedExploration}
+        onClose={handleBackToLibrary}
+        onSaveToJournal={handleSaveToJournal}
+      />
+    );
+  }
+
+  // Show explorations library
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 p-4 pb-20">
+      <div className="max-w-6xl mx-auto pt-8">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-              <Compass className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Themed Explorations
-            </h1>
-          </div>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Embark on guided journeys of self-discovery. Each exploration is a structured conversation 
-            with your AI companion, designed to help you understand yourself more deeply.
+          <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
+          <h1 className="text-3xl font-bold gradient-text mb-2">Themed Explorations</h1>
+          <p className="text-lg text-muted-foreground">
+            Guided journeys of self-discovery with your AI companion
           </p>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <BookOpen className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-2xl font-bold text-primary">{explorations.length}</p>
-              <p className="text-xs text-muted-foreground">Available</p>
+        {explorations.length === 0 ? (
+          <Card className="max-w-md mx-auto glass-card">
+            <CardContent className="pt-6 text-center">
+              <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No explorations available at the moment.</p>
             </CardContent>
           </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Trophy className="w-4 h-4 text-secondary" />
-              </div>
-              <p className="text-2xl font-bold text-secondary">0</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Star className="w-4 h-4 text-accent" />
-              </div>
-              <p className="text-2xl font-bold text-accent">0</p>
-              <p className="text-xs text-muted-foreground">Crystals</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Target className="w-4 h-4 text-green-500" />
-              </div>
-              <p className="text-2xl font-bold text-green-500">0%</p>
-              <p className="text-xs text-muted-foreground">Progress</p>
-            </CardContent>
-          </Card>
-        </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {explorations.map((exploration) => {
+              const IconComponent = getCategoryIcon(exploration.category);
+              return (
+                <Card key={exploration.id} className="glass-card hover:glass-card-hover transition-all duration-300 cursor-pointer group">
+                  <CardHeader>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="p-2 rounded-lg bg-primary/20 text-primary">
+                        <IconComponent className="h-5 w-5" />
+                      </div>
+                      <Badge 
+                        variant="outline" 
+                        className="glass-surface"
+                        style={{ 
+                          borderColor: getDifficultyColor(exploration.difficulty_level),
+                          color: getDifficultyColor(exploration.difficulty_level)
+                        }}
+                      >
+                        {exploration.difficulty_level}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                      {exploration.title}
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      {exploration.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {exploration.estimated_duration} min
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        {exploration.crystal_reward} crystals
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => handleStartExploration(exploration)}
+                      className="w-full bg-primary hover:bg-primary/90 group-hover:shadow-lg transition-all"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Begin Exploration
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap gap-2 justify-center mb-8">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className={selectedCategory === category ? "bg-gradient-primary" : "glass"}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-            </Button>
-          ))}
-        </div>
-
-        {/* Explorations Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredExplorations.map((exploration) => (
-            <Card key={exploration.id} className="glass-card border-glass hover:scale-105 transition-all duration-300 group">
-              <CardHeader>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {getCategoryIcon(exploration.category)}
-                    <Badge variant="outline" className="text-xs">
-                      {exploration.category.replace('-', ' ')}
-                    </Badge>
-                  </div>
-                  <Badge className={`text-xs ${getDifficultyColor(exploration.difficulty_level)}`}>
-                    {exploration.difficulty_level}
-                  </Badge>
+        <div className="mt-12 text-center">
+          <Card className="max-w-2xl mx-auto glass-card">
+            <CardHeader>
+              <CardTitle>How Explorations Work</CardTitle>
+            </CardHeader>
+            <CardContent className="text-left space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Phase 1: Reflection</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Answer 10 carefully crafted questions with honest self-reflection. Take your time.
+                  </p>
                 </div>
-                
-                <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                  {exploration.title}
-                </CardTitle>
-                <CardDescription className="text-sm line-clamp-3">
-                  {exploration.description}
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{exploration.estimated_duration} min</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-400" />
-                    <span>{exploration.crystal_reward} crystals</span>
-                  </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Phase 2: Insights</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Receive a deep analysis from your Higher Self with actionable guidance and affirmations.
+                  </p>
                 </div>
-                
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Questions</span>
-                    <span>{exploration.questions?.length || 10}/10</span>
-                  </div>
-                  <Progress value={100} className="h-2" />
-                </div>
-                
-                <Button 
-                  onClick={() => startExploration(exploration)}
-                  className="w-full bg-gradient-primary hover:opacity-90"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Begin Journey
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredExplorations.length === 0 && (
-          <Card className="glass-card border-glass text-center py-12">
-            <CardContent>
-              <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Compass className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No explorations found</h3>
-              <p className="text-muted-foreground">
-                Try selecting a different category or check back later for new journeys.
+              <p className="text-sm text-muted-foreground text-center pt-4 border-t border-white/10">
+                Each exploration is a journey of discovery. Allow yourself to be vulnerable and open to growth.
               </p>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );
-};
-
-export default Explorations;
+}
