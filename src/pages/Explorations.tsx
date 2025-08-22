@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import type { Database } from '@/integrations/supabase/types';
+
+// Use the actual database type for explorations
+type DatabaseExploration = Database['public']['Tables']['explorations']['Row'];
 
 interface Exploration {
   id: string;
@@ -33,6 +36,11 @@ interface Exploration {
   crystal_reward: number;
   is_active: boolean;
   questions: any[];
+  analysis_structure: any;
+  facilitator_prompt: string;
+  higher_self_prompt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const Explorations = () => {
@@ -56,7 +64,26 @@ const Explorations = () => {
         .order('difficulty_level', { ascending: true });
 
       if (error) throw error;
-      setExplorations(data || []);
+      
+      // Transform the database data to match our interface
+      const transformedData: Exploration[] = (data || []).map((item: DatabaseExploration) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        difficulty_level: item.difficulty_level,
+        estimated_duration: item.estimated_duration,
+        crystal_reward: item.crystal_reward,
+        is_active: item.is_active,
+        questions: Array.isArray(item.questions) ? item.questions : [],
+        analysis_structure: typeof item.analysis_structure === 'object' ? item.analysis_structure : {},
+        facilitator_prompt: item.facilitator_prompt,
+        higher_self_prompt: item.higher_self_prompt,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
+      
+      setExplorations(transformedData);
     } catch (error: any) {
       toast({
         title: "Error loading explorations",
