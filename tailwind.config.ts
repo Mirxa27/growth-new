@@ -26,11 +26,15 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					glow: 'hsl(var(--primary-glow))',
+					soft: 'hsl(var(--primary-soft))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					foreground: 'hsl(var(--secondary-foreground))',
+					glow: 'hsl(var(--secondary-glow))',
+					soft: 'hsl(var(--secondary-soft))'
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
@@ -50,18 +54,42 @@ export default {
 				},
 				card: {
 					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
+					foreground: 'hsl(var(--card-foreground))',
+					border: 'hsl(var(--card-border))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
+				glass: {
+					bg: 'hsla(var(--glass-bg))',
+					border: 'hsla(var(--glass-border))',
+					ambient: 'hsla(var(--glass-ambient))',
+					glow: 'hsla(var(--glass-glow))'
 				}
+			},
+			fontFamily: {
+				hero: 'var(--font-hero)',
+				body: 'var(--font-body)'
+			},
+			fontSize: {
+				hero: 'var(--text-hero)',
+				display: 'var(--text-display)',
+				heading: 'var(--text-heading)'
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-ambient': 'var(--gradient-ambient)',
+				'gradient-glow': 'var(--gradient-glow)',
+				'gradient-aurora': 'var(--gradient-aurora)'
+			},
+			backdropBlur: {
+				glass: 'var(--glass-blur)'
+			},
+			boxShadow: {
+				glass: 'var(--shadow-glass)',
+				glow: 'var(--shadow-glow)',
+				ambient: 'var(--shadow-ambient)'
+			},
+			transitionTimingFunction: {
+				smooth: 'cubic-bezier(0.23, 1, 0.32, 1)',
+				bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
