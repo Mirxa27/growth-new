@@ -32,15 +32,19 @@ interface AdminStats {
   totalMessages: number;
 }
 
-interface User {
+interface AdminUser {
   id: string;
   user_id: string;
   display_name?: string;
-  email: string;
+  masked_email: string;
   subscription_tier: string;
   crystals_count: number;
   created_at: string;
   last_login_at?: string;
+  role: string;
+  level_progress: number;
+  login_streak_count: number;
+  updated_at: string;
 }
 
 interface Exploration {
@@ -62,7 +66,7 @@ const AdminDashboard = () => {
     completedSessions: 0,
     totalMessages: 0
   });
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [explorations, setExplorations] = useState<Exploration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedExploration, setSelectedExploration] = useState<Exploration | null>(null);
@@ -147,7 +151,7 @@ const AdminDashboard = () => {
         category: item.category,
         difficulty_level: item.difficulty_level,
         is_active: item.is_active,
-        questions: Array.isArray(item.questions) ? item.questions : [],
+        questions: Array.isArray(item.questions) ? item.questions.filter((q): q is string => typeof q === 'string') : [],
         created_at: item.created_at
       }));
       

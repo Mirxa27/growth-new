@@ -132,11 +132,11 @@ const Chat = () => {
         id: session.id,
         exploration_id: session.exploration_id,
         current_question: session.current_question,
-        user_answers: Array.isArray(session.user_answers) ? session.user_answers : [],
-        status: session.status,
+        user_answers: Array.isArray(session.user_answers) ? session.user_answers.filter((answer): answer is string => typeof answer === 'string') : [],
+        status: session.status as 'in-progress' | 'completed',
         exploration: session.explorations ? {
           title: session.explorations.title,
-          questions: Array.isArray(session.explorations.questions) ? session.explorations.questions : [],
+          questions: Array.isArray(session.explorations.questions) ? session.explorations.questions.filter((q): q is string => typeof q === 'string') : [],
           facilitator_prompt: session.explorations.facilitator_prompt,
           higher_self_prompt: session.explorations.higher_self_prompt
         } : undefined
