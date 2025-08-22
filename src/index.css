@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,10 +11,10 @@
     --background: 240 15% 4%;
     --foreground: 310 25% 95%;
 
-    /* Glass Morphism System */
-    --glass-bg: 320 40% 15% / 0.08;
-    --glass-border: 320 60% 70% / 0.12;
-    --glass-blur: 24px;
+    /* Glass Morphism System - Updated Tokens */
+    --glass-bg: 255 255 255 / 0.08;
+    --glass-border: 255 255 255 / 0.12;
+    --glass-blur: 18px;
     --glass-ambient: 320 80% 80% / 0.15;
     --glass-glow: 280 100% 70% / 0.25;
 
@@ -58,9 +59,10 @@
     --gradient-glow: radial-gradient(circle at 50% 50%, hsl(320 100% 75% / 0.15), transparent 70%);
     --gradient-aurora: linear-gradient(45deg, hsl(320 85% 65% / 0.3), hsl(280 70% 60% / 0.2), hsl(240 60% 70% / 0.1));
 
-    /* Animation & Motion */
-    --transition-smooth: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    --transition-bounce: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Animation & Motion - Spring Curves & Micro-interactions */
+    --transition-smooth: all 0.12s cubic-bezier(0.4, 0.0, 0.2, 1);
+    --transition-bounce: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-spring: all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     --animation-float: float 6s ease-in-out infinite;
     --animation-glow: glow 3s ease-in-out infinite alternate;
 
@@ -72,7 +74,7 @@
     --text-heading: clamp(1.5rem, 4vw, 2.5rem);
 
     /* Shadows & Effects */
-    --shadow-glass: 0 8px 32px hsl(320 85% 65% / 0.12), inset 0 1px 0 hsl(320 60% 70% / 0.1);
+    --shadow-glass: 0 8px 32px hsl(320 85% 65% / 0.12), inset 0 1px 0 hsl(var(--glass-border));
     --shadow-glow: 0 0 60px hsl(320 100% 75% / 0.3), 0 0 100px hsl(280 90% 70% / 0.2);
     --shadow-ambient: 0 25px 50px hsl(240 15% 4% / 0.5);
   }
@@ -80,7 +82,8 @@
   .dark {
     /* Enhanced dark mode with deeper purples */
     --background: 240 20% 2%;
-    --glass-bg: 320 50% 10% / 0.1;
+    --glass-bg: 255 255 255 / 0.06;
+    --glass-border: 255 255 255 / 0.1;
     --glass-glow: 320 100% 80% / 0.3;
     --primary: 320 90% 70%;
     --primary-glow: 320 100% 80%;
@@ -99,9 +102,28 @@
     position: relative;
     overflow-x: hidden;
     font-family: var(--font-body);
+    min-height: 100vh;
   }
 
+  /* Fixed Background with Glassmorphic Blur */
   body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/lovable-uploads/0bc3b7a2-ed8d-46d5-852c-306deb0dd3ec.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    opacity: 0.3;
+    z-index: -2;
+    pointer-events: none;
+  }
+
+  body::after {
     content: '';
     position: fixed;
     top: 0;
@@ -117,12 +139,13 @@
 
   /* Glass Morphism Utilities */
   .glass {
-    background: hsla(var(--glass-bg));
+    background: rgba(var(--glass-bg));
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid hsla(var(--glass-border));
+    border: 1px solid rgba(var(--glass-border));
     box-shadow: var(--shadow-glass);
     position: relative;
+    transition: var(--transition-spring);
   }
 
   .glass-card {
@@ -134,11 +157,18 @@
   }
 
   .glass-button {
-    @apply glass hover:bg-glass-ambient/10 transition-all duration-300;
+    @apply glass hover:bg-glass-ambient/10;
+    transition: var(--transition-smooth);
   }
 
   .glass-input {
-    @apply glass bg-glass-bg/50 focus:bg-glass-bg/70 transition-all duration-300;
+    @apply glass;
+    background: rgba(var(--glass-bg));
+    transition: var(--transition-smooth);
+  }
+
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.12);
   }
 
   .glass::before {
@@ -148,7 +178,7 @@
     border-radius: inherit;
     padding: 1px;
     background: linear-gradient(135deg, 
-      hsla(var(--glass-ambient)), 
+      rgba(var(--glass-border)), 
       transparent 50%, 
       hsla(var(--glass-glow))
     );
@@ -198,9 +228,9 @@
     50% { opacity: 0.6; transform: translateX(10%); }
   }
 
-  /* Interactive States */
+  /* Interactive States with Spring Animation */
   .interactive {
-    transition: var(--transition-smooth);
+    transition: var(--transition-spring);
     cursor: pointer;
   }
 
@@ -211,11 +241,22 @@
 
   .interactive:active {
     transform: translateY(0);
+    transition: var(--transition-smooth);
+  }
+
+  /* Micro-interactions */
+  .micro-bounce:active {
+    transform: scale(0.95);
+    transition: var(--transition-smooth);
   }
 
   /* Responsive Design */
   @media (max-width: 768px) {
     body::before {
+      opacity: 0.2;
+    }
+    
+    body::after {
       opacity: 0.2;
     }
     
@@ -225,7 +266,7 @@
     }
   }
 
-  /* Accessibility */
+  /* Accessibility - Prefers Reduced Motion */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -235,8 +276,12 @@
       transition-duration: 0.01ms !important;
     }
     
-    body::before {
+    body::after {
       animation: none;
+    }
+    
+    .interactive:hover {
+      transform: none;
     }
   }
 

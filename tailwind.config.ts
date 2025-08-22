@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -58,8 +59,8 @@ export default {
 					border: 'hsl(var(--card-border))'
 				},
 				glass: {
-					bg: 'hsla(var(--glass-bg))',
-					border: 'hsla(var(--glass-border))',
+					bg: 'rgba(var(--glass-bg))',
+					border: 'rgba(var(--glass-border))',
 					ambient: 'hsla(var(--glass-ambient))',
 					glow: 'hsla(var(--glass-glow))'
 				}
@@ -88,8 +89,13 @@ export default {
 				ambient: 'var(--shadow-ambient)'
 			},
 			transitionTimingFunction: {
-				smooth: 'cubic-bezier(0.23, 1, 0.32, 1)',
-				bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)'
+				smooth: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+				bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+				spring: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+			},
+			transitionDuration: {
+				'micro': '100ms',
+				'quick': '150ms'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -112,11 +118,27 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0) rotate(0deg) scale(1)' },
+					'33%': { transform: 'translateY(-20px) rotate(1deg) scale(1.02)' },
+					'66%': { transform: 'translateY(10px) rotate(-1deg) scale(0.98)' }
+				},
+				'glow': {
+					'from': { filter: 'brightness(1) saturate(1)' },
+					'to': { filter: 'brightness(1.2) saturate(1.3)' }
+				},
+				'micro-bounce': {
+					'0%, 100%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(0.95)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'float': 'float 6s ease-in-out infinite',
+				'glow': 'glow 3s ease-in-out infinite alternate',
+				'micro-bounce': 'micro-bounce 0.1s ease-out'
 			}
 		}
 	},
