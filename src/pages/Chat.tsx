@@ -1,41 +1,96 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Send, Mic, MicOff, Sparkles, Heart, Brain, Loader2 } from 'lucide-react';
+import { 
+  Mic, 
+  MicOff, 
+  Send, 
+  Sparkles, 
+  Volume2, 
+  VolumeX,
+  MessageCircle,
+  Zap
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
 
 interface Message {
   id: string;
-  content: string;
   role: 'user' | 'assistant';
-  created_at: string;
-  emotional_tone?: any;
+  content: string;
+  timestamp: Date;
+  audio_url?: string;
+}
+
+interface ExplorationSession {
+  id: string;
+  exploration_id: string;
+  current_question: number;
+  user_answers: string[];
+  status: 'in-progress' | 'completed';
+  exploration?: {
+    title: string;
+    questions: string[];
+    facilitator_prompt: string;
+    higher_self_prompt: string;
+  };
 }
 
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [inputMessage, setInputMessage] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [explorationSession, setExplorationSession] = useState<ExplorationSession | null>(null);
+  const [headline, setHeadline] = useState('');
+  
   const { user } = useAuth();
   const { toast } = useToast();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [searchParams] = useSearchParams();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
+    generateHeadline();
     initializeConversation();
-  }, []);
+    
+    const sessionId = searchParams.get('session');
+    if (sessionId) {
+      loadExplorationSession(sessionId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const generateHeadline = async () => {
+    const headlines = [
+      "Ready to explore the depths of your potential?",
+      "What whispers does your inner wisdom have today?",
+      "Let's unlock the mysteries within your heart.",
+      "Your journey of self-discovery continues here.",
+      "What would your highest self want to tell you?",
+      "Ready to dive deep into your authentic truth?",
+      "Let's explore the beautiful complexity of you.",
+      "What patterns are ready to be transformed today?"
+    ];
+    
+    setHeadline(headlines[Math.floor(Math.random() * headlines.length)]);
+  };
 
   const initializeConversation = async () => {
     try {
@@ -43,99 +98,154 @@ const Chat = () => {
         .from('conversations')
         .insert({
           user_id: user?.id,
-          title: 'New Conversation',
-          ai_provider: 'openai'
+          title: 'New Conversation'
         })
         .select()
         .single();
 
       if (error) throw error;
       setConversationId(data.id);
+    } catch (error: any) {
+      console.error('Error creating conversation:', error);
+    }
+  };
 
-      // Add welcome message
-      const welcomeMessage: Message = {
-        id: 'welcome',
-        content: `Hello! I'm NewMe, your personal AI companion for growth and self-discovery. I'm here to listen, understand, and guide you on your journey. What's on your mind today?`,
-        role: 'assistant',
-        created_at: new Date().toISOString(),
-        emotional_tone: { warmth: 0.9, empathy: 0.8 }
+  const loadExplorationSession = async (sessionId: string) => {
+    try {
+      const { data: session, error: sessionError } = await supabase
+        .from('exploration_sessions')
+        .select(`
+          *,
+          explorations:exploration_id (
+            title,
+            questions,
+            facilitator_prompt,
+            higher_self_prompt
+          )
+        `)
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      const sessionData: ExplorationSession = {
+        id: session.id,
+        exploration_id: session.exploration_id,
+        current_question: session.current_question,
+        user_answers: Array.isArray(session.user_answers) ? session.user_answers : [],
+        status: session.status,
+        exploration: session.explorations ? {
+          title: session.explorations.title,
+          questions: Array.isArray(session.explorations.questions) ? session.explorations.questions : [],
+          facilitator_prompt: session.explorations.facilitator_prompt,
+          higher_self_prompt: session.explorations.higher_self_prompt
+        } : undefined
       };
+
+      setExplorationSession(sessionData);
+
+      // Add welcome message for exploration
+      const welcomeMessage: Message = {
+        id: 'welcome-exploration',
+        role: 'assistant',
+        content: `Welcome to "${sessionData.exploration?.title}". I'm here to guide you through this transformative journey. Let's begin with our first question:\n\n${sessionData.exploration?.questions[sessionData.current_question] || 'Loading question...'}`,
+        timestamp: new Date()
+      };
+
       setMessages([welcomeMessage]);
     } catch (error: any) {
       toast({
-        title: "Error starting conversation",
+        title: "Error loading exploration",
         description: error.message,
         variant: "destructive"
       });
     }
   };
 
-  const scrollToBottom = () => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        await processAudioMessage(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      toast({
+        title: "Recording failed",
+        description: "Could not access microphone",
+        variant: "destructive"
+      });
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading || !conversationId) return;
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
+  const processAudioMessage = async (audioBlob: Blob) => {
+    // For now, we'll simulate transcription and add the message as text
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input.trim(),
       role: 'user',
-      created_at: new Date().toISOString()
+      content: '[Voice message - transcription would be implemented with a speech-to-text service]',
+      timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    await sendMessageToAI(userMessage.content);
+  };
+
+  const sendTextMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    
+    await sendMessageToAI(userMessage.content);
+  };
+
+  const sendMessageToAI = async (userContent: string) => {
     setLoading(true);
-
     try {
-      // Save user message
-      await supabase
-        .from('messages')
-        .insert({
+      // Save user message to database
+      if (conversationId) {
+        await supabase.from('messages').insert({
           conversation_id: conversationId,
           user_id: user?.id,
-          content: userMessage.content,
-          role: 'user'
+          role: 'user',
+          content: userContent
         });
+      }
 
-      // Simulate AI response (In production, this would call your AI service)
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-      const responses = [
-        "I hear you, and I want you to know that what you're feeling is completely valid. Sometimes our inner world can feel overwhelming, but remember that growth often comes from these challenging moments. What aspect of this situation feels most important to explore right now?",
-        "That's a beautiful insight you've shared. I can sense the depth of your reflection in what you've told me. These moments of self-awareness are precious - they're the foundation of personal transformation. How does acknowledging this make you feel?",
-        "Thank you for trusting me with your thoughts. I can feel the courage it takes to be this honest with yourself. Your willingness to explore these feelings shows incredible strength. What would it mean for you to fully embrace this part of yourself?",
-        "I'm moved by your openness. The fact that you're questioning, exploring, and seeking deeper understanding shows how committed you are to your growth. Sometimes the most profound changes begin with exactly these kinds of conversations. What feels like the next step for you?",
-        "Your words resonate with such authenticity. I can sense both vulnerability and strength in what you've shared. This balance - being open to growth while honoring where you are right now - is truly beautiful. How can we build on this awareness together?"
-      ];
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: responses[Math.floor(Math.random() * responses.length)],
-        role: 'assistant',
-        created_at: new Date().toISOString(),
-        emotional_tone: { warmth: 0.8, empathy: 0.9, wisdom: 0.7 }
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-
-      // Save AI message
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          user_id: user?.id,
-          content: aiMessage.content,
-          role: 'assistant',
-          emotional_tone: aiMessage.emotional_tone
-        });
-
+      // Handle exploration session logic
+      if (explorationSession && explorationSession.status === 'in-progress') {
+        await handleExplorationResponse(userContent);
+      } else {
+        // Regular conversation
+        await handleRegularConversation(userContent);
+      }
     } catch (error: any) {
       toast({
         title: "Error sending message",
@@ -147,147 +257,284 @@ const Chat = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const handleExplorationResponse = async (userContent: string) => {
+    if (!explorationSession || !explorationSession.exploration) return;
+
+    const currentAnswers = [...explorationSession.user_answers, userContent];
+    const nextQuestion = explorationSession.current_question + 1;
+
+    // Update session with user's answer
+    await supabase
+      .from('exploration_sessions')
+      .update({
+        user_answers: currentAnswers,
+        current_question: nextQuestion
+      })
+      .eq('id', explorationSession.id);
+
+    if (nextQuestion < explorationSession.exploration.questions.length) {
+      // Move to next question
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `Thank you for sharing. ${explorationSession.exploration.questions[nextQuestion]}`,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      setExplorationSession(prev => prev ? {
+        ...prev,
+        current_question: nextQuestion,
+        user_answers: currentAnswers
+      } : null);
+    } else {
+      // All questions answered, provide analysis
+      await generateExplorationAnalysis(currentAnswers);
     }
   };
 
-  const toggleVoice = () => {
-    setIsListening(!isListening);
-    // Voice functionality would be implemented here
+  const generateExplorationAnalysis = async (answers: string[]) => {
+    if (!explorationSession || !explorationSession.exploration) return;
+
+    // This would integrate with OpenAI API to generate the analysis
+    const analysisPrompt = `
+      ${explorationSession.exploration.higher_self_prompt}
+      
+      User's answers to the exploration questions:
+      ${answers.map((answer, index) => `${index + 1}. ${answer}`).join('\n')}
+      
+      Please provide a comprehensive analysis following the structured format.
+    `;
+
+    // For now, provide a structured analysis template
+    const analysis = {
+      corePattern: "Based on your responses, I see a pattern of seeking authentic connection while navigating boundaries.",
+      hiddenPotential: "Your responses reveal an untapped capacity for intuitive leadership and creative problem-solving.",
+      actionableSteps: [
+        "Practice daily mindfulness to strengthen your inner voice",
+        "Set aside time weekly for creative expression",
+        "Engage in one meaningful conversation each day"
+      ],
+      affirmations: [
+        "I trust my inner wisdom to guide me",
+        "I am worthy of the love and success I desire",
+        "My authentic self is my greatest strength"
+      ],
+      encouragement: "You've shown incredible courage in this exploration. Trust the insights that have emerged and take them forward with confidence."
+    };
+
+    // Update session as completed
+    await supabase
+      .from('exploration_sessions')
+      .update({
+        status: 'completed',
+        final_analysis: analysis,
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', explorationSession.id);
+
+    // Award crystals
+    await supabase.rpc('award_crystals', {
+      user_id_input: user?.id,
+      crystal_amount: 100
+    });
+
+    const analysisMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: `🌟 **Exploration Complete!** 🌟
+
+**Core Pattern Discovered:**
+${analysis.corePattern}
+
+**Hidden Potential:**
+${analysis.hiddenPotential}
+
+**Your Action Steps:**
+${analysis.actionableSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+**Daily Affirmations:**
+${analysis.affirmations.map(affirmation => `• ${affirmation}`).join('\n')}
+
+**Encouragement:**
+${analysis.encouragement}
+
+You've earned 100 crystals for completing this profound journey! 💎`,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, analysisMessage]);
+    setExplorationSession(prev => prev ? { ...prev, status: 'completed' } : null);
+
     toast({
-      title: isListening ? "Voice recording stopped" : "Voice recording started",
-      description: isListening ? "Processing your message..." : "Speak now, I'm listening..."
+      title: "Exploration Complete! 🎉",
+      description: "You've earned 100 crystals for your insights!",
     });
   };
 
-  return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-      {/* Header */}
-      <div className="glass border-b border-glass px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="font-semibold">NewMe</h1>
-            <p className="text-sm text-muted-foreground">Your AI Companion</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              <Heart className="w-3 h-3 mr-1" />
-              Empathetic
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              <Brain className="w-3 h-3 mr-1" />
-              Wise
-            </Badge>
-          </div>
-        </div>
-      </div>
+  const handleRegularConversation = async (userContent: string) => {
+    // Simulate AI response for regular conversation
+    const responses = [
+      "That's a profound reflection. What feelings come up for you when you think about that more deeply?",
+      "I can sense the wisdom in your words. How does this connect to your journey of growth?",
+      "Thank you for sharing that with me. What would it look like if you trusted this insight completely?",
+      "Your awareness is beautiful. What small step could you take today to honor what you've discovered?",
+      "I'm hearing something important in what you've shared. How does this relate to who you're becoming?"
+    ];
 
-      {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 py-4">
-        <div className="space-y-4 max-w-4xl mx-auto">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.role === 'assistant' && (
-                <Avatar className="w-8 h-8 mt-1">
-                  <AvatarFallback className="bg-gradient-primary text-white text-sm">
-                    N
-                  </AvatarFallback>
-                </Avatar>
+    const assistantMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: responses[Math.floor(Math.random() * responses.length)],
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    // Save AI response to database
+    if (conversationId) {
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        user_id: user?.id,
+        role: 'assistant',
+        content: assistantMessage.content
+      });
+    }
+  };
+
+  const toggleSpeaking = () => {
+    setIsSpeaking(!isSpeaking);
+    // This would integrate with text-to-speech functionality
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              NewMe AI Companion
+            </h1>
+          </div>
+          <p className="text-muted-foreground italic">
+            {headline}
+          </p>
+        </div>
+
+        {/* Chat Interface */}
+        <Card className="glass-card border-glass h-[60vh] flex flex-col">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageCircle className="w-5 h-5" />
+              {explorationSession ? 
+                `Exploration: ${explorationSession.exploration?.title || 'Loading...'}` : 
+                'Open Conversation'
+              }
+              {explorationSession && explorationSession.status === 'in-progress' && (
+                <div className="flex items-center gap-1 text-sm text-accent">
+                  <Zap className="w-4 h-4" />
+                  Question {explorationSession.current_question + 1}/{explorationSession.exploration?.questions.length || 0}
+                </div>
               )}
-              
-              <div
-                className={`max-w-[80%] md:max-w-[60%] rounded-2xl px-4 py-3 ${
-                  message.role === 'user'
-                    ? 'bg-gradient-primary text-white ml-auto'
-                    : 'glass border-glass'
-                }`}
-              >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {message.content}
-                </p>
-                {message.emotional_tone && (
-                  <div className="flex gap-1 mt-2">
-                    {Object.entries(message.emotional_tone).map(([emotion, level]) => (
-                      <Badge key={emotion} variant="secondary" className="text-xs opacity-60">
-                        {emotion}: {Math.round((level as number) * 100)}%
-                      </Badge>
-                    ))}
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="flex-1 flex flex-col p-0">
+            <ScrollArea className="flex-1 px-6">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`flex items-start gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className={message.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}>
+                          {message.role === 'user' ? 'You' : 'AI'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className={`p-3 rounded-2xl ${
+                        message.role === 'user' 
+                          ? 'bg-primary text-white ml-auto' 
+                          : 'glass border-glass'
+                      }`}>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-secondary text-white">AI</AvatarFallback>
+                      </Avatar>
+                      <div className="glass border-glass p-3 rounded-2xl">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-75"></div>
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
+              <div ref={messagesEndRef} />
+            </ScrollArea>
 
-              {message.role === 'user' && (
-                <Avatar className="w-8 h-8 mt-1">
-                  <AvatarFallback className="bg-secondary text-white text-sm">
-                    {user?.email?.[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-          
-          {loading && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="w-8 h-8 mt-1">
-                <AvatarFallback className="bg-gradient-primary text-white text-sm">
-                  N
-                </AvatarFallback>
-              </Avatar>
-              <div className="glass border-glass rounded-2xl px-4 py-3">
+            {/* Input Area */}
+            <div className="p-6 border-t border-glass">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 flex items-center gap-2">
+                  <Input
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Share what's on your mind..."
+                    onKeyPress={(e) => e.key === 'Enter' && sendTextMessage()}
+                    disabled={loading}
+                    className="glass border-glass"
+                  />
+                  <Button
+                    onClick={sendTextMessage}
+                    disabled={!inputMessage.trim() || loading}
+                    size="icon"
+                    className="bg-gradient-primary"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+                
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">NewMe is thinking...</span>
+                  <Button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    variant={isRecording ? "destructive" : "outline"}
+                    size="icon"
+                    className={isRecording ? "" : "glass"}
+                  >
+                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </Button>
+                  
+                  <Button
+                    onClick={toggleSpeaking}
+                    variant="outline"
+                    size="icon"
+                    className="glass"
+                  >
+                    {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Input Area */}
-      <div className="glass border-t border-glass px-4 py-4 pb-8 md:pb-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Share what's on your mind..."
-                className="min-h-[60px] max-h-32 resize-none glass-input"
-                disabled={loading}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={toggleVoice}
-                variant="outline"
-                size="icon"
-                className={`glass-button ${isListening ? 'bg-red-500/20 text-red-400' : ''}`}
-              >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </Button>
-              <Button
-                onClick={sendMessage}
-                disabled={!input.trim() || loading}
-                className="bg-gradient-primary hover:opacity-90"
-                size="icon"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
