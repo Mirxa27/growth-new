@@ -125,6 +125,22 @@
     position: relative;
   }
 
+  .glass-card {
+    @apply glass rounded-2xl;
+  }
+
+  .glass-nav {
+    @apply glass border-b;
+  }
+
+  .glass-button {
+    @apply glass hover:bg-glass-ambient/10 transition-all duration-300;
+  }
+
+  .glass-input {
+    @apply glass bg-glass-bg/50 focus:bg-glass-bg/70 transition-all duration-300;
+  }
+
   .glass::before {
     content: '';
     position: absolute;
