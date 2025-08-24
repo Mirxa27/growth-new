@@ -44,7 +44,17 @@ export const PersonalityAssessment = ({ onComplete }: PersonalityAssessmentProps
         .order('order_index');
 
       if (error) throw error;
-      setQuestions(data || []);
+      
+      // Transform the data to match our interface, properly casting JSON fields
+      const transformedQuestions = (data || []).map(question => ({
+        id: question.id,
+        question_text: question.question_text,
+        options: Array.isArray(question.options) ? question.options as string[] : [],
+        category: question.category,
+        order_index: question.order_index
+      }));
+      
+      setQuestions(transformedQuestions);
     } catch (error) {
       console.error('Error fetching questions:', error);
       toast({

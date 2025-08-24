@@ -59,7 +59,17 @@ export const ExplorationSession = ({ explorationId, onComplete, onCancel }: Expl
         .single();
 
       if (explorationError) throw explorationError;
-      setExploration(explorationData);
+      
+      // Transform the data to match our interface, properly casting JSON fields
+      const transformedExploration: Exploration = {
+        id: explorationData.id,
+        title: explorationData.title,
+        questions: Array.isArray(explorationData.questions) ? explorationData.questions as string[] : [],
+        facilitator_prompt: explorationData.facilitator_prompt,
+        higher_self_prompt: explorationData.higher_self_prompt
+      };
+      
+      setExploration(transformedExploration);
 
       // Start new session
       const { data: sessionId, error: sessionError } = await supabase.rpc('start_exploration_session', {
