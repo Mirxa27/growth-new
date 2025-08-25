@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSecurityAudit } from '@/hooks/useSecurityAudit';
+import { validationUtils } from '@/lib/validation';
 
 interface AdminUser {
   id: string;
@@ -50,6 +52,7 @@ export const UserManagement = () => {
   const [filterTier, setFilterTier] = useState('all');
   const [userDetailDialog, setUserDetailDialog] = useState(false);
   const { toast } = useToast();
+  const { logAdminAction } = useSecurityAudit();
 
   useEffect(() => {
     loadUsers();
@@ -109,12 +112,24 @@ export const UserManagement = () => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
+      // Validate input
+      if (!validationUtils.validateUUID(userId)) {
+        throw new Error('Invalid user ID format');
+      }
+      
+      if (!['user', 'moderator', 'admin'].includes(newRole)) {
+        throw new Error('Invalid role specified');
+      }
+
       const { error } = await supabase.rpc('update_user_role_secure', {
         target_user_id: userId,
         new_role: newRole,
       });
 
       if (error) throw error;
+
+      // Log admin action
+      await logAdminAction('update_user_role', userId, { new_role: newRole });
 
       toast({
         title: "User role updated",
