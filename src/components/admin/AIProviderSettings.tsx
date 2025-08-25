@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { 
   Bot, 
   Plus, 
@@ -26,10 +27,16 @@ import {
   Wand2,
   ArrowRight,
   ArrowLeft,
-  Info
+  Info,
+  Mic,
+  Volume2,
+  Brain,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { VoiceAgentTrainer } from './VoiceAgentTrainer';
+import { VoiceTestingInterface } from './VoiceTestingInterface';
 
 // Wizard Step Components
 const BasicInfoStep = ({ data, onChange }: { data: any; onChange: (data: any) => void }) => (
