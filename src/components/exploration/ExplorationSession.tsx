@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Exploration {
   id: string;
   title: string;
+  description: string;
   questions: string[];
   facilitator_prompt: string;
   higher_self_prompt: string;
@@ -66,6 +67,7 @@ export const ExplorationSession = () => {
       const transformedExploration: Exploration = {
         id: explorationData.id,
         title: explorationData.title,
+        description: explorationData.description,
         questions: Array.isArray(explorationData.questions) ? explorationData.questions as string[] : [],
         facilitator_prompt: explorationData.facilitator_prompt,
         higher_self_prompt: explorationData.higher_self_prompt
@@ -241,12 +243,16 @@ export const ExplorationSession = () => {
 
   const progress = exploration ? ((currentQuestion + 1) / exploration.questions.length) * 100 : 0;
 
-  if (isAnalysisComplete && analysisResult) {
+  if (isAnalysisComplete && analysisResult && exploration) {
     return (
       <AnalysisResults 
         analysis={analysisResult}
-        explorationTitle={exploration?.title || ''}
-        onComplete={() => navigate('/explorations')}
+        exploration={exploration}
+        onClose={() => navigate('/explorations')}
+        onSaveToJournal={async () => {
+          // Implementation for saving to journal
+          console.log('Save to journal');
+        }}
       />
     );
   }
@@ -257,7 +263,7 @@ export const ExplorationSession = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Button
-            variant="glass"
+            variant="ghost"
             size="sm"
             onClick={() => navigate('/explorations')}
             className="flex items-center gap-2"

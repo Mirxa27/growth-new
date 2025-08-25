@@ -1,290 +1,288 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useNavigate } from 'react-router-dom';
 import { 
-  MessageCircle, 
-  Compass, 
-  BookOpen, 
-  Trophy, 
   Sparkles, 
+  MessageSquare, 
+  BookOpen, 
+  Target, 
   TrendingUp,
-  Heart,
-  Zap,
-  Star
-} from "lucide-react";
+  Calendar,
+  Award,
+  Heart
+} from 'lucide-react';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
+export default function Dashboard() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [recentExplorations, setRecentExplorations] = useState<any[]>([]);
-  const [crystalBalance, setCrystalBalance] = useState(0);
-  const [weeklyProgress, setWeeklyProgress] = useState(0);
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [recentExplorations, setRecentExplorations] = useState([]);
 
   useEffect(() => {
     if (user) {
-      fetchDashboardData();
+      fetchProfile();
+      fetchRecentExplorations();
     }
   }, [user]);
 
-  const fetchDashboardData = async () => {
+  const fetchProfile = async () => {
     try {
-      setLoading(true);
-
-      // Fetch user profile
-      const { data: profile, error: profileError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
+        .eq('user_id', user?.id)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-
-      setUserProfile(profile);
-      setCrystalBalance(profile?.crystal_balance || 0);
-
-      // Fetch recent exploration sessions
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('exploration_sessions')
-        .select(`
-          *,
-          explorations (
-            title,
-            category,
-            crystal_reward
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (sessionsError) throw sessionsError;
-      setRecentExplorations(sessions || []);
-
-      // Calculate weekly progress (mock for now)
-      const completedThisWeek = sessions?.filter(session => 
-        session.status === 'completed' && 
-        new Date(session.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      ).length || 0;
-      
-      setWeeklyProgress(Math.min(completedThisWeek * 25, 100));
-
+      if (error) throw error;
+      setProfile(data);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      });
+      console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickAction = (action: string) => {
-    switch (action) {
-      case 'chat':
-        navigate('/chat');
-        break;
-      case 'explore':
-        navigate('/explorations');
-        break;
-      case 'library':
-        navigate('/library');
-        break;
-      case 'assessment':
-        navigate('/assessment');
-        break;
-      default:
-        console.log('Unknown action:', action);
+  const fetchRecentExplorations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exploration_sessions')
+        .select(`
+          *,
+          explorations(title, description)
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      setRecentExplorations(data || []);
+    } catch (error) {
+      console.error('Error fetching recent explorations:', error);
     }
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
+  const crystalCount = profile?.crystals_count || 0;
+  const level = Math.floor(crystalCount / 100) + 1;
+  const progressToNext = (crystalCount % 100);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-ambient flex items-center justify-center">
-        <div className="text-center">
-          <Sparkles className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your dashboard...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-ambient pb-20 md:pb-0">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 p-4 pb-20">
+      <div className="max-w-6xl mx-auto pt-8">
         {/* Welcome Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {getGreeting()}, {userProfile?.full_name || 'Beautiful Soul'}! ✨
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold gradient-text mb-2">
+            Welcome back, {profile?.display_name || 'Beautiful Soul'}
           </h1>
-          <p className="text-muted-foreground">
-            Ready to continue your journey of self-discovery?
+          <p className="text-lg text-muted-foreground">
+            Continue your journey of self-discovery
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Crystal Balance
-              </CardTitle>
+        <div className="grid gap-6 md:grid-cols-3 mb-8">
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Crystal Balance</CardTitle>
+              <Sparkles className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{crystalBalance}</div>
-              <p className="text-xs text-muted-foreground">Keep exploring to earn more!</p>
+              <div className="text-2xl font-bold text-primary">{crystalCount}</div>
+              <p className="text-xs text-muted-foreground">
+                +23 from last session
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Weekly Progress
-              </CardTitle>
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Current Level</CardTitle>
+              <Award className="h-4 w-4 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-2">{weeklyProgress}%</div>
-              <Progress value={weeklyProgress} className="h-2" />
+              <div className="text-2xl font-bold text-secondary">{level}</div>
+              <Progress value={progressToNext} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-1">
+                {100 - progressToNext} crystals to next level
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Trophy className="w-4 h-4" />
-                Explorations
-              </CardTitle>
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Explorations</CardTitle>
+              <Target className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{recentExplorations.length}</div>
-              <p className="text-xs text-muted-foreground">Recent sessions</p>
+              <div className="text-2xl font-bold text-accent">{recentExplorations.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Completed this month
+              </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
-        <Card className="glass mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              Quick Actions
-            </CardTitle>
-            <CardDescription>Jump into your favorite activities</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button
-                variant="glass"
-                className="h-20 flex-col space-y-2 hover:scale-105 transition-transform"
-                onClick={() => handleQuickAction('chat')}
-              >
-                <MessageCircle className="w-6 h-6" />
-                <span className="text-sm">Chat with NewMe</span>
-              </Button>
-              
-              <Button
-                variant="glass"
-                className="h-20 flex-col space-y-2 hover:scale-105 transition-transform"
-                onClick={() => handleQuickAction('explore')}
-              >
-                <Compass className="w-6 h-6" />
-                <span className="text-sm">Start Exploration</span>
-              </Button>
-              
-              <Button
-                variant="glass"
-                className="h-20 flex-col space-y-2 hover:scale-105 transition-transform"
-                onClick={() => handleQuickAction('library')}
-              >
-                <BookOpen className="w-6 h-6" />
-                <span className="text-sm">Wellness Library</span>
-              </Button>
-              
-              <Button
-                variant="glass"
-                className="h-20 flex-col space-y-2 hover:scale-105 transition-transform"
-                onClick={() => handleQuickAction('assessment')}
-              >
-                <Heart className="w-6 h-6" />
-                <span className="text-sm">Take Assessment</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Explorations */}
-        {recentExplorations.length > 0 && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-primary" />
-                Recent Explorations
-              </CardTitle>
-              <CardDescription>Your journey continues...</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentExplorations.map((session) => (
-                <div
-                  key={session.id}
-                  className="flex items-center justify-between p-4 rounded-lg glass border border-glass-border/30 hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-foreground">
-                      {session.explorations?.title}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {session.explorations?.category} • {new Date(session.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
-                      {session.status}
-                    </Badge>
-                    {session.status === 'completed' && (
-                      <Badge variant="outline" className="text-primary border-primary">
-                        +{session.explorations?.crystal_reward} ✨
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              <Button
-                variant="outline"
-                className="w-full mt-4 glass"
-                onClick={() => navigate('/explorations')}
-              >
-                View All Explorations
-              </Button>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card 
+            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
+            onClick={() => navigate('/chat')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="p-3 rounded-full bg-primary/20 text-primary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold mb-2">Chat with NewMe</h3>
+              <p className="text-sm text-muted-foreground">
+                Start a conversation with your AI companion
+              </p>
             </CardContent>
           </Card>
-        )}
+
+          <Card 
+            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
+            onClick={() => navigate('/explorations')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="p-3 rounded-full bg-secondary/20 text-secondary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
+                <Target className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold mb-2">Explore Themes</h3>
+              <p className="text-sm text-muted-foreground">
+                Dive deep into guided explorations
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
+            onClick={() => navigate('/library')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="p-3 rounded-full bg-accent/20 text-accent mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold mb-2">Wellness Library</h3>
+              <p className="text-sm text-muted-foreground">
+                Access breathing practices and resources
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
+            onClick={() => navigate('/profile')}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="p-3 rounded-full bg-pink-500/20 text-pink-500 mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
+                <Heart className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold mb-2">Your Journal</h3>
+              <p className="text-sm text-muted-foreground">
+                Review insights and progress
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Recent Explorations</CardTitle>
+              <CardDescription>Your latest journey insights</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {recentExplorations.length > 0 ? (
+                <div className="space-y-4">
+                  {recentExplorations.map((session: any) => (
+                    <div key={session.id} className="flex items-center justify-between p-3 glass-surface rounded-lg">
+                      <div>
+                        <p className="font-medium">{session.explorations?.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(session.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
+                        {session.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  No explorations yet. Start your first journey!
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Growth Areas</CardTitle>
+              <CardDescription>Your focus areas for development</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {profile?.growth_areas?.length > 0 ? (
+                <div className="space-y-3">
+                  {profile.growth_areas.map((area: string, index: number) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-sm">{area}</span>
+                      <Progress value={Math.random() * 100} className="w-20 h-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">
+                    Complete the Balance Wheel to set your growth areas
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="glass-button"
+                    onClick={() => navigate('/onboarding')}
+                  >
+                    Take Assessment
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daily Inspiration */}
+        <Card className="glass-card mt-8">
+          <CardContent className="p-8 text-center">
+            <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-4">Today's Inspiration</h3>
+            <p className="text-lg italic text-muted-foreground mb-6">
+              "The journey of self-discovery is not about finding yourself, but creating yourself."
+            </p>
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => navigate('/chat')}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Reflect on This
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

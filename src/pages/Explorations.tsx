@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ExplorationSession } from '@/components/exploration/ExplorationSession';
-import { AnalysisResults } from '@/components/exploration/AnalysisResults';
-import { Clock, Star, Users, Sparkles, Play, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Star, Users, Sparkles, Play } from 'lucide-react';
 
 interface Exploration {
   id: string;
@@ -21,16 +20,12 @@ interface Exploration {
   is_active: boolean;
 }
 
-type ViewState = 'library' | 'session' | 'results';
-
 export default function Explorations() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [explorations, setExplorations] = useState<Exploration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewState, setViewState] = useState<ViewState>('library');
-  const [selectedExploration, setSelectedExploration] = useState<Exploration | null>(null);
-  const [analysisResults, setAnalysisResults] = useState(null);
 
   useEffect(() => {
     fetchExplorations();
@@ -59,48 +54,7 @@ export default function Explorations() {
   };
 
   const handleStartExploration = (exploration: Exploration) => {
-    setSelectedExploration(exploration);
-    setViewState('session');
-  };
-
-  const handleSessionComplete = (analysis: any) => {
-    setAnalysisResults(analysis);
-    setViewState('results');
-  };
-
-  const handleBackToLibrary = () => {
-    setViewState('library');
-    setSelectedExploration(null);
-    setAnalysisResults(null);
-  };
-
-  const handleSaveToJournal = async () => {
-    if (!user || !analysisResults || !selectedExploration) return;
-
-    try {
-      const { error } = await supabase
-        .from('journal_entries')
-        .insert({
-          user_id: user.id,
-          title: `${selectedExploration.title} - Analysis`,
-          content: JSON.stringify(analysisResults),
-          journey_id: selectedExploration.id
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Saved!',
-        description: 'Your analysis has been saved to your journal.'
-      });
-    } catch (error) {
-      console.error('Error saving to journal:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save analysis to journal.',
-        variant: 'destructive'
-      });
-    }
+    navigate(`/explorations/${exploration.id}`);
   };
 
   const getDifficultyColor = (level: string) => {
@@ -129,30 +83,6 @@ export default function Explorations() {
     );
   }
 
-  // Show session interface
-  if (viewState === 'session' && selectedExploration) {
-    return (
-      <ExplorationSession
-        explorationId={selectedExploration.id}
-        onComplete={handleSessionComplete}
-        onCancel={handleBackToLibrary}
-      />
-    );
-  }
-
-  // Show analysis results
-  if (viewState === 'results' && analysisResults && selectedExploration) {
-    return (
-      <AnalysisResults
-        analysis={analysisResults}
-        exploration={selectedExploration}
-        onClose={handleBackToLibrary}
-        onSaveToJournal={handleSaveToJournal}
-      />
-    );
-  }
-
-  // Show explorations library
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 p-4 pb-20">
       <div className="max-w-6xl mx-auto pt-8">
