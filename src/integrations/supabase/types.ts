@@ -838,7 +838,7 @@ export type Database = {
           emotional_state: Json | null
           growth_areas: string[] | null
           id: string
-          is_admin: boolean | null
+          is_admin_backup: boolean | null
           last_login_at: string | null
           level_progress: number | null
           login_streak_count: number | null
@@ -860,7 +860,7 @@ export type Database = {
           emotional_state?: Json | null
           growth_areas?: string[] | null
           id?: string
-          is_admin?: boolean | null
+          is_admin_backup?: boolean | null
           last_login_at?: string | null
           level_progress?: number | null
           login_streak_count?: number | null
@@ -882,7 +882,7 @@ export type Database = {
           emotional_state?: Json | null
           growth_areas?: string[] | null
           id?: string
-          is_admin?: boolean | null
+          is_admin_backup?: boolean | null
           last_login_at?: string | null
           level_progress?: number | null
           login_streak_count?: number | null
@@ -1499,7 +1499,7 @@ export type Database = {
           emotional_state: Json | null
           growth_areas: string[] | null
           id: string
-          is_admin: boolean | null
+          is_admin_backup: boolean | null
           last_login_at: string | null
           level_progress: number | null
           login_streak_count: number | null
