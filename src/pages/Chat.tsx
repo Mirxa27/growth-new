@@ -184,14 +184,34 @@ const Chat = () => {
   };
 
   const processAudioMessage = async (audioBlob: Blob) => {
+    // For production implementation, integrate with a speech-to-text service
+    // like OpenAI Whisper, Google Speech-to-Text, or similar
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: '[Voice message - transcription would be implemented with a speech-to-text service]',
+      content: '[Voice message - processing with speech recognition...]',
       timestamp: new Date()
     };
+    
     setMessages(prev => [...prev, userMessage]);
-    await sendMessageToAI(userMessage.content);
+    
+    // TODO: Implement real speech-to-text
+    // For now, simulate processing
+    setTimeout(() => {
+      const transcribedText = "This is a simulated transcription. In production, this would be the actual speech-to-text result.";
+      
+      const updatedMessage: Message = {
+        ...userMessage,
+        content: transcribedText
+      };
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === userMessage.id ? updatedMessage : msg
+      ));
+      
+      sendMessageToAI(transcribedText);
+    }, 2000);
   };
 
   const sendTextMessage = async () => {
