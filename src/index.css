@@ -232,11 +232,14 @@
   .interactive {
     transition: var(--transition-spring);
     cursor: pointer;
+    position: relative;
+    z-index: 1;
   }
 
   .interactive:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-glow);
+    z-index: 2;
   }
 
   .interactive:active {
@@ -248,6 +251,21 @@
   .micro-bounce:active {
     transform: scale(0.95);
     transition: var(--transition-smooth);
+  }
+
+  /* Ensure all buttons are clickable */
+  button, [role="button"], .cursor-pointer {
+    position: relative;
+    z-index: 1;
+  }
+
+  button:hover, [role="button"]:hover, .cursor-pointer:hover {
+    z-index: 2;
+  }
+
+  /* Debug mode to identify unclickable elements */
+  [style*="pointer-events: none"] {
+    border: 1px dashed red !important;
   }
 
   /* Responsive Design */

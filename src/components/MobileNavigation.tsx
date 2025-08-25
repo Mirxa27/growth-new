@@ -63,15 +63,15 @@ export const MobileNavigation = () => {
       {/* Glassmorphic Background with Gradient Border */}
       <div className="relative">
         {/* Glow Effect */}
-        <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-xl transform scale-110"></div>
+        <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-xl transform scale-110 pointer-events-none"></div>
         
         {/* Main Navigation Container */}
-        <nav className="relative glass border-t border-glass-border/30 mx-2 mb-2 rounded-2xl overflow-hidden">
+        <nav className="relative glass border-t border-glass-border/30 mx-2 mb-2 rounded-2xl overflow-hidden z-10">
           {/* Aurora Background Effect */}
-          <div className="absolute inset-0 bg-gradient-aurora opacity-30 animate-float"></div>
+          <div className="absolute inset-0 bg-gradient-aurora opacity-30 animate-float pointer-events-none"></div>
           
           {/* Navigation Items */}
-          <div className="relative flex justify-around items-center px-2 py-3">
+          <div className="relative flex justify-around items-center px-2 py-3 z-20">
             {navItems.map((item, index) => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -90,12 +90,12 @@ export const MobileNavigation = () => {
                 >
                   {/* Active Background Glow */}
                   {active && (
-                    <div className="absolute inset-0 bg-primary/10 rounded-xl blur-sm animate-glow"></div>
+                    <div className="absolute inset-0 bg-primary/10 rounded-xl blur-sm animate-glow pointer-events-none"></div>
                   )}
                   
                   {/* Icon Container with Glass Effect */}
                   <div className={cn(
-                    "relative mb-1 p-2 rounded-lg transition-all duration-300",
+                    "relative mb-1 p-2 rounded-lg transition-all duration-300 z-10",
                     active 
                       ? "glass-glow bg-primary/20" 
                       : "group-hover:glass group-hover:bg-glass-ambient/10"
@@ -107,13 +107,13 @@ export const MobileNavigation = () => {
                     
                     {/* Active Indicator Dot */}
                     {active && (
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse pointer-events-none"></div>
                     )}
                   </div>
                   
                   {/* Label */}
                   <span className={cn(
-                    "text-xs font-medium truncate transition-all duration-300",
+                    "text-xs font-medium truncate transition-all duration-300 relative z-10",
                     active 
                       ? "text-primary font-semibold" 
                       : "text-muted-foreground group-hover:text-foreground"
@@ -122,7 +122,7 @@ export const MobileNavigation = () => {
                   </span>
 
                   {/* Ripple Effect on Press */}
-                  <div className="absolute inset-0 rounded-xl opacity-0 group-active:opacity-100 bg-white/10 animate-micro-bounce"></div>
+                  <div className="absolute inset-0 rounded-xl opacity-0 group-active:opacity-100 bg-white/10 animate-micro-bounce pointer-events-none"></div>
                 </button>
               );
             })}

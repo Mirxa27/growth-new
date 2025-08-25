@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { useEffect } from "react";
+import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PublicAssessment from "./pages/PublicAssessment";
@@ -19,7 +21,20 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    // Debug and fix pointer events issues in development
+    if (process.env.NODE_ENV === 'development') {
+      const timer = setTimeout(() => {
+        debugPointerEvents();
+        autoFixPointerEvents();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -70,6 +85,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
