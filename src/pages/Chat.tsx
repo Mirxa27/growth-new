@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Mic,
   MicOff,
@@ -12,12 +13,14 @@ import {
   Volume2,
   VolumeX,
   MessageCircle,
-  Zap
+  Zap,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
+import { RealtimeVoiceInterface } from '@/components/chat/RealtimeVoiceInterface';
 
 // Type definitions
 interface Message {
@@ -65,6 +68,7 @@ const Chat = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [explorationSession, setExplorationSession] = useState<ExplorationSession | null>(null);
   const [headline, setHeadline] = useState('');
+  const [activeTab, setActiveTab] = useState('voice');
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -435,6 +439,19 @@ You've earned 100 crystals for completing this profound journey! 💎`;
 
   const toggleSpeaking = () => setIsSpeaking(prev => !prev);
 
+  const handleVoiceMessage = useCallback((message: any) => {
+    // Handle voice messages from the realtime interface
+    if (message.type === 'conversation.item.input_audio_transcription.completed') {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: message.transcript,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -450,11 +467,12 @@ You've earned 100 crystals for completing this profound journey! 💎`;
           <p className="text-muted-foreground italic">{headline}</p>
         </header>
 
-        <Card className="glass-card border-glass h-[60vh] flex flex-col">
+        {/* Main Interface Tabs */}
+        <Card className="glass-card border-glass">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
               <MessageCircle className="w-5 h-5" />
-              {explorationSession ? `Exploration: ${explorationSession.exploration?.title || 'Loading...'}` : 'Open Conversation'}
+              {explorationSession ? `Exploration: ${explorationSession.exploration?.title || 'Loading...'}` : 'NewMe Conversation'}
               {explorationSession?.status === 'in-progress' && (
                 <div className="flex items-center gap-1 text-sm text-accent">
                   <Zap className="w-4 h-4" />
@@ -464,69 +482,93 @@ You've earned 100 crystals for completing this profound journey! 💎`;
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col p-0">
-            <ScrollArea className="flex-1 px-6">
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`flex items-start gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className={message.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}>
-                          {message.role === 'user' ? 'You' : 'AI'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className={`p-3 rounded-2xl ${message.role === 'user' ? 'bg-primary text-white ml-auto' : 'glass border-glass'}`}>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-secondary text-white">AI</AvatarFallback>
-                      </Avatar>
-                      <div className="glass border-glass p-3 rounded-2xl">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-75"></div>
-                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
+          <CardContent className="p-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mx-6 mb-4">
+                <TabsTrigger value="voice" className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Voice Chat
+                </TabsTrigger>
+                <TabsTrigger value="text" className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  Text Chat
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="voice" className="px-6 pb-6">
+                <div className="min-h-[60vh] flex items-center justify-center">
+                  <RealtimeVoiceInterface 
+                    onMessage={handleVoiceMessage}
+                    className="w-full"
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="text" className="h-[60vh] flex flex-col">
+                <ScrollArea className="flex-1 px-6">
+                  <div className="space-y-4">
+                    {messages.map((message) => (
+                      <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`flex items-start gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className={message.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}>
+                              {message.role === 'user' ? 'You' : 'AI'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={`p-3 rounded-2xl ${message.role === 'user' ? 'bg-primary text-white ml-auto' : 'glass border-glass'}`}>
+                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                    {loading && (
+                      <div className="flex justify-start">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-secondary text-white">AI</AvatarFallback>
+                          </Avatar>
+                          <div className="glass border-glass p-3 rounded-2xl">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-75"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div ref={messagesEndRef} />
+                </ScrollArea>
+
+                <div className="p-6 border-t border-glass">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 flex items-center gap-2">
+                      <Input
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Share what's on your mind..."
+                        onKeyPress={(e) => e.key === 'Enter' && sendTextMessage()}
+                        disabled={loading}
+                        className="glass border-glass"
+                      />
+                      <Button onClick={sendTextMessage} disabled={!inputMessage.trim() || loading} size="icon" className="bg-gradient-primary">
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={isRecording ? stopRecording : startRecording} variant={isRecording ? "destructive" : "outline"} size="icon" className={isRecording ? "" : "glass"}>
+                        {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      </Button>
+                      <Button onClick={toggleSpeaking} variant="outline" size="icon" className="glass">
+                        {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      </Button>
                     </div>
                   </div>
-                )}
-              </div>
-              <div ref={messagesEndRef} />
-            </ScrollArea>
-
-            <div className="p-6 border-t border-glass">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder="Share what's on your mind..."
-                    onKeyPress={(e) => e.key === 'Enter' && sendTextMessage()}
-                    disabled={loading}
-                    className="glass border-glass"
-                  />
-                  <Button onClick={sendTextMessage} disabled={!inputMessage.trim() || loading} size="icon" className="bg-gradient-primary">
-                    <Send className="w-4 h-4" />
-                  </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button onClick={isRecording ? stopRecording : startRecording} variant={isRecording ? "destructive" : "outline"} size="icon" className={isRecording ? "" : "glass"}>
-                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  </Button>
-                  <Button onClick={toggleSpeaking} variant="outline" size="icon" className="glass">
-                    {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
