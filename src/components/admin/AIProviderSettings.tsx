@@ -651,6 +651,48 @@ export const AIProviderSettings = () => {
     }
   };
 
+  // Render current wizard step
+  const renderWizardStep = () => {
+    if (!selectedTemplate || !selectedProvider) return null;
+
+    const currentStepConfig = selectedTemplate.steps[currentStep];
+    if (!currentStepConfig) return null;
+
+    const stepProps = {
+      data: selectedProvider,
+      onChange: setSelectedProvider,
+      onTest: currentStep === selectedTemplate.steps.length - 1 ? testFromWizard : undefined
+    };
+
+    switch (currentStepConfig.id) {
+      case 'basic':
+        return <BasicInfoStep {...stepProps} />;
+      case 'api':
+        switch (selectedTemplate.provider_type) {
+          case 'openai':
+            return <OpenAIApiStep {...stepProps} />;
+          case 'anthropic':
+            return <AnthropicApiStep {...stepProps} />;
+          case 'elevenlabs':
+            return <ElevenLabsApiStep {...stepProps} />;
+          case 'gemini':
+            return <GeminiApiStep {...stepProps} />;
+          case 'custom':
+            return <CustomApiStep {...stepProps} />;
+          default:
+            return <BasicInfoStep {...stepProps} />;
+        }
+      case 'models':
+        return <ModelsStep {...stepProps} />;
+      case 'voices':
+        return <VoicesStep {...stepProps} />;
+      case 'test':
+        return <TestStep {...stepProps} />;
+      default:
+        return <ModelsVoicesStep {...stepProps} />;
+    }
+  };
+
   const editProvider = (provider: AIProvider) => {
     setSelectedProvider(provider);
     setIsCreating(false);
@@ -952,13 +994,7 @@ export const AIProviderSettings = () => {
 
               {/* Current Step Content */}
               <div className="min-h-[300px]">
-                {selectedTemplate.steps[currentStep] && selectedProvider && (
-                  <selectedTemplate.steps[currentStep].component
-                    data={selectedProvider}
-                    onChange={setSelectedProvider}
-                    onTest={currentStep === selectedTemplate.steps.length - 1 ? testFromWizard : undefined}
-                  />
-                )}
+                {selectedTemplate && selectedProvider && renderWizardStep()}
               </div>
 
               {/* Navigation */}
