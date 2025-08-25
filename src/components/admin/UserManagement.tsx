@@ -109,10 +109,10 @@ export const UserManagement = () => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('update_user_role_secure', {
+        target_user_id: userId,
+        new_role: newRole,
+      });
 
       if (error) throw error;
 
@@ -133,10 +133,10 @@ export const UserManagement = () => {
 
   const updateSubscriptionTier = async (userId: string, newTier: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ subscription_tier: newTier })
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('update_user_subscription_secure', {
+        target_user_id: userId,
+        new_tier: newTier,
+      });
 
       if (error) throw error;
 

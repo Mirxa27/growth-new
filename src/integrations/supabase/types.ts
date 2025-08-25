@@ -1544,6 +1544,14 @@ export type Database = {
         Args: { key_name: string; new_value: Json }
         Returns: boolean
       }
+      update_user_role_secure: {
+        Args: { new_role: string; target_user_id: string }
+        Returns: boolean
+      }
+      update_user_subscription_secure: {
+        Args: { new_tier: string; target_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
