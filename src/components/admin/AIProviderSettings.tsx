@@ -328,7 +328,7 @@ const VoicesStep = ({ data, onChange }: { data: any; onChange: (data: any) => vo
   </div>
 );
 
-const TestStep = ({ data, onTest }: { data: any; onTest: () => void }) => (
+const TestStep = ({ data, onTest }: { data: any; onTest?: () => void }) => (
   <div className="space-y-4">
     <Alert>
       <CheckCircle className="h-4 w-4" />
@@ -345,13 +345,16 @@ const TestStep = ({ data, onTest }: { data: any; onTest: () => void }) => (
         <li>• Voices: {(data.available_voices || []).length} configured</li>
       </ul>
     </div>
-    <Button onClick={onTest} className="w-full">
-      <TestTube className="w-4 h-4 mr-2" />
-      Test Provider Configuration
-    </Button>
+    {onTest && (
+      <Button onClick={onTest} className="w-full">
+        <TestTube className="w-4 h-4 mr-2" />
+        Test Provider Configuration
+      </Button>
+    )}
   </div>
 );
 
+// Interfaces
 interface AIProvider {
   id: string;
   name: string;
@@ -371,7 +374,6 @@ interface WizardStep {
   id: string;
   title: string;
   description: string;
-  component: React.ComponentType<any>;
 }
 
 interface ProviderTemplate {
@@ -385,6 +387,121 @@ interface ProviderTemplate {
   defaultVoices: string[];
 }
 
+// Provider templates
+const providerTemplates: ProviderTemplate[] = [
+  {
+    provider_type: 'openai',
+    name: 'OpenAI',
+    description: 'GPT models, DALL-E, Whisper, and TTS',
+    icon: '🤖',
+    steps: [
+      { id: 'basic', title: 'Basic Info', description: 'Provider name and description' },
+      { id: 'api', title: 'API Configuration', description: 'API key and endpoint settings' },
+      { id: 'models', title: 'Models & Voices', description: 'Configure available models and voices' },
+      { id: 'test', title: 'Test & Verify', description: 'Test the configuration' }
+    ],
+    defaultConfig: {
+      apiVersion: 'v1',
+      temperature: 0.7,
+      maxTokens: 2048,
+      timeout: 30000
+    },
+    defaultModels: [
+      'gpt-5-2025-08-07',
+      'gpt-5-mini-2025-08-07',
+      'gpt-4.1-2025-04-14',
+      'gpt-4o-realtime-preview-2024-12-17'
+    ],
+    defaultVoices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+  },
+  {
+    provider_type: 'anthropic',
+    name: 'Anthropic',
+    description: 'Claude models for advanced reasoning',
+    icon: '🧠',
+    steps: [
+      { id: 'basic', title: 'Basic Info', description: 'Provider name and description' },
+      { id: 'api', title: 'API Configuration', description: 'API key and settings' },
+      { id: 'models', title: 'Models', description: 'Configure available models' },
+      { id: 'test', title: 'Test & Verify', description: 'Test the configuration' }
+    ],
+    defaultConfig: {
+      apiVersion: '2023-06-01',
+      maxTokens: 4096,
+      timeout: 30000
+    },
+    defaultModels: [
+      'claude-opus-4-20250514',
+      'claude-sonnet-4-20250514',
+      'claude-3-5-haiku-20241022'
+    ],
+    defaultVoices: []
+  },
+  {
+    provider_type: 'elevenlabs',
+    name: 'ElevenLabs',
+    description: 'Advanced text-to-speech and voice cloning',
+    icon: '🎙️',
+    steps: [
+      { id: 'basic', title: 'Basic Info', description: 'Provider name and description' },
+      { id: 'api', title: 'API Configuration', description: 'API key and settings' },
+      { id: 'voices', title: 'Voice Configuration', description: 'Configure available voices' },
+      { id: 'test', title: 'Test & Verify', description: 'Test voice synthesis' }
+    ],
+    defaultConfig: {
+      apiVersion: 'v1',
+      stability: 0.5,
+      similarityBoost: 0.75,
+      timeout: 30000
+    },
+    defaultModels: ['eleven_multilingual_v2', 'eleven_turbo_v2_5'],
+    defaultVoices: [
+      'Aria - 9BWtsMINqrJLrRacOk9x',
+      'Roger - CwhRBWXzGAHq8TQ4Fs17',
+      'Sarah - EXAVITQu4vr4xnSDxMaL',
+      'Laura - FGY2WhTYpPnrIDTdsKH5'
+    ]
+  },
+  {
+    provider_type: 'gemini',
+    name: 'Google Gemini',
+    description: 'Google\'s multimodal AI models',
+    icon: '💎',
+    steps: [
+      { id: 'basic', title: 'Basic Info', description: 'Provider name and description' },
+      { id: 'api', title: 'API Configuration', description: 'API key and settings' },
+      { id: 'models', title: 'Models', description: 'Configure available models' },
+      { id: 'test', title: 'Test & Verify', description: 'Test the configuration' }
+    ],
+    defaultConfig: {
+      apiVersion: 'v1',
+      temperature: 0.7,
+      maxOutputTokens: 2048,
+      timeout: 30000
+    },
+    defaultModels: ['gemini-pro', 'gemini-pro-vision', 'gemini-ultra'],
+    defaultVoices: []
+  },
+  {
+    provider_type: 'custom',
+    name: 'Custom Provider',
+    description: 'Configure a custom AI provider',
+    icon: '⚙️',
+    steps: [
+      { id: 'basic', title: 'Basic Info', description: 'Provider name and description' },
+      { id: 'api', title: 'API Configuration', description: 'Custom endpoint and authentication' },
+      { id: 'models', title: 'Models & Voices', description: 'Configure available models and voices' },
+      { id: 'test', title: 'Test & Verify', description: 'Test the configuration' }
+    ],
+    defaultConfig: {
+      timeout: 30000,
+      retries: 3
+    },
+    defaultModels: [],
+    defaultVoices: []
+  }
+];
+
 export const AIProviderSettings = () => {
   const [providers, setProviders] = useState<AIProvider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(null);
@@ -396,121 +513,6 @@ export const AIProviderSettings = () => {
   const [testing, setTesting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
-  // Provider templates with wizard steps
-  const providerTemplates: ProviderTemplate[] = [
-    {
-      provider_type: 'openai',
-      name: 'OpenAI',
-      description: 'GPT models, DALL-E, Whisper, and TTS',
-      icon: '🤖',
-      steps: [
-        { id: 'basic', title: 'Basic Info', description: 'Provider name and description', component: BasicInfoStep },
-        { id: 'api', title: 'API Configuration', description: 'API key and endpoint settings', component: OpenAIApiStep },
-        { id: 'models', title: 'Models & Voices', description: 'Configure available models and voices', component: ModelsVoicesStep },
-        { id: 'test', title: 'Test & Verify', description: 'Test the configuration', component: TestStep }
-      ],
-      defaultConfig: {
-        apiVersion: 'v1',
-        temperature: 0.7,
-        maxTokens: 2048,
-        timeout: 30000
-      },
-      defaultModels: [
-        'gpt-5-2025-08-07',
-        'gpt-5-mini-2025-08-07',
-        'gpt-4.1-2025-04-14',
-        'gpt-4o-realtime-preview-2024-12-17'
-      ],
-      defaultVoices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-    },
-    {
-      provider_type: 'anthropic',
-      name: 'Anthropic',
-      description: 'Claude models for advanced reasoning',
-      icon: '🧠',
-      steps: [
-        { id: 'basic', title: 'Basic Info', description: 'Provider name and description', component: BasicInfoStep },
-        { id: 'api', title: 'API Configuration', description: 'API key and settings', component: AnthropicApiStep },
-        { id: 'models', title: 'Models', description: 'Configure available models', component: ModelsStep },
-        { id: 'test', title: 'Test & Verify', description: 'Test the configuration', component: TestStep }
-      ],
-      defaultConfig: {
-        apiVersion: '2023-06-01',
-        maxTokens: 4096,
-        timeout: 30000
-      },
-      defaultModels: [
-        'claude-opus-4-20250514',
-        'claude-sonnet-4-20250514',
-        'claude-3-5-haiku-20241022'
-      ],
-      defaultVoices: []
-    },
-    {
-      provider_type: 'elevenlabs',
-      name: 'ElevenLabs',
-      description: 'Advanced text-to-speech and voice cloning',
-      icon: '🎙️',
-      steps: [
-        { id: 'basic', title: 'Basic Info', description: 'Provider name and description', component: BasicInfoStep },
-        { id: 'api', title: 'API Configuration', description: 'API key and settings', component: ElevenLabsApiStep },
-        { id: 'voices', title: 'Voice Configuration', description: 'Configure available voices', component: VoicesStep },
-        { id: 'test', title: 'Test & Verify', description: 'Test voice synthesis', component: TestStep }
-      ],
-      defaultConfig: {
-        apiVersion: 'v1',
-        stability: 0.5,
-        similarityBoost: 0.75,
-        timeout: 30000
-      },
-      defaultModels: ['eleven_multilingual_v2', 'eleven_turbo_v2_5'],
-      defaultVoices: [
-        'Aria - 9BWtsMINqrJLrRacOk9x',
-        'Roger - CwhRBWXzGAHq8TQ4Fs17',
-        'Sarah - EXAVITQu4vr4xnSDxMaL',
-        'Laura - FGY2WhTYpPnrIDTdsKH5'
-      ]
-    },
-    {
-      provider_type: 'gemini',
-      name: 'Google Gemini',
-      description: 'Google\'s multimodal AI models',
-      icon: '💎',
-      steps: [
-        { id: 'basic', title: 'Basic Info', description: 'Provider name and description', component: BasicInfoStep },
-        { id: 'api', title: 'API Configuration', description: 'API key and settings', component: GeminiApiStep },
-        { id: 'models', title: 'Models', description: 'Configure available models', component: ModelsStep },
-        { id: 'test', title: 'Test & Verify', description: 'Test the configuration', component: TestStep }
-      ],
-      defaultConfig: {
-        apiVersion: 'v1',
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-        timeout: 30000
-      },
-      defaultModels: ['gemini-pro', 'gemini-pro-vision', 'gemini-ultra'],
-      defaultVoices: []
-    },
-    {
-      provider_type: 'custom',
-      name: 'Custom Provider',
-      description: 'Configure a custom AI provider',
-      icon: '⚙️',
-      steps: [
-        { id: 'basic', title: 'Basic Info', description: 'Provider name and description', component: BasicInfoStep },
-        { id: 'api', title: 'API Configuration', description: 'Custom endpoint and authentication', component: CustomApiStep },
-        { id: 'models', title: 'Models & Voices', description: 'Configure available models and voices', component: ModelsVoicesStep },
-        { id: 'test', title: 'Test & Verify', description: 'Test the configuration', component: TestStep }
-      ],
-      defaultConfig: {
-        timeout: 30000,
-        retries: 3
-      },
-      defaultModels: [],
-      defaultVoices: []
-    }
-  ];
 
   useEffect(() => {
     loadProviders();
