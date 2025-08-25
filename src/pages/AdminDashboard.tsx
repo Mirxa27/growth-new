@@ -19,6 +19,9 @@ import {
   Shield,
   Database
 } from 'lucide-react';
+import { GeneralSettings } from '@/components/admin/GeneralSettings';
+import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
+import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -464,20 +467,34 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <h2 className="text-2xl font-semibold">Platform Settings</h2>
-            
-            <Card className="glass-card border-glass">
-              <CardHeader>
-                <CardTitle>General Settings</CardTitle>
-                <CardDescription>Configure platform-wide settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Settings panel would include platform configuration, AI provider settings, 
-                  content moderation tools, and other administrative controls.
-                </p>
-              </CardContent>
-            </Card>
+            <Tabs defaultValue="general" className="space-y-6">
+              <TabsList className="glass">
+                <TabsTrigger value="general">
+                  <Settings className="w-4 h-4 mr-2" />
+                  General
+                </TabsTrigger>
+                <TabsTrigger value="ai-providers">
+                  <Database className="w-4 h-4 mr-2" />
+                  AI Providers
+                </TabsTrigger>
+                <TabsTrigger value="moderation">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Moderation
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="general">
+                <GeneralSettings />
+              </TabsContent>
+
+              <TabsContent value="ai-providers">
+                <AIProviderSettings />
+              </TabsContent>
+
+              <TabsContent value="moderation">
+                <ContentModerationSettings />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
 
