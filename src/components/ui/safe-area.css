@@ -1,0 +1,32 @@
+
+/* Safe Area CSS Utilities */
+.h-safe-area-inset-bottom {
+  height: max(env(safe-area-inset-bottom), 1rem);
+}
+
+.pb-safe-area {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+.mb-safe-area {
+  margin-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+/* PWA Viewport Support */
+@supports (padding: max(0px)) {
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+  
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}

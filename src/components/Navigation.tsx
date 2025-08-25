@@ -1,13 +1,15 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navItems = [
     { name: "Home", href: "#home" },
@@ -28,30 +30,54 @@ export const Navigation = () => {
     navigate('/auth');
   };
 
+  const handleNavClick = (href: string) => {
+    // If we're not on the landing page, navigate there first
+    if (location.pathname !== '/') {
+      navigate('/');
+      // Wait for navigation to complete, then scroll
+      setTimeout(() => {
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } else {
+      // We're already on the landing page, just scroll
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    setIsMenuOpen(false);
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
       <div className="max-w-7xl mx-auto">
         <div className="glass rounded-2xl px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold text-hero bg-gradient-primary bg-clip-text text-transparent">
               Newomen
             </span>
-          </div>
+          </button>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
-              <a
+              <button
                 key={item.name}
-                href={item.href}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => handleNavClick(item.href)}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium hover:scale-105 transition-transform"
               >
                 {item.name}
-              </a>
+              </button>
             ))}
           </div>
 
@@ -65,15 +91,14 @@ export const Navigation = () => {
                 <Button 
                   onClick={() => navigate('/dashboard')}
                   size="sm" 
-                  className="bg-gradient-primary hover:opacity-90 transition-opacity"
+                  variant="hero"
                 >
                   Dashboard
                 </Button>
                 <Button 
-                  variant="outline" 
+                  variant="glass" 
                   onClick={signOut}
-                  size="sm" 
-                  className="glass"
+                  size="sm"
                 >
                   Sign Out
                 </Button>
@@ -81,16 +106,15 @@ export const Navigation = () => {
             ) : (
               <>
                 <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="glass"
+                  variant="glass" 
+                  size="sm"
                   onClick={handleSignIn}
                 >
                   Sign In
                 </Button>
                 <Button 
                   size="sm" 
-                  className="bg-gradient-primary hover:opacity-90 transition-opacity"
+                  variant="hero"
                   onClick={handleAuthAction}
                 >
                   Get Started
@@ -113,30 +137,30 @@ export const Navigation = () => {
           <div className="md:hidden mt-4">
             <div className="glass rounded-2xl p-6 space-y-4">
               {navItems.map((item) => (
-                <a
+                <button
                   key={item.name}
-                  href={item.href}
-                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium py-2"
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={() => handleNavClick(item.href)}
+                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium py-2 w-full text-left hover:scale-105 transition-transform"
                 >
                   {item.name}
-                </a>
+                </button>
               ))}
               <div className="pt-4 border-t border-border flex flex-col gap-3">
                 {user ? (
                   <>
                     <Button 
-                      className="bg-gradient-primary hover:opacity-90 transition-opacity w-full"
+                      variant="hero"
                       onClick={() => {
                         navigate('/dashboard');
                         setIsMenuOpen(false);
                       }}
+                      className="w-full"
                     >
                       Dashboard
                     </Button>
                     <Button 
-                      variant="outline" 
-                      className="glass w-full"
+                      variant="glass"
+                      className="w-full"
                       onClick={() => {
                         signOut();
                         setIsMenuOpen(false);
@@ -148,8 +172,8 @@ export const Navigation = () => {
                 ) : (
                   <>
                     <Button 
-                      variant="outline" 
-                      className="glass w-full"
+                      variant="glass"
+                      className="w-full"
                       onClick={() => {
                         handleSignIn();
                         setIsMenuOpen(false);
@@ -158,7 +182,8 @@ export const Navigation = () => {
                       Sign In
                     </Button>
                     <Button 
-                      className="bg-gradient-primary hover:opacity-90 transition-opacity w-full"
+                      variant="hero"
+                      className="w-full"
                       onClick={() => {
                         handleAuthAction();
                         setIsMenuOpen(false);

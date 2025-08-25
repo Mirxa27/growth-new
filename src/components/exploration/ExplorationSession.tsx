@@ -1,19 +1,13 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, Sparkles } from 'lucide-react';
+import { VoiceInterface } from './VoiceInterface';
+import { AnalysisResults } from './AnalysisResults';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, MicOff, MessageSquare, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
-
-interface ExplorationSessionProps {
-  explorationId: string;
-  onComplete: (analysis: any) => void;
-  onCancel: () => void;
-}
+import { supabase } from '@/integrations/supabase/client';
 
 interface Exploration {
   id: string;
@@ -23,34 +17,42 @@ interface Exploration {
   higher_self_prompt: string;
 }
 
-interface SessionState {
+interface ExplorationSession {
   id: string;
+  user_id: string;
+  exploration_id: string;
+  status: 'in-progress' | 'completed';
   current_question: number;
   user_answers: string[];
-  status: 'in-progress' | 'completed';
+  final_analysis?: any;
 }
 
-export const ExplorationSession = ({ explorationId, onComplete, onCancel }: ExplorationSessionProps) => {
-  const { user } = useAuth();
+export const ExplorationSession = () => {
+  const { explorationId } = useParams<{ explorationId: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
+
   const [exploration, setExploration] = useState<Exploration | null>(null);
-  const [session, setSession] = useState<SessionState | null>(null);
-  const [currentAnswer, setCurrentAnswer] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [session, setSession] = useState<ExplorationSession | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
-    initializeSession();
-  }, [explorationId, user]);
+    if (explorationId) {
+      initializeSession();
+    }
+  }, [explorationId]);
 
   const initializeSession = async () => {
-    if (!user) return;
-
     try {
+      setIsProcessing(true);
+      
       // Fetch exploration details
       const { data: explorationData, error: explorationError } = await supabase
         .from('explorations')
@@ -74,321 +76,256 @@ export const ExplorationSession = ({ explorationId, onComplete, onCancel }: Expl
       // Start new session
       const { data: sessionId, error: sessionError } = await supabase.rpc('start_exploration_session', {
         exploration_id_input: explorationId,
-        user_id_input: user.id
+        user_id_input: (await supabase.auth.getUser()).data.user?.id
       });
 
       if (sessionError) throw sessionError;
 
-      setSession({
+      // Create session object
+      const newSession: ExplorationSession = {
         id: sessionId,
+        user_id: (await supabase.auth.getUser()).data.user?.id || '',
+        exploration_id: explorationId,
+        status: 'in-progress',
         current_question: 0,
-        user_answers: [],
-        status: 'in-progress'
-      });
+        user_answers: []
+      };
+
+      setSession(newSession);
+      setCurrentQuestion(0);
+      setAnswers([]);
+
+      // Speak the first question
+      if (transformedExploration.questions.length > 0) {
+        speakQuestion(transformedExploration.questions[0]);
+      }
+
     } catch (error) {
       console.error('Error initializing session:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to start exploration session.',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to start exploration session",
+        variant: "destructive"
       });
+      navigate('/explorations');
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+  const speakQuestion = async (question: string) => {
+    if ('speechSynthesis' in window) {
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(question);
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      utterance.volume = 0.8;
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
       };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        await transcribeAudio(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+      
+      utterance.onerror = () => {
+        setIsSpeaking(false);
       };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not access microphone.',
-        variant: 'destructive'
-      });
+      
+      speechSynthesis.speak(utterance);
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
+  const handleSpeechResult = async (transcript: string) => {
+    if (!exploration || !session) return;
 
-  const transcribeAudio = async (audioBlob: Blob) => {
-    // This would typically use a speech-to-text service
-    // For now, we'll prompt the user to type their response
-    toast({
-      title: 'Voice Recording Complete',
-      description: 'Please type your response in the text area below.',
-    });
-  };
-
-  const handleAnswerSubmit = async () => {
-    if (!session || !exploration || !currentAnswer.trim()) return;
+    setCurrentTranscript(transcript);
+    setIsProcessing(true);
 
     try {
-      // Update session progress
+      // Update the session with the new answer
       await supabase.rpc('update_exploration_progress', {
         session_id_input: session.id,
-        question_index_input: session.current_question,
-        answer_input: currentAnswer.trim()
+        question_index_input: currentQuestion,
+        answer_input: transcript
       });
 
-      const newAnswers = [...session.user_answers, currentAnswer.trim()];
-      const nextQuestion = session.current_question + 1;
+      const newAnswers = [...answers, transcript];
+      setAnswers(newAnswers);
 
-      setSession(prev => prev ? {
-        ...prev,
-        current_question: nextQuestion,
-        user_answers: newAnswers
-      } : null);
-
-      setCurrentAnswer('');
-
-      // Check if all questions are answered
-      if (nextQuestion >= exploration.questions.length) {
-        await generateAnalysis(newAnswers);
+      // Check if we've completed all questions
+      if (currentQuestion + 1 >= exploration.questions.length) {
+        // Time for analysis phase
+        await performAnalysis(newAnswers);
+      } else {
+        // Move to next question
+        const nextQuestion = currentQuestion + 1;
+        setCurrentQuestion(nextQuestion);
+        setCurrentTranscript('');
+        
+        // Speak the next question
+        setTimeout(() => {
+          speakQuestion(exploration.questions[nextQuestion]);
+        }, 1000);
       }
+
     } catch (error) {
-      console.error('Error submitting answer:', error);
+      console.error('Error processing answer:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to save your response.',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to process your answer",
+        variant: "destructive"
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const generateAnalysis = async (allAnswers: string[]) => {
-    if (!session || !exploration) return;
+  const performAnalysis = async (allAnswers: string[]) => {
+    if (!exploration || !session) return;
 
-    setIsAnalyzing(true);
     try {
-      // Create analysis prompt
-      const analysisPrompt = `${exploration.higher_self_prompt}
+      setIsProcessing(true);
+      
+      // Call our edge function for AI analysis
+      const { data, error } = await supabase.functions.invoke('chat-completion', {
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: exploration.higher_self_prompt
+            },
+            {
+              role: 'user',
+              content: `Here are my answers to the exploration questions:\n\n${allAnswers.map((answer, i) => `Question ${i + 1}: ${exploration.questions[i]}\nAnswer: ${answer}`).join('\n\n')}\n\nPlease provide your analysis as my Higher Self.`
+            }
+          ]
+        }
+      });
 
-USER'S RESPONSES:
-${allAnswers.map((answer, index) => `${index + 1}. ${exploration.questions[index]}\nAnswer: ${answer}`).join('\n\n')}
+      if (error) throw error;
 
-Please provide a structured analysis with the following sections:
-- Core Pattern: The main theme or pattern in their responses
-- Hidden Potential: Untapped strengths or opportunities they revealed
-- Actionable Steps: 3-5 specific, concrete steps they can take
-- Affirmations: Positive statements based on their responses
-- Encouragement: Supportive closing message
-
-Format as JSON with these exact keys: core_pattern, hidden_potential, actionable_steps, affirmations, encouragement`;
-
-      // This would typically call an AI service
-      // For demo purposes, creating a structured response
-      const mockAnalysis = {
-        core_pattern: "Your responses reveal a deep desire for authentic connection and meaningful growth, with a tendency to prioritize others' needs while sometimes neglecting your own.",
-        hidden_potential: "You possess remarkable emotional intelligence and intuitive wisdom that others naturally gravitate toward. Your ability to see multiple perspectives is a rare gift.",
-        actionable_steps: [
-          "Set aside 15 minutes daily for self-reflection and journaling",
-          "Practice saying 'no' to one request this week to honor your boundaries",
-          "Identify one relationship where you can express your needs more openly",
-          "Create a daily ritual that nurtures your emotional well-being"
-        ],
-        affirmations: [
-          "I am worthy of love and respect exactly as I am",
-          "My needs and feelings are valid and important", 
-          "I trust my inner wisdom to guide me toward growth",
-          "I deserve relationships built on mutual care and understanding"
-        ],
-        encouragement: "Your journey of self-discovery is already yielding beautiful insights. Trust the process and be gentle with yourself as you continue to grow. You have everything within you to create the life and relationships you truly desire."
-      };
-
+      const analysis = data.choices[0].message.content;
+      
       // Complete the session
       await supabase.rpc('complete_exploration_session', {
         session_id_input: session.id,
-        final_analysis_input: mockAnalysis
+        final_analysis_input: { analysis }
       });
+
+      setAnalysisResult({ analysis });
+      setIsAnalysisComplete(true);
 
       toast({
-        title: 'Exploration Complete!',
-        description: 'You\'ve earned crystals and gained valuable insights about yourself.'
+        title: "Exploration Complete!",
+        description: "You've earned crystals for completing this journey",
       });
 
-      onComplete(mockAnalysis);
     } catch (error) {
-      console.error('Error generating analysis:', error);
+      console.error('Error performing analysis:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to generate your analysis.',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to generate analysis",
+        variant: "destructive"
       });
     } finally {
-      setIsAnalyzing(false);
+      setIsProcessing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const handleStartListening = () => {
+    setIsListening(true);
+    setCurrentTranscript('');
+  };
 
-  if (!exploration || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md mx-auto glass-card">
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Unable to load exploration session.</p>
-            <Button onClick={onCancel} variant="outline" className="w-full mt-4">
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleStopListening = () => {
+    setIsListening(false);
+  };
 
-  const progress = ((session.current_question + 1) / exploration.questions.length) * 100;
-  const currentQuestion = exploration.questions[session.current_question];
-  const isLastQuestion = session.current_question >= exploration.questions.length;
+  const progress = exploration ? ((currentQuestion + 1) / exploration.questions.length) * 100 : 0;
 
-  if (isAnalyzing) {
+  if (isAnalysisComplete && analysisResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 flex items-center justify-center p-4">
-        <Card className="max-w-lg mx-auto glass-card">
-          <CardContent className="pt-6 text-center">
-            <Sparkles className="h-12 w-12 text-primary mx-auto mb-4 animate-pulse" />
-            <h2 className="text-2xl font-bold mb-2">Analyzing Your Responses</h2>
-            <p className="text-muted-foreground mb-6">
-              Your Higher Self is reviewing your answers and preparing personalized insights...
-            </p>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          </CardContent>
-        </Card>
-      </div>
+      <AnalysisResults 
+        analysis={analysisResult}
+        explorationTitle={exploration?.title || ''}
+        onComplete={() => navigate('/explorations')}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 p-4">
-      <div className="max-w-2xl mx-auto pt-8">
-        <div className="text-center mb-8">
-          <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold gradient-text mb-2">{exploration.title}</h1>
-          <p className="text-muted-foreground">Take your time and be honest with yourself</p>
+    <div className="min-h-screen bg-gradient-ambient p-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => navigate('/explorations')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <span className="font-medium text-foreground">
+              {exploration?.title}
+            </span>
+          </div>
         </div>
 
-        <Card className="glass-card mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between mb-4">
-              <CardTitle className="text-xl">Question {session.current_question + 1} of {exploration.questions.length}</CardTitle>
-              <span className="text-sm text-muted-foreground">{Math.round(progress)}% complete</span>
+        {/* Progress */}
+        {exploration && (
+          <div className="mb-8">
+            <div className="flex justify-between text-sm text-muted-foreground mb-2">
+              <span>Question {currentQuestion + 1} of {exploration.questions.length}</span>
+              <span>{Math.round(progress)}% Complete</span>
             </div>
-            <Progress value={progress} className="mb-4" />
-            <CardDescription className="text-lg font-medium text-foreground">
-              {currentQuestion}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={isVoiceMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsVoiceMode(!isVoiceMode)}
-                  className="glass-button"
-                >
-                  <Mic className="h-4 w-4 mr-2" />
-                  Voice
-                </Button>
-                <Button
-                  variant={!isVoiceMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsVoiceMode(!isVoiceMode)}
-                  className="glass-button"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Type
-                </Button>
-              </div>
-            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        )}
 
-            {isVoiceMode ? (
-              <div className="text-center">
-                <Button
-                  variant={isRecording ? "destructive" : "default"}
-                  size="lg"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className="rounded-full h-16 w-16 p-0"
-                >
-                  {isRecording ? (
-                    <MicOff className="h-6 w-6" />
-                  ) : (
-                    <Mic className="h-6 w-6" />
-                  )}
-                </Button>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {isRecording ? 'Recording... Click to stop' : 'Click to start recording'}
-                </p>
-              </div>
-            ) : null}
+        {/* Question */}
+        {exploration && (
+          <div className="glass rounded-2xl p-8 mb-8 text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              {exploration.questions[currentQuestion]}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Take your time and speak from the heart. NewMe is here to listen.
+            </p>
+          </div>
+        )}
 
-            <div className="space-y-4">
-              <Textarea
-                value={currentAnswer}
-                onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Share your thoughts here..."
-                className="min-h-[120px] glass-input"
-                rows={6}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="glass-button"
-          >
-            Exit Session
-          </Button>
-
-          <Button
-            onClick={handleAnswerSubmit}
-            disabled={!currentAnswer.trim()}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {isLastQuestion ? (
-              <>
-                Complete Exploration
-                <CheckCircle className="h-4 w-4 ml-2" />
-              </>
-            ) : (
-              <>
-                Next Question
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </>
-            )}
-          </Button>
+        {/* Voice Interface */}
+        <div className="glass rounded-2xl p-8 mb-8">
+          <VoiceInterface
+            isListening={isListening}
+            onStartListening={handleStartListening}
+            onStopListening={handleStopListening}
+            onSpeechResult={handleSpeechResult}
+            currentText={currentTranscript}
+            isProcessing={isProcessing}
+            isSpeaking={isSpeaking}
+          />
         </div>
+
+        {/* Previous Answers */}
+        {answers.length > 0 && (
+          <div className="glass rounded-2xl p-6">
+            <h3 className="font-medium text-foreground mb-4">Your Journey So Far</h3>
+            <div className="space-y-3">
+              {answers.map((answer, index) => (
+                <div key={index} className="border-l-2 border-primary/30 pl-4">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Question {index + 1}
+                  </p>
+                  <p className="text-sm text-foreground">{answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
