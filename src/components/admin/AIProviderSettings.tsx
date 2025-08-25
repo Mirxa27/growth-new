@@ -952,8 +952,7 @@ export const AIProviderSettings = () => {
             <DialogDescription>
               {!selectedTemplate 
                 ? 'Select the AI provider you want to configure'
-                : selectedTemplate.steps[currentStep]?.description
-              }
+                : selectedTemplate.steps[currentStep]?.description}
             </DialogDescription>
           </DialogHeader>
 
