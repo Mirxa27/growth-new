@@ -119,11 +119,16 @@ const Chat = () => {
 
       const exploration = session.explorations;
       const sessionData: ExplorationSession = {
-        ...session,
-        user_answers: Array.isArray(session.user_answers) ? session.user_answers.filter(Boolean) : [],
+        id: session.id,
+        exploration_id: session.exploration_id,
+        current_question: session.current_question,
+        status: session.status as 'in-progress' | 'completed',
+        user_answers: Array.isArray(session.user_answers) ? (session.user_answers as string[]).filter(Boolean) : [],
         exploration: exploration ? {
-          ...exploration,
-          questions: Array.isArray(exploration.questions) ? exploration.questions.filter(Boolean) : [],
+          title: exploration.title,
+          questions: Array.isArray(exploration.questions) ? (exploration.questions as string[]).filter(Boolean) : [],
+          facilitator_prompt: exploration.facilitator_prompt,
+          higher_self_prompt: exploration.higher_self_prompt,
         } : undefined,
       };
 
