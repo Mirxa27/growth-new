@@ -264,32 +264,80 @@ const Chat = () => {
   const generateExplorationAnalysis = async (answers: string[]) => {
     if (!explorationSession?.exploration) return;
 
-    const analysis = {
-      corePattern: "Based on your responses, I see a pattern of seeking authentic connection while navigating boundaries.",
-      hiddenPotential: "Your responses reveal an untapped capacity for intuitive leadership and creative problem-solving.",
-      actionableSteps: [
-        "Practice daily mindfulness to strengthen your inner voice",
-        "Set aside time weekly for creative expression",
-        "Engage in one meaningful conversation each day"
-      ],
-      affirmations: [
-        "I trust my inner wisdom to guide me",
-        "I am worthy of the love and success I desire",
-        "My authentic self is my greatest strength"
-      ],
-      encouragement: "You've shown incredible courage in this exploration. Trust the insights that have emerged and take them forward with confidence."
-    };
+    try {
+      const { data, error } = await supabase.functions.invoke('enhanced-chat-completion', {
+        body: {
+          message: 'Generate analysis',
+          conversationId,
+          context: {
+            isExploration: true,
+            phase: 'analysis',
+            higherSelfPrompt: explorationSession.exploration.higher_self_prompt,
+            userAnswers: answers
+          }
+        }
+      });
 
-    await supabase
-      .from('exploration_sessions')
-      .update({ status: 'completed', final_analysis: analysis, completed_at: new Date().toISOString() })
-      .eq('id', explorationSession.id);
+      if (error) throw error;
 
-    if (user) {
-      await supabase.rpc('award_crystals', { user_id_input: user.id, crystal_amount: 100 });
-    }
+      const analysis = {
+        aiGenerated: true,
+        content: data.response,
+        timestamp: new Date().toISOString()
+      };
 
-    const analysisMessageContent = `🌟 **Exploration Complete!** 🌟
+      await supabase
+        .from('exploration_sessions')
+        .update({ status: 'completed', final_analysis: analysis, completed_at: new Date().toISOString() })
+        .eq('id', explorationSession.id);
+
+      if (user) {
+        await supabase.rpc('award_crystals', { user_id_input: user.id, crystal_amount: 100 });
+      }
+
+      const analysisMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `🌟 **Exploration Complete!** 🌟\n\n${data.response}\n\nYou've earned 100 crystals for completing this profound journey! 💎`,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, analysisMessage]);
+      setExplorationSession(prev => prev ? { ...prev, status: 'completed' } : null);
+
+      toast({
+        title: "Exploration Complete! 🎉",
+        description: "You've earned 100 crystals for your insights!",
+      });
+    } catch (error: any) {
+      console.error('Error generating analysis:', error);
+      // Fallback to static analysis
+      const analysis = {
+        corePattern: "Based on your responses, I see a pattern of seeking authentic connection while navigating boundaries.",
+        hiddenPotential: "Your responses reveal an untapped capacity for intuitive leadership and creative problem-solving.",
+        actionableSteps: [
+          "Practice daily mindfulness to strengthen your inner voice",
+          "Set aside time weekly for creative expression",
+          "Engage in one meaningful conversation each day"
+        ],
+        affirmations: [
+          "I trust my inner wisdom to guide me",
+          "I am worthy of the love and success I desire",
+          "My authentic self is my greatest strength"
+        ],
+        encouragement: "You've shown incredible courage in this exploration. Trust the insights that have emerged and take them forward with confidence."
+      };
+
+      await supabase
+        .from('exploration_sessions')
+        .update({ status: 'completed', final_analysis: analysis, completed_at: new Date().toISOString() })
+        .eq('id', explorationSession.id);
+
+      if (user) {
+        await supabase.rpc('award_crystals', { user_id_input: user.id, crystal_amount: 100 });
+      }
+
+      const analysisMessageContent = `🌟 **Exploration Complete!** 🌟
 
 **Core Pattern Discovered:**
 ${analysis.corePattern}
@@ -308,47 +356,60 @@ ${analysis.encouragement}
 
 You've earned 100 crystals for completing this profound journey! 💎`;
 
-    const analysisMessage: Message = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: analysisMessageContent,
-      timestamp: new Date()
-    };
+      const analysisMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: analysisMessageContent,
+        timestamp: new Date()
+      };
 
-    setMessages(prev => [...prev, analysisMessage]);
-    setExplorationSession(prev => prev ? { ...prev, status: 'completed' } : null);
+      setMessages(prev => [...prev, analysisMessage]);
+      setExplorationSession(prev => prev ? { ...prev, status: 'completed' } : null);
 
-    toast({
-      title: "Exploration Complete! 🎉",
-      description: "You've earned 100 crystals for your insights!",
-    });
+      toast({
+        title: "Exploration Complete! 🎉",
+        description: "You've earned 100 crystals for your insights!",
+      });
+    }
   };
 
   const handleRegularConversation = async (userContent: string) => {
-    const responses = [
-      "That's a profound reflection. What feelings come up for you when you think about that more deeply?",
-      "I can sense the wisdom in your words. How does this connect to your journey of growth?",
-      "Thank you for sharing that with me. What would it look like if you trusted this insight completely?",
-      "Your awareness is beautiful. What small step could you take today to honor what you've discovered?",
-      "I'm hearing something important in what you've shared. How does this relate to who you're becoming?"
-    ];
-    const assistantMessageContent = responses[Math.floor(Math.random() * responses.length)];
-    const assistantMessage: Message = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: assistantMessageContent,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, assistantMessage]);
-
-    if (conversationId && user) {
-      await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        user_id: user.id,
-        role: 'assistant',
-        content: assistantMessage.content
+    try {
+      const { data, error } = await supabase.functions.invoke('enhanced-chat-completion', {
+        body: {
+          message: userContent,
+          conversationId,
+          context: {
+            isExploration: false
+          }
+        }
       });
+
+      if (error) throw error;
+
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: data.response,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error: any) {
+      console.error('AI conversation error:', error);
+      // Fallback to canned responses if AI fails
+      const responses = [
+        "That's a profound reflection. What feelings come up for you when you think about that more deeply?",
+        "I can sense the wisdom in your words. How does this connect to your journey of growth?",
+        "Thank you for sharing that with me. What would it look like if you trusted this insight completely?"
+      ];
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: responses[Math.floor(Math.random() * responses.length)],
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
     }
   };
 

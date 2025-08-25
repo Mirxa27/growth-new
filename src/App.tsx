@@ -17,7 +17,10 @@ import Chat from "./pages/Chat";
 import Library from "./pages/Library";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
+import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
+import { ExplorationSession } from "./components/exploration/ExplorationSession";
+import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +59,16 @@ const App = () => {
                   <Explorations />
                 </ProtectedRoute>
               } />
+              <Route path="/explorations/:explorationId" element={
+                <ProtectedRoute>
+                  <ExplorationSession />
+                </ProtectedRoute>
+              } />
+              <Route path="/onboarding" element={
+                <ProtectedRoute>
+                  <OnboardingFlow />
+                </ProtectedRoute>
+              } />
               <Route path="/chat" element={
                 <ProtectedRoute>
                   <Chat />
@@ -64,6 +77,11 @@ const App = () => {
               <Route path="/library" element={
                 <ProtectedRoute>
                   <Library />
+                </ProtectedRoute>
+              } />
+              <Route path="/community" element={
+                <ProtectedRoute>
+                  <Community />
                 </ProtectedRoute>
               } />
               <Route path="/profile" element={
