@@ -92,6 +92,36 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_logs: {
+        Row: {
+          action: string
+          admin_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       admin_profile_access_logs: {
         Row: {
           accessed_at: string | null
@@ -775,6 +805,7 @@ export type Database = {
           emotional_state: Json | null
           growth_areas: string[] | null
           id: string
+          is_admin: boolean | null
           last_login_at: string | null
           level_progress: number | null
           login_streak_count: number | null
@@ -796,6 +827,7 @@ export type Database = {
           emotional_state?: Json | null
           growth_areas?: string[] | null
           id?: string
+          is_admin?: boolean | null
           last_login_at?: string | null
           level_progress?: number | null
           login_streak_count?: number | null
@@ -817,6 +849,7 @@ export type Database = {
           emotional_state?: Json | null
           growth_areas?: string[] | null
           id?: string
+          is_admin?: boolean | null
           last_login_at?: string | null
           level_progress?: number | null
           login_streak_count?: number | null
@@ -1396,6 +1429,14 @@ export type Database = {
         Args: { final_analysis_input: Json; session_id_input: string }
         Returns: undefined
       }
+      create_admin_user_privileges: {
+        Args: {
+          display_name_input?: string
+          email_input: string
+          user_id_input: string
+        }
+        Returns: boolean
+      }
       get_admin_safe_profiles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1425,6 +1466,7 @@ export type Database = {
           emotional_state: Json | null
           growth_areas: string[] | null
           id: string
+          is_admin: boolean | null
           last_login_at: string | null
           level_progress: number | null
           login_streak_count: number | null
