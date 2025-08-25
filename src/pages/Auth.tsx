@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -38,28 +38,26 @@ const Auth = () => {
   };
 
   const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+    setIsSignUp((prevIsSignUp) => !prevIsSignUp);
     setEmail('');
     setPassword('');
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
-      <div className="absolute inset-0 bg-fixed bg-cover bg-center opacity-20" 
-           style={{ backgroundImage: 'url(/lovable-uploads/3ca516cd-6dbf-4a00-831a-85462d71db33.png)' }} />
-      
+      <div className="absolute inset-0 bg-fixed bg-cover bg-center opacity-20" />
       <Card className="w-full max-w-md glass-card border-glass relative z-10">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             {isSignUp ? 'Join Newomen' : 'Welcome Back'}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {isSignUp 
-              ? 'Start your journey of self-discovery and empowerment' 
+            {isSignUp
+              ? 'Start your journey of self-discovery and empowerment'
               : 'Continue your path to personal growth'}
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -77,7 +75,7 @@ const Auth = () => {
                 disabled={loading}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
@@ -94,9 +92,9 @@ const Auth = () => {
                 disabled={loading}
               />
             </div>
-            
-            <Button 
-              type="submit" 
+
+            <Button
+              type="submit"
               className="w-full glass-button"
               disabled={loading}
             >
@@ -110,7 +108,7 @@ const Auth = () => {
               )}
             </Button>
           </form>
-          
+
           <div className="relative">
             <Separator />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -119,7 +117,7 @@ const Auth = () => {
               </span>
             </div>
           </div>
-          
+
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}
