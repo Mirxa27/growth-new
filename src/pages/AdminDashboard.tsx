@@ -22,6 +22,7 @@ import {
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
+import { UserManagement } from '@/components/admin/UserManagement';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -417,53 +418,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
-            <h2 className="text-2xl font-semibold">User Management</h2>
-            
-            <Card className="glass-card border-glass">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b border-glass">
-                      <tr>
-                        <th className="text-left p-4">User</th>
-                        <th className="text-left p-4">Email</th>
-                        <th className="text-left p-4">Tier</th>
-                        <th className="text-left p-4">Crystals</th>
-                        <th className="text-left p-4">Joined</th>
-                        <th className="text-left p-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((user) => (
-                        <tr key={user.id} className="border-b border-glass/50">
-                          <td className="p-4">
-                            <div>
-                              <p className="font-medium">{user.display_name || 'Anonymous'}</p>
-                              <p className="text-xs text-muted-foreground">{user.id.slice(0, 8)}...</p>
-                            </div>
-                          </td>
-                          <td className="p-4 text-sm">{user.masked_email}</td>
-                          <td className="p-4">
-                            <Badge variant="outline" className="text-xs">
-                              {user.subscription_tier}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-sm">{user.crystals_count}</td>
-                          <td className="p-4 text-sm">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="p-4">
-                            <Button variant="outline" size="sm" className="glass">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <UserManagement />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

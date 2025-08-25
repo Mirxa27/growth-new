@@ -70,8 +70,12 @@ export const AIProviderSettings = () => {
         is_active: item.is_active,
         priority: item.priority,
         configuration: item.configuration,
-        available_models: Array.isArray(item.available_models) ? item.available_models : [],
-        available_voices: Array.isArray(item.available_voices) ? item.available_voices : [],
+        available_models: Array.isArray(item.available_models) 
+          ? item.available_models.filter((model): model is string => typeof model === 'string')
+          : [],
+        available_voices: Array.isArray(item.available_voices) 
+          ? item.available_voices.filter((voice): voice is string => typeof voice === 'string')
+          : [],
         last_tested_at: item.last_tested_at,
         test_results: item.test_results
       }));

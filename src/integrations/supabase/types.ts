@@ -794,6 +794,39 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_settings: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1479,6 +1512,10 @@ export type Database = {
           user_id: string | null
         }
       }
+      get_platform_setting: {
+        Args: { key_name: string }
+        Returns: Json
+      }
       is_admin: {
         Args: { uid: string }
         Returns: boolean
@@ -1502,6 +1539,10 @@ export type Database = {
           session_id_input: string
         }
         Returns: undefined
+      }
+      update_platform_setting: {
+        Args: { key_name: string; new_value: Json }
+        Returns: boolean
       }
     }
     Enums: {
