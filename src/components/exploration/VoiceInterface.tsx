@@ -163,10 +163,12 @@ export const VoiceInterface = ({
           onClick={handleToggleListening}
           disabled={isProcessing}
           className={cn(
-            "relative w-24 h-24 rounded-full transition-all duration-300 border-2",
+            "relative w-32 h-32 rounded-full transition-all duration-300 border-2 micro-bounce",
             isListening 
               ? "bg-primary border-primary-glow shadow-glow scale-110" 
-              : "glass border-glass-border hover:scale-105",
+              : isSpeaking
+                ? "bg-secondary border-secondary-glow shadow-glow"
+                : "glass border-glass-border hover:scale-105",
             isProcessing && "opacity-50 cursor-not-allowed"
           )}
           style={{
@@ -175,13 +177,28 @@ export const VoiceInterface = ({
               : undefined
           }}
         >
-          {isProcessing ? (
-            <Loader2 className="w-8 h-8 animate-spin" />
-          ) : isListening ? (
-            <MicOff className="w-8 h-8" />
-          ) : (
-            <Mic className="w-8 h-8" />
-          )}
+          <div className="flex flex-col items-center">
+            {isProcessing ? (
+              <Loader2 className="w-8 h-8 mb-2 animate-spin" />
+            ) : isSpeaking ? (
+              <Volume2 className="w-8 h-8 mb-2" />
+            ) : isListening ? (
+              <MicOff className="w-8 h-8 mb-2" />
+            ) : (
+              <Mic className="w-8 h-8 mb-2" />
+            )}
+            
+            <span className="text-sm font-medium">
+              {isProcessing 
+                ? "Processing..." 
+                : isSpeaking 
+                  ? "NewMe" 
+                  : isListening 
+                    ? "Stop" 
+                    : "Speak"
+              }
+            </span>
+          </div>
         </Button>
 
         {/* Audio Level Indicator */}

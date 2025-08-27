@@ -189,7 +189,7 @@ export class RealtimeVoiceChat {
       this.audioQueue = new AudioQueue(this.audioContext);
 
       // Connect to WebSocket proxy
-      const wsUrl = `wss://ufgqmqoykddaotdbwteg.functions.supabase.co/realtime-voice-proxy`;
+      const wsUrl = `wss://ufgqmqoykddaotdbwteg.functions.supabase.co/realtime-voice-session`;
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
