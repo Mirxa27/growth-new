@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { RealtimeVoiceInterface } from '@/components/chat/RealtimeVoiceInterface';
+import { VoiceIndicator } from '@/components/chat/VoiceIndicator';
 
 // Type definitions
 interface Message {
@@ -197,22 +198,38 @@ const Chat = () => {
   };
 
   const processAudioMessage = async (audioBlob: Blob) => {
-    // For production implementation, integrate with a speech-to-text service
-    // like OpenAI Whisper, Google Speech-to-Text, or similar
-    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: '[Voice message - processing with speech recognition...]',
+      content: '[🎤 Processing voice message...]',
       timestamp: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
     
-    // TODO: Implement real speech-to-text
-    // For now, simulate processing
-    setTimeout(() => {
-      const transcribedText = "This is a simulated transcription. In production, this would be the actual speech-to-text result.";
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.split(',')[1]; // Remove data:audio/webm;base64, prefix
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      
+      reader.readAsDataURL(audioBlob);
+      const base64Audio = await base64Promise;
+      
+      // Call voice-to-text edge function
+      const { data, error } = await supabase.functions.invoke('voice-to-text', {
+        body: { audio: base64Audio }
+      });
+      
+      if (error) throw error;
+      
+      const transcribedText = data.text || 'Could not transcribe audio';
       
       const updatedMessage: Message = {
         ...userMessage,
@@ -224,7 +241,23 @@ const Chat = () => {
       ));
       
       sendMessageToAI(transcribedText);
-    }, 2000);
+    } catch (error: any) {
+      console.error('Speech-to-text error:', error);
+      const errorMessage = {
+        ...userMessage,
+        content: '❌ Failed to process voice message. Please try again or use text input.'
+      };
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === userMessage.id ? errorMessage : msg
+      ));
+      
+      toast({
+        title: "Voice processing failed",
+        description: "Please try speaking again or use text input.",
+        variant: "destructive"
+      });
+    }
   };
 
   const sendTextMessage = async () => {
@@ -462,25 +495,31 @@ You've earned 100 crystals for completing this profound journey! 💎`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <header className="text-center mb-6">
+      <VoiceIndicator isRecording={isRecording} isSpeaking={isSpeaking} />
+      
+      <div className="container mx-auto px-4 py-4 sm:py-8 max-w-4xl">
+        <header className="text-center mb-4 sm:mb-6">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               NewMe AI Companion
             </h1>
           </div>
-          <p className="text-muted-foreground italic">{headline}</p>
+          <p className="text-sm sm:text-base text-muted-foreground italic px-4">{headline}</p>
         </header>
 
         {/* Main Interface Tabs */}
         <Card className="glass-card border-glass">
           <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <MessageCircle className="w-5 h-5" />
-              {explorationSession ? `Exploration: ${explorationSession.exploration?.title || 'Loading...'}` : 'NewMe Conversation'}
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5" />
+                <span className="line-clamp-1">
+                  {explorationSession ? `Exploration: ${explorationSession.exploration?.title || 'Loading...'}` : 'NewMe Conversation'}
+                </span>
+              </div>
               {explorationSession?.status === 'in-progress' && (
                 <div className="flex items-center gap-1 text-sm text-accent">
                   <Zap className="w-4 h-4" />
@@ -492,19 +531,21 @@ You've earned 100 crystals for completing this profound journey! 💎`;
 
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mx-6 mb-4">
-                <TabsTrigger value="voice" className="flex items-center gap-2">
+              <TabsList className="grid w-full grid-cols-2 mx-4 sm:mx-6 mb-4">
+                <TabsTrigger value="voice" className="flex items-center gap-2 text-xs sm:text-sm">
                   <Phone className="w-4 h-4" />
-                  Voice Chat
+                  <span className="hidden sm:inline">Voice Chat</span>
+                  <span className="sm:hidden">Voice</span>
                 </TabsTrigger>
-                <TabsTrigger value="text" className="flex items-center gap-2">
+                <TabsTrigger value="text" className="flex items-center gap-2 text-xs sm:text-sm">
                   <MessageCircle className="w-4 h-4" />
-                  Text Chat
+                  <span className="hidden sm:inline">Text Chat</span>
+                  <span className="sm:hidden">Text</span>
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="voice" className="px-6 pb-6">
-                <div className="min-h-[60vh] flex items-center justify-center">
+              <TabsContent value="voice" className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center">
                   <RealtimeVoiceInterface 
                     onMessage={handleVoiceMessage}
                     className="w-full"

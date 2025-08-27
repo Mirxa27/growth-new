@@ -139,7 +139,13 @@ serve(async (req) => {
       throw new Error('Provider not found');
     }
 
-    if (!provider.api_key) {
+    // Use the OpenAI API key from Supabase secrets for OpenAI providers
+    let apiKey = provider.api_key;
+    if (provider.provider_type === 'openai' && !apiKey) {
+      apiKey = Deno.env.get('OPENAI_API_KEY');
+    }
+
+    if (!apiKey) {
       throw new Error('API key not configured for this provider');
     }
 
@@ -150,15 +156,15 @@ serve(async (req) => {
 
     switch (provider.provider_type?.toLowerCase()) {
       case 'openai':
-        result = await testOpenAIProvider(provider.api_key, provider.configuration?.endpoint_url);
+        result = await testOpenAIProvider(apiKey, provider.configuration?.endpoint_url);
         break;
       
       case 'elevenlabs':
-        result = await testElevenLabsProvider(provider.api_key);
+        result = await testElevenLabsProvider(apiKey);
         break;
       
       case 'anthropic':
-        result = await testAnthropicProvider(provider.api_key);
+        result = await testAnthropicProvider(apiKey);
         break;
       
       default:
