@@ -99,12 +99,21 @@ const Chat = () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
-        .from('conversations')
-        .insert({ user_id: user.id, title: 'New Conversation' })
+        .from('user_conversations')
+        .insert({})
         .select()
         .single();
 
       if (error) throw error;
+      
+      // Add user as participant
+      await supabase
+        .from('user_conversation_participants')
+        .insert({
+          conversation_id: data.id,
+          user_id: user.id
+        });
+      
       setConversationId(data.id);
     } catch (error: any) {
       console.error('Error creating conversation:', error);
@@ -235,10 +244,9 @@ const Chat = () => {
     setLoading(true);
     try {
       if (conversationId && user) {
-        await supabase.from('messages').insert({
+        await supabase.from('user_messages').insert({
           conversation_id: conversationId,
-          user_id: user.id,
-          role: 'user',
+          sender_id: user.id,
           content: userContent
         });
       }
