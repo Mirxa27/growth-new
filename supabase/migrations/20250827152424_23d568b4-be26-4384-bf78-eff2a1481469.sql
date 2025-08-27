@@ -1,0 +1,1 @@
+-- Regenerate types - no changes needed, just trigger type regeneration
