@@ -1674,6 +1674,14 @@ export type Database = {
       }
     }
     Functions: {
+      award_crystals: {
+        Args: { crystal_amount: number; user_id_input: string }
+        Returns: undefined
+      }
+      complete_exploration_session: {
+        Args: { final_analysis_input: Json; session_id_input: string }
+        Returns: undefined
+      }
       get_admin_safe_profiles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1706,9 +1714,46 @@ export type Database = {
           values_progress: number
         }[]
       }
+      get_enhanced_dashboard_data: {
+        Args: { p_user_id: string }
+        Returns: {
+          completed_explorations: number
+          crystals_count: number
+          current_streak: number
+          display_name: string
+          growth_areas: string[]
+          level_progress: number
+          next_milestone: Json
+          personality_type: string
+          recent_achievements: Json
+          subscription_tier: string
+          total_breathing_minutes: number
+          user_id: string
+        }[]
+      }
       is_admin: {
         Args: { uid: string }
         Returns: boolean
+      }
+      save_personality_assessment: {
+        Args: {
+          answers_input: Json
+          results_input: Json
+          user_id_input: string
+        }
+        Returns: string
+      }
+      start_exploration_session: {
+        Args: { exploration_id_input: string; user_id_input: string }
+        Returns: string
+      }
+      update_exploration_progress: {
+        Args: {
+          answer_input: string
+          question_index_input: number
+          session_id_input: string
+        }
+        Returns: undefined
       }
       update_platform_setting: {
         Args: { setting_key: string; setting_value: string }
