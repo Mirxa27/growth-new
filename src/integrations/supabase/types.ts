@@ -1020,8 +1020,9 @@ export type Database = {
           error_message: string | null
           id: string
           ip_address: unknown | null
-          resource_id: string | null
-          resource_type: string | null
+          method: string | null
+          resource: string | null
+          status_code: number | null
           success: boolean | null
           user_agent: string | null
           user_id: string | null
@@ -1033,8 +1034,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           ip_address?: unknown | null
-          resource_id?: string | null
-          resource_type?: string | null
+          method?: string | null
+          resource?: string | null
+          status_code?: number | null
           success?: boolean | null
           user_agent?: string | null
           user_id?: string | null
@@ -1046,8 +1048,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           ip_address?: unknown | null
-          resource_id?: string | null
-          resource_type?: string | null
+          method?: string | null
+          resource?: string | null
+          status_code?: number | null
           success?: boolean | null
           user_agent?: string | null
           user_id?: string | null
