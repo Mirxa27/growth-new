@@ -366,15 +366,11 @@ interface AIProvider {
   id: string;
   name: string;
   provider_type: string;
-  endpoint_url?: string;
   is_active: boolean;
   priority: number;
   configuration: any;
   available_models: string[];
   available_voices: string[];
-  last_tested_at?: string;
-  test_results: any;
-  api_key_encrypted?: string;
 }
 
 interface WizardStep {
@@ -539,7 +535,6 @@ export const AIProviderSettings = () => {
         id: item.id,
         name: item.name,
         provider_type: item.provider_type,
-        endpoint_url: item.endpoint_url,
         is_active: item.is_active,
         priority: item.priority,
         configuration: item.configuration,
@@ -548,9 +543,7 @@ export const AIProviderSettings = () => {
           : [],
         available_voices: Array.isArray(item.available_voices) 
           ? item.available_voices.filter((voice: any): voice is string => typeof voice === 'string')
-          : [],
-        last_tested_at: item.last_tested_at,
-        test_results: item.test_results
+          : []
       }));
       
       setProviders(transformedProviders);
@@ -572,13 +565,11 @@ export const AIProviderSettings = () => {
       id: '',
       name: template.name,
       provider_type: template.provider_type,
-      endpoint_url: '',
       is_active: false,
       priority: providers.length + 1,
       configuration: { ...template.defaultConfig },
       available_models: [...template.defaultModels],
-      available_voices: [...template.defaultVoices],
-      test_results: {}
+      available_voices: [...template.defaultVoices]
     });
     setCurrentStep(0);
     setIsCreating(true);
@@ -606,13 +597,12 @@ export const AIProviderSettings = () => {
       const providerData = {
         name: selectedProvider.name,
         provider_type: selectedProvider.provider_type,
-        endpoint_url: selectedProvider.endpoint_url,
         is_active: selectedProvider.is_active,
         priority: selectedProvider.priority,
         configuration: selectedProvider.configuration,
         available_models: selectedProvider.available_models,
         available_voices: selectedProvider.available_voices,
-        api_key_encrypted: selectedProvider.configuration.api_key ? 'encrypted_placeholder' : null
+        api_key: (selectedProvider.configuration as any)?.api_key || null
       };
 
       const { error } = await supabase
@@ -715,7 +705,6 @@ export const AIProviderSettings = () => {
       const providerData = {
         name: selectedProvider.name,
         provider_type: selectedProvider.provider_type,
-        endpoint_url: selectedProvider.endpoint_url,
         is_active: selectedProvider.is_active,
         priority: selectedProvider.priority,
         configuration: selectedProvider.configuration,
@@ -762,12 +751,17 @@ export const AIProviderSettings = () => {
 
       if (error) throw error;
 
-      // Update test results
+      // Update test results in configuration
+      const currentProvider = providers.find(p => p.id === providerId);
       await supabase
         .from('admin_ai_providers')
-        .update({ 
-          last_tested_at: new Date().toISOString(),
-          test_results: data
+        .update({
+          configuration: {
+            ...(currentProvider?.configuration as any || {}),
+            last_test: new Date().toISOString(),
+            last_test_success: data.success,
+            test_results: data
+          }
         })
         .eq('id', providerId);
 
@@ -820,9 +814,10 @@ export const AIProviderSettings = () => {
   };
 
   const getTestStatus = (provider: AIProvider) => {
-    if (!provider.last_tested_at) return null;
+    const testResults = (provider.configuration as any)?.test_results;
+    if (!testResults || !(provider.configuration as any)?.last_test) return null;
     
-    const success = provider.test_results?.success;
+    const success = testResults?.success;
     return success ? (
       <CheckCircle className="w-4 h-4 text-green-500" />
     ) : (
@@ -931,9 +926,9 @@ export const AIProviderSettings = () => {
                   </Button>
                 </div>
 
-                {provider.last_tested_at && (
+                {(provider.configuration as any)?.last_test && (
                   <div className="text-xs text-muted-foreground">
-                    Last tested: {new Date(provider.last_tested_at).toLocaleString()}
+                    Last tested: {new Date((provider.configuration as any).last_test).toLocaleString()}
                   </div>
                 )}
               </CardContent>
@@ -1104,10 +1099,13 @@ export const AIProviderSettings = () => {
                 <Label htmlFor="endpoint_url">Endpoint URL (Optional)</Label>
                 <Input
                   id="endpoint_url"
-                  value={selectedProvider.endpoint_url || ''}
+                  value={(selectedProvider.configuration as any)?.endpoint_url || ''}
                   onChange={(e) => setSelectedProvider({
                     ...selectedProvider,
-                    endpoint_url: e.target.value
+                    configuration: {
+                      ...(selectedProvider.configuration as any || {}),
+                      endpoint_url: e.target.value
+                    }
                   })}
                   placeholder="https://api.example.com/v1"
                 />

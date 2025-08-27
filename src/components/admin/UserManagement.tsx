@@ -28,18 +28,13 @@ import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { validationUtils } from '@/lib/validation';
 
 interface AdminUser {
-  id: string;
   user_id: string;
-  display_name?: string;
-  masked_email: string;
-  subscription_tier: string;
-  crystals_count: number;
-  created_at: string;
-  last_login_at?: string;
+  email: string;
   role: string;
-  level_progress: number;
-  login_streak_count: number;
+  created_at: string;
   updated_at: string;
+  is_admin_backup: boolean;
+  last_sign_in_at?: string;
 }
 
 export const UserManagement = () => {
@@ -86,9 +81,8 @@ export const UserManagement = () => {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(user => 
-        user.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.masked_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.id.toLowerCase().includes(searchTerm.toLowerCase())
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.user_id.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -97,10 +91,7 @@ export const UserManagement = () => {
       filtered = filtered.filter(user => user.role === filterRole);
     }
 
-    // Tier filter
-    if (filterTier !== 'all') {
-      filtered = filtered.filter(user => user.subscription_tier === filterTier);
-    }
+    // Note: Tier filter removed since it's not in the current schema
 
     setFilteredUsers(filtered);
   };
@@ -264,17 +255,6 @@ export const UserManagement = () => {
               </SelectContent>
             </Select>
 
-            <Select value={filterTier} onValueChange={setFilterTier}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by tier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tiers</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="pro">Pro</SelectItem>
-                <SelectItem value="discovery">Discovery</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -309,9 +289,9 @@ export const UserManagement = () => {
               <CheckCircle className="w-4 h-4 text-green-500" />
             </div>
             <p className="text-2xl font-bold text-green-500">
-              {users.filter(u => u.subscription_tier === 'premium').length}
+              {users.filter(u => u.is_admin_backup).length}
             </p>
-            <p className="text-xs text-muted-foreground">Premium Users</p>
+            <p className="text-xs text-muted-foreground">Backup Admins</p>
           </CardContent>
         </Card>
 
@@ -322,7 +302,8 @@ export const UserManagement = () => {
             </div>
             <p className="text-2xl font-bold text-purple-500">
               {users.filter(u => {
-                const lastLogin = new Date(u.last_login_at || 0);
+                const lastLogin = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null;
+                if (!lastLogin) return false;
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 return lastLogin > weekAgo;
@@ -357,28 +338,28 @@ export const UserManagement = () => {
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-glass/50 hover:bg-glass/20">
+                  <tr key={user.user_id} className="border-b border-glass/50 hover:bg-glass/20">
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
                         {getRoleIcon(user.role)}
-                        <div>
-                          <p className="font-medium">{user.display_name || 'Anonymous'}</p>
-                          <p className="text-xs text-muted-foreground">{user.id.slice(0, 8)}...</p>
-                        </div>
+                      <div>
+                        <p className="font-medium">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">{user.user_id.slice(0, 8)}...</p>
+                      </div>
                       </div>
                     </td>
-                    <td className="p-4 text-sm">{user.masked_email}</td>
+                    <td className="p-4 text-sm">{user.email}</td>
                     <td className="p-4">
                       <Badge variant={getRoleBadgeVariant(user.role)} className="text-xs">
                         {user.role}
                       </Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant={getTierBadgeVariant(user.subscription_tier)} className="text-xs">
-                        {user.subscription_tier}
+                      <Badge variant="outline" className="text-xs">
+                        N/A
                       </Badge>
                     </td>
-                    <td className="p-4 text-sm font-mono">{user.crystals_count.toLocaleString()}</td>
+                    <td className="p-4 text-sm font-mono">N/A</td>
                     <td className="p-4 text-sm">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
@@ -428,12 +409,12 @@ export const UserManagement = () => {
               <TabsContent value="overview" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Display Name</Label>
-                    <p className="text-sm">{selectedUser.display_name || 'Not set'}</p>
+                    <Label>Email</Label>
+                    <p className="text-sm">{selectedUser.email}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Email</Label>
-                    <p className="text-sm">{selectedUser.masked_email}</p>
+                    <Label>Role</Label>
+                    <p className="text-sm">{selectedUser.role}</p>
                   </div>
                   <div className="space-y-2">
                     <Label>User ID</Label>
@@ -446,30 +427,30 @@ export const UserManagement = () => {
                   <div className="space-y-2">
                     <Label>Last Login</Label>
                     <p className="text-sm">
-                      {selectedUser.last_login_at 
-                        ? new Date(selectedUser.last_login_at).toLocaleString()
+                      {selectedUser.last_sign_in_at 
+                        ? new Date(selectedUser.last_sign_in_at).toLocaleString()
                         : 'Never'
                       }
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Login Streak</Label>
-                    <p className="text-sm">{selectedUser.login_streak_count} days</p>
+                    <Label>Admin Backup</Label>
+                    <p className="text-sm">{selectedUser.is_admin_backup ? 'Yes' : 'No'}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 pt-4">
                   <div className="text-center p-3 bg-muted/20 rounded">
-                    <p className="text-2xl font-bold text-primary">{selectedUser.crystals_count}</p>
-                    <p className="text-xs text-muted-foreground">Total Crystals</p>
+                    <p className="text-2xl font-bold text-primary">N/A</p>
+                    <p className="text-xs text-muted-foreground">Crystals</p>
                   </div>
                   <div className="text-center p-3 bg-muted/20 rounded">
-                    <p className="text-2xl font-bold text-secondary">{selectedUser.level_progress}</p>
-                    <p className="text-xs text-muted-foreground">Level Progress</p>
+                    <p className="text-2xl font-bold text-secondary">N/A</p>
+                    <p className="text-xs text-muted-foreground">Level</p>
                   </div>
                   <div className="text-center p-3 bg-muted/20 rounded">
-                    <Badge variant={getTierBadgeVariant(selectedUser.subscription_tier)}>
-                      {selectedUser.subscription_tier}
+                    <Badge variant="outline">
+                      N/A
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-1">Subscription</p>
                   </div>
@@ -496,20 +477,8 @@ export const UserManagement = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="subscription_tier">Subscription Tier</Label>
-                    <Select
-                      value={selectedUser.subscription_tier}
-                      onValueChange={(value) => updateSubscriptionTier(selectedUser.user_id, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="discovery">Discovery</SelectItem>
-                        <SelectItem value="pro">Pro</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Subscription Tier</Label>
+                    <p className="text-sm">Not available in current schema</p>
                   </div>
                 </div>
               </TabsContent>

@@ -37,18 +37,13 @@ interface AdminStats {
 }
 
 interface AdminUser {
-  id: string;
   user_id: string;
-  display_name?: string;
-  masked_email: string;
-  subscription_tier: string;
-  crystals_count: number;
-  created_at: string;
-  last_login_at?: string;
+  email: string;
   role: string;
-  level_progress: number;
-  login_streak_count: number;
+  created_at: string;
   updated_at: string;
+  is_admin_backup: boolean;
+  last_sign_in_at?: string;
 }
 
 interface Exploration {
@@ -110,16 +105,19 @@ const AdminDashboard = () => {
   const loadDashboardData = async () => {
     try {
       // Load stats
-      const [usersRes, explorationsRes, sessionsRes, messagesRes] = await Promise.all([
+      const [usersRes, explorationsRes, sessionsRes] = await Promise.all([
         supabase.from('profiles').select('id, created_at, last_login_at'),
         supabase.from('explorations').select('id'),
-        supabase.from('exploration_sessions').select('id, status'),
-        supabase.from('messages').select('id')
+        supabase.from('exploration_sessions').select('id, status')
       ]);
+
+      // Placeholder for messages count since messages table doesn't exist yet
+      const messagesRes = { data: [] };
 
       const totalUsers = usersRes.data?.length || 0;
       const activeUsers = usersRes.data?.filter(u => {
-        const lastLogin = new Date(u.last_login_at || 0);
+        const lastLogin = u.last_login_at ? new Date(u.last_login_at) : null;
+        if (!lastLogin) return false;
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         return lastLogin > weekAgo;
