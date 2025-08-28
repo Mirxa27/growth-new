@@ -85,13 +85,13 @@ Be profound yet practical, compassionate yet empowering. This is their sacred sp
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4',
+            model: 'gpt-4o',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: analysisPrompt }
             ],
             temperature: 0.8,
-            max_tokens: 1000,
+            max_completion_tokens: 1000,
           }),
         });
 
@@ -133,13 +133,13 @@ Keep responses conversational, authentic, and focused on the user's growth journ
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4',
+          model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
-          max_tokens: 500,
+          max_completion_tokens: 500,
         }),
       });
 

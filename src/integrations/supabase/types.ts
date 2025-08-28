@@ -452,6 +452,54 @@ export type Database = {
         }
         Relationships: []
       }
+      challenges: {
+        Row: {
+          challenge_type: string
+          created_at: string
+          crystal_reward: number
+          description: string
+          difficulty_level: string
+          duration_days: number
+          end_date: string | null
+          id: string
+          is_active: boolean
+          requirements: Json | null
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          challenge_type?: string
+          created_at?: string
+          crystal_reward?: number
+          description: string
+          difficulty_level?: string
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          requirements?: Json | null
+          start_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          challenge_type?: string
+          created_at?: string
+          crystal_reward?: number
+          description?: string
+          difficulty_level?: string
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          requirements?: Json | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       community_connections: {
         Row: {
           created_at: string
@@ -476,6 +524,57 @@ export type Database = {
           requester_id?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      community_posts: {
+        Row: {
+          comments_count: number
+          content: string
+          created_at: string
+          id: string
+          images: string[] | null
+          is_approved: boolean
+          is_pinned: boolean
+          is_reported: boolean
+          likes_count: number
+          post_type: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          comments_count?: number
+          content: string
+          created_at?: string
+          id?: string
+          images?: string[] | null
+          is_approved?: boolean
+          is_pinned?: boolean
+          is_reported?: boolean
+          likes_count?: number
+          post_type?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          comments_count?: number
+          content?: string
+          created_at?: string
+          id?: string
+          images?: string[] | null
+          is_approved?: boolean
+          is_pinned?: boolean
+          is_reported?: boolean
+          likes_count?: number
+          post_type?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -1430,6 +1529,50 @@ export type Database = {
           },
         ]
       }
+      user_challenge_progress: {
+        Row: {
+          challenge_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          progress_percentage: number
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          progress_percentage?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          progress_percentage?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_conversation_participants: {
         Row: {
           conversation_id: string
@@ -1474,6 +1617,45 @@ export type Database = {
           created_at?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_levels: {
+        Row: {
+          created_at: string
+          crystal_requirement: number
+          description: string
+          id: string
+          is_active: boolean
+          level_number: number
+          rewards: Json | null
+          title: string
+          unlocks: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crystal_requirement?: number
+          description: string
+          id?: string
+          is_active?: boolean
+          level_number: number
+          rewards?: Json | null
+          title: string
+          unlocks?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crystal_requirement?: number
+          description?: string
+          id?: string
+          is_active?: boolean
+          level_number?: number
+          rewards?: Json | null
+          title?: string
+          unlocks?: string[] | null
+          updated_at?: string
         }
         Relationships: []
       }

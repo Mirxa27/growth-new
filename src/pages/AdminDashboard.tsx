@@ -23,6 +23,10 @@ import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { UserManagement } from '@/components/admin/UserManagement';
+import { VoicePlayground } from '@/components/admin/VoicePlayground';
+import { AIExplorationBuilder } from '@/components/admin/AIExplorationBuilder';
+import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
+import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -354,6 +358,10 @@ const AdminDashboard = () => {
         <Tabs defaultValue="explorations" className="space-y-6">
           <TabsList className="glass">
             <TabsTrigger value="explorations">Explorations</TabsTrigger>
+            <TabsTrigger value="voice">Voice Playground</TabsTrigger>
+            <TabsTrigger value="ai-builder">AI Builder</TabsTrigger>
+            <TabsTrigger value="community">Community</TabsTrigger>
+            <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -413,6 +421,22 @@ const AdminDashboard = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="voice" className="space-y-6">
+            <VoicePlayground />
+          </TabsContent>
+
+          <TabsContent value="ai-builder" className="space-y-6">
+            <AIExplorationBuilder />
+          </TabsContent>
+
+          <TabsContent value="community" className="space-y-6">
+            <CommunityPostsManager />
+          </TabsContent>
+
+          <TabsContent value="challenges" className="space-y-6">
+            <ContentChallengeManager />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">

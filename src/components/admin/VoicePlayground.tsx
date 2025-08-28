@@ -16,7 +16,7 @@ import {
   Settings, 
   TestTube, 
   Headphones,
-  Waveform,
+  Activity,
   Save,
   Download,
   Upload
@@ -375,7 +375,7 @@ Remember: You are facilitating a sacred space for self-discovery. Every interact
             Configuration
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
-            <Waveform className="w-4 h-4" />
+            <Activity className="w-4 h-4" />
             Test History
           </TabsTrigger>
         </TabsList>

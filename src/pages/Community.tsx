@@ -18,6 +18,7 @@ import {
   Star,
   Globe
 } from 'lucide-react';
+import { CommunityPosts } from '@/components/community/CommunityPosts';
 
 interface UserProfile {
   id: string;
@@ -216,6 +217,7 @@ export default function Community() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Search and Discovery */}
           <div className="lg:col-span-2 space-y-6">
+            <CommunityPosts />
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
