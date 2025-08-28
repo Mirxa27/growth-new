@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface MobileOptimizedProps {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
 // Container that ensures proper mobile spacing and layout
@@ -17,11 +18,15 @@ export const MobileContainer = ({ children, className }: MobileOptimizedProps) =
 );
 
 // Card component with mobile-optimized spacing
-export const MobileCard = ({ children, className }: MobileOptimizedProps) => (
-  <div className={cn(
-    "glass-card border-glass rounded-lg sm:rounded-xl p-4 sm:p-6",
-    className
-  )}>
+export const MobileCard = ({ children, className, onClick }: MobileOptimizedProps) => (
+  <div 
+    className={cn(
+      "glass-card border-glass rounded-lg sm:rounded-xl p-4 sm:p-6",
+      onClick && "cursor-pointer",
+      className
+    )}
+    onClick={onClick}
+  >
     {children}
   </div>
 );

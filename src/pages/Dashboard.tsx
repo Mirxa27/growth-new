@@ -17,6 +17,10 @@ import {
   Award,
   Heart
 } from 'lucide-react';
+import { useDailyInsight } from '@/hooks/useDailyInsight';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -24,6 +28,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [recentExplorations, setRecentExplorations] = useState([]);
+  const { insight, loading: insightLoading } = useDailyInsight();
 
   useEffect(() => {
     if (user) {
@@ -75,13 +80,14 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" text="Loading your dashboard..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 p-4 pb-20">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-ambient pb-20">
       <div className="max-w-6xl mx-auto pt-8">
         {/* Welcome Header */}
         <div className="text-center mb-8">
@@ -94,54 +100,54 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Crystal Balance</CardTitle>
-              <Sparkles className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{crystalCount}</div>
-              <p className="text-xs text-muted-foreground">
-                +23 from last session
-              </p>
-            </CardContent>
-          </Card>
+        <MobileContainer>
+          <MobileGrid cols={{ default: 1, sm: 2, lg: 3 }} className="mb-8">
+            <MobileCard>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Crystal Balance</CardTitle>
+                <Sparkles className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{crystalCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  +23 from last session
+                </p>
+              </CardContent>
+            </MobileCard>
 
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Current Level</CardTitle>
-              <Award className="h-4 w-4 text-secondary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-secondary">{level}</div>
-              <Progress value={progressToNext} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                {100 - progressToNext} crystals to next level
-              </p>
-            </CardContent>
-          </Card>
+            <MobileCard>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Current Level</CardTitle>
+                <Award className="h-4 w-4 text-secondary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-secondary">{level}</div>
+                <Progress value={progressToNext} className="mt-2" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {100 - progressToNext} crystals to next level
+                </p>
+              </CardContent>
+            </MobileCard>
 
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Explorations</CardTitle>
-              <Target className="h-4 w-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-accent">{recentExplorations.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Completed this month
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            <MobileCard>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Explorations</CardTitle>
+                <Target className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-accent">{recentExplorations.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Completed this month
+                </p>
+              </CardContent>
+            </MobileCard>
+          </MobileGrid>
+        </MobileContainer>
 
         {/* Quick Actions */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card 
-            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
-            onClick={() => navigate('/chat')}
-          >
+        <MobileContainer>
+          <MobileGrid cols={{ default: 1, sm: 2, lg: 4 }} className="mb-8">
+            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/chat')}>
             <CardContent className="p-6 text-center">
               <div className="p-3 rounded-full bg-primary/20 text-primary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
                 <MessageSquare className="h-6 w-6" />
@@ -150,13 +156,10 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">
                 Start a conversation with your AI companion
               </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </MobileCard>
 
-          <Card 
-            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
-            onClick={() => navigate('/explorations')}
-          >
+            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/explorations')}>
             <CardContent className="p-6 text-center">
               <div className="p-3 rounded-full bg-secondary/20 text-secondary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
                 <Target className="h-6 w-6" />
@@ -165,13 +168,10 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">
                 Dive deep into guided explorations
               </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </MobileCard>
 
-          <Card 
-            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
-            onClick={() => navigate('/library')}
-          >
+            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/library')}>
             <CardContent className="p-6 text-center">
               <div className="p-3 rounded-full bg-accent/20 text-accent mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
                 <BookOpen className="h-6 w-6" />
@@ -180,13 +180,10 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">
                 Access breathing practices and resources
               </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </MobileCard>
 
-          <Card 
-            className="glass-card hover:glass-card-hover transition-all cursor-pointer group"
-            onClick={() => navigate('/profile')}
-          >
+            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/profile')}>
             <CardContent className="p-6 text-center">
               <div className="p-3 rounded-full bg-pink-500/20 text-pink-500 mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
                 <Heart className="h-6 w-6" />
@@ -195,17 +192,19 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">
                 Review insights and progress
               </p>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </MobileCard>
+          </MobileGrid>
+        </MobileContainer>
 
         {/* Recent Activity */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Recent Explorations</CardTitle>
-              <CardDescription>Your latest journey insights</CardDescription>
-            </CardHeader>
+        <MobileContainer>
+          <MobileGrid cols={{ default: 1, lg: 2 }}>
+            <MobileCard>
+              <CardHeader>
+                <CardTitle>Recent Explorations</CardTitle>
+                <CardDescription>Your latest journey insights</CardDescription>
+              </CardHeader>
             <CardContent>
               {recentExplorations.length > 0 ? (
                 <div className="space-y-4">
@@ -228,14 +227,14 @@ export default function Dashboard() {
                   No explorations yet. Start your first journey!
                 </p>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </MobileCard>
 
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Growth Areas</CardTitle>
-              <CardDescription>Your focus areas for development</CardDescription>
-            </CardHeader>
+            <MobileCard>
+              <CardHeader>
+                <CardTitle>Growth Areas</CardTitle>
+                <CardDescription>Your focus areas for development</CardDescription>
+              </CardHeader>
             <CardContent>
               {profile?.growth_areas?.length > 0 ? (
                 <div className="space-y-3">
@@ -261,28 +260,36 @@ export default function Dashboard() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </MobileCard>
+          </MobileGrid>
+        </MobileContainer>
 
         {/* Daily Inspiration */}
-        <Card className="glass-card mt-8">
-          <CardContent className="p-8 text-center">
-            <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-4">Today's Inspiration</h3>
-            <p className="text-lg italic text-muted-foreground mb-6">
-              "The journey of self-discovery is not about finding yourself, but creating yourself."
-            </p>
-            <Button 
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => navigate('/chat')}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Reflect on This
-            </Button>
-          </CardContent>
-        </Card>
+        <MobileContainer>
+          <MobileCard className="mt-8">
+            <CardContent className="p-6 sm:p-8 text-center">
+              <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-4">Today's Inspiration</h3>
+              {insightLoading ? (
+                <LoadingSpinner size="sm" className="mb-6" />
+              ) : (
+                <p className="text-lg italic text-muted-foreground mb-6">
+                  "{insight}"
+                </p>
+              )}
+              <Button 
+                className="bg-gradient-primary hover:opacity-90 micro-bounce"
+                onClick={() => navigate('/chat')}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Reflect on This
+              </Button>
+            </CardContent>
+          </MobileCard>
+        </MobileContainer>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
