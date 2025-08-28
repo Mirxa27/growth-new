@@ -73,29 +73,55 @@ export const CommunityPostsManager = () => {
 
   const loadPosts = async () => {
     try {
-      // For now, load mock data since table is newly created
-      const mockPosts: CommunityPost[] = [
-        {
-          id: '1',
-          user_id: 'mock-user',
-          content: 'Welcome to the Newomen community! Share your journey of self-discovery.',
-          post_type: 'announcement',
-          visibility: 'public',
-          likes_count: 15,
-          comments_count: 8,
-          is_pinned: true,
-          is_approved: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          user_profile: {
-            display_name: 'Newomen Team',
-            avatar_url: undefined
-          },
-          tags: ['welcome', 'community']
-        }
-      ];
-      
-      setPosts(mockPosts);
+      let query = supabase
+        .from('community_posts')
+        .select(`
+          *,
+          profiles!user_id(display_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (filter === 'pending') {
+        query = query.eq('is_approved', false);
+      } else if (filter === 'approved') {
+        query = query.eq('is_approved', true);
+      } else if (filter === 'reported') {
+        query = query.eq('is_reported', true);
+      } else if (filter === 'pinned') {
+        query = query.eq('is_pinned', true);
+      }
+
+      // Apply search
+      if (searchQuery.trim()) {
+        query = query.or(`content.ilike.%${searchQuery}%,post_type.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error } = await query.limit(50);
+
+      if (error) throw error;
+
+      const formattedPosts: CommunityPost[] = (data || []).map(post => ({
+        id: post.id,
+        user_id: post.user_id,
+        content: post.content,
+        post_type: post.post_type,
+        visibility: post.visibility,
+        likes_count: post.likes_count || 0,
+        comments_count: post.comments_count || 0,
+        is_pinned: post.is_pinned,
+        is_approved: post.is_approved,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        user_profile: {
+          display_name: post.profiles?.display_name || 'Unknown User',
+          avatar_url: undefined
+        },
+        tags: post.tags || [],
+        images: post.images || []
+      }));
+
+      setPosts(formattedPosts);
     } catch (error: any) {
       console.error('Error loading posts:', error);
       toast({
@@ -110,12 +136,18 @@ export const CommunityPostsManager = () => {
 
   const loadStats = async () => {
     try {
-      // Mock stats for now
+      const [totalResult, pendingResult, reportedResult, activeResult] = await Promise.all([
+        supabase.from('community_posts').select('id', { count: 'exact' }),
+        supabase.from('community_posts').select('id', { count: 'exact' }).eq('is_approved', false),
+        supabase.from('community_posts').select('id', { count: 'exact' }).eq('is_reported', true),
+        supabase.from('community_posts').select('id', { count: 'exact' }).eq('is_approved', true).eq('visibility', 'public')
+      ]);
+
       setStats({
-        totalPosts: 1,
-        pendingApproval: 0,
-        reportedPosts: 0,
-        activePosts: 1
+        totalPosts: totalResult.count || 0,
+        pendingApproval: pendingResult.count || 0,
+        reportedPosts: reportedResult.count || 0,
+        activePosts: activeResult.count || 0
       });
     } catch (error: any) {
       console.error('Error loading stats:', error);
@@ -124,6 +156,18 @@ export const CommunityPostsManager = () => {
 
   const updatePostStatus = async (postId: string, updates: Partial<CommunityPost>) => {
     try {
+      const dbUpdates: any = {};
+      if ('is_approved' in updates) dbUpdates.is_approved = updates.is_approved;
+      if ('is_pinned' in updates) dbUpdates.is_pinned = updates.is_pinned;
+      if ('visibility' in updates) dbUpdates.visibility = updates.visibility;
+      
+      const { error } = await supabase
+        .from('community_posts')
+        .update(dbUpdates)
+        .eq('id', postId);
+
+      if (error) throw error;
+
       setPosts(prev => prev.map(post => 
         post.id === postId ? { ...post, ...updates } : post
       ));
@@ -147,29 +191,35 @@ export const CommunityPostsManager = () => {
     if (selectedPosts.length === 0) return;
 
     try {
-      let updates: Partial<CommunityPost> = {};
+      let dbUpdates: any = {};
       
       switch (action) {
         case 'approve':
-          updates = { is_approved: true };
+          dbUpdates = { is_approved: true };
           break;
         case 'reject':
-          updates = { is_approved: false, visibility: 'hidden' };
+          dbUpdates = { is_approved: false, visibility: 'hidden' };
           break;
         case 'pin':
-          updates = { is_pinned: true };
+          dbUpdates = { is_pinned: true };
           break;
         case 'unpin':
-          updates = { is_pinned: false };
+          dbUpdates = { is_pinned: false };
           break;
         case 'hide':
-          updates = { visibility: 'hidden' };
+          dbUpdates = { visibility: 'hidden' };
           break;
       }
 
-      // Mock bulk update for now
+      const { error } = await supabase
+        .from('community_posts')
+        .update(dbUpdates)
+        .in('id', selectedPosts);
+
+      if (error) throw error;
+
       setPosts(prev => prev.map(post => 
-        selectedPosts.includes(post.id) ? { ...post, ...updates } : post
+        selectedPosts.includes(post.id) ? { ...post, ...dbUpdates } : post
       ));
 
       toast({
@@ -191,26 +241,24 @@ export const CommunityPostsManager = () => {
 
   const createAnnouncementPost = async (content: string, pinned: boolean = false) => {
     try {
-      const newPost: CommunityPost = {
-        id: Date.now().toString(),
-        user_id: 'admin',
-        content,
-        post_type: 'announcement',
-        visibility: 'public',
-        likes_count: 0,
-        comments_count: 0,
-        is_pinned: pinned,
-        is_approved: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        user_profile: {
-          display_name: 'Admin',
-          avatar_url: undefined
-        },
-        tags: ['announcement']
-      };
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      setPosts(prev => [newPost, ...prev]);
+      const { data, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: user.id,
+          content,
+          post_type: 'announcement',
+          visibility: 'public',
+          is_pinned: pinned,
+          is_approved: true,
+          tags: ['announcement']
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
 
       toast({
         title: "Announcement posted",
@@ -218,6 +266,7 @@ export const CommunityPostsManager = () => {
       });
 
       loadPosts();
+      loadStats();
     } catch (error: any) {
       toast({
         title: "Post failed",
