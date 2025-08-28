@@ -84,7 +84,11 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     try {
       setIsConnecting(true);
       
-      voiceChatRef.current = new RealtimeVoiceChat();
+      voiceChatRef.current = new RealtimeVoiceChat(
+        handleMessage,
+        handleTranscript,
+        handleSpeakingChange
+      );
 
       await voiceChatRef.current.connect();
       await startAudioMonitoring();
