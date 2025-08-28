@@ -41,21 +41,28 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>();
 
-  const handleMessage = (message: VoiceChatMessage) => {
-    setMessages(prev => [...prev, message]);
-    onMessage?.(message);
-    
-    if (message.type === 'assistant') {
-      setAiResponse(message.content);
-      // Clear AI response after a delay
+  const handleMessage = (data: any) => {
+    // Handle different message types from the WebSocket
+    if (data.type === 'response.audio_transcript.delta' && data.delta) {
+      const message: VoiceChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: data.delta,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, message]);
+      onMessage?.(message);
+      setAiResponse(data.delta);
       setTimeout(() => setAiResponse(''), 5000);
     }
   };
 
-  const handleTranscript = (text: string) => {
+  const handleTranscript = (text: string, isFinal: boolean) => {
     setUserTranscript(text);
-    // Clear transcript after a delay
-    setTimeout(() => setUserTranscript(''), 3000);
+    // Clear transcript after a delay only for final transcripts
+    if (isFinal) {
+      setTimeout(() => setUserTranscript(''), 3000);
+    }
   };
 
   const handleSpeakingChange = (speaking: boolean) => {
