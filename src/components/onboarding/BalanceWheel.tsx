@@ -8,8 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Save } from 'lucide-react';
-import * as Icons from 'lucide-react';
+import { Target, Save, Briefcase, Heart, Users, TrendingUp, Sparkles, DollarSign, Circle } from 'lucide-react';
 
 interface BalanceArea {
   id: string;
@@ -131,8 +130,16 @@ export const BalanceWheel = ({ onComplete }: BalanceWheelProps) => {
   };
 
   const getIconComponent = (iconName: string) => {
-    const IconComponent = Icons[iconName as keyof typeof Icons] as React.ComponentType<any>;
-    return IconComponent || Icons.Circle;
+    const iconMap: Record<string, React.ComponentType<any>> = {
+      Briefcase,
+      Heart,
+      Users,
+      TrendingUp,
+      Sparkles,
+      DollarSign,
+      Circle
+    };
+    return iconMap[iconName] || Circle;
   };
 
   const averageScore = Object.values(scores).reduce((sum, score) => sum + score, 0) / areas.length;
