@@ -115,8 +115,10 @@ const AdminDashboard = () => {
         supabase.from('exploration_sessions').select('id, status')
       ]);
 
-      // Placeholder for messages count since messages table doesn't exist yet
-      const messagesRes = { data: [] };
+      // Load messages count from database
+      const [messagesRes] = await Promise.all([
+        supabase.from('messages').select('id', { count: 'exact', head: true })
+      ]);
 
       const totalUsers = usersRes.data?.length || 0;
       const activeUsers = usersRes.data?.filter(u => {
@@ -132,7 +134,7 @@ const AdminDashboard = () => {
         activeUsers,
         totalExplorations: explorationsRes.data?.length || 0,
         completedSessions: sessionsRes.data?.filter(s => s.status === 'completed').length || 0,
-        totalMessages: messagesRes.data?.length || 0
+        totalMessages: messagesRes.count || 0
       });
 
       // Load users with safe profile data

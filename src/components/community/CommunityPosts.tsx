@@ -49,55 +49,55 @@ export const CommunityPosts = () => {
 
   const loadPosts = async () => {
     try {
-      // Mock community posts for now
-      const mockPosts: CommunityPost[] = [
-        {
-          id: '1',
-          user_id: 'user1',
-          content: 'Just completed my first exploration on self-compassion. The insights I gained were profound - especially about how I speak to myself in difficult moments. Anyone else working on this?',
-          post_type: 'insight',
-          likes_count: 12,
-          comments_count: 5,
-          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          user_profile: {
-            display_name: 'Sarah M.',
-            avatar_url: undefined
-          },
-          tags: ['self-compassion', 'insight', 'growth']
-        },
-        {
-          id: '2',
-          user_id: 'user2',
-          content: 'Has anyone tried the "Confronting the Shadow Self" exploration? I\'m feeling nervous about diving that deep but also curious about what I might discover.',
-          post_type: 'question',
-          likes_count: 8,
-          comments_count: 12,
-          created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          user_profile: {
-            display_name: 'Maya L.',
-            avatar_url: undefined
-          },
-          tags: ['shadow-work', 'question', 'support']
-        },
-        {
-          id: '3',
-          user_id: 'user3',
-          content: '🎉 Celebrating a small but meaningful victory today! I spoke up in a meeting and shared an idea I would have normally kept to myself. The work I\'ve been doing here is really showing up in my daily life.',
-          post_type: 'celebration',
-          likes_count: 25,
-          comments_count: 8,
-          created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-          user_profile: {
-            display_name: 'Aisha K.',
-            avatar_url: undefined
-          },
-          tags: ['celebration', 'confidence', 'breakthrough']
-        }
-      ];
+      setLoading(true);
+      
+      // Fetch real community posts from database
+      const { data: postsData, error } = await supabase
+        .from('community_posts')
+        .select(`
+          id,
+          user_id,
+          content,
+          post_type,
+          likes_count,
+          comments_count,
+          tags,
+          created_at,
+          profiles!inner(display_name, avatar_url)
+        `)
+        .eq('is_approved', true)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      setPosts(mockPosts);
+      if (error) throw error;
+
+      // Transform data to match component interface
+      const transformedPosts: CommunityPost[] = postsData.map(post => ({
+        id: post.id,
+        user_id: post.user_id,
+        content: post.content,
+        post_type: post.post_type,
+        likes_count: post.likes_count,
+        comments_count: post.comments_count,
+        created_at: post.created_at,
+        tags: post.tags || [],
+        user_profile: {
+          display_name: post.profiles.display_name || 'Anonymous',
+          avatar_url: post.profiles.avatar_url
+        }
+      }));
+
+      setPosts(transformedPosts);
     } catch (error: any) {
       console.error('Error loading posts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load community posts. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,22 +106,47 @@ export const CommunityPosts = () => {
 
     setLoading(true);
     try {
-      const post: CommunityPost = {
-        id: Date.now().toString(),
-        user_id: user.id,
-        content: newPost,
-        post_type: selectedType,
-        likes_count: 0,
-        comments_count: 0,
-        created_at: new Date().toISOString(),
+      // Insert new post into database
+      const { data: newPostData, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: user.id,
+          content: newPost.trim(),
+          post_type: selectedType,
+          tags: [] // Could be enhanced to extract tags from content
+        })
+        .select(`
+          id,
+          user_id,
+          content,
+          post_type,
+          likes_count,
+          comments_count,
+          tags,
+          created_at,
+          profiles!inner(display_name, avatar_url)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      // Transform and add to local state
+      const transformedPost: CommunityPost = {
+        id: newPostData.id,
+        user_id: newPostData.user_id,
+        content: newPostData.content,
+        post_type: newPostData.post_type,
+        likes_count: newPostData.likes_count,
+        comments_count: newPostData.comments_count,
+        created_at: newPostData.created_at,
+        tags: newPostData.tags || [],
         user_profile: {
-          display_name: 'You',
-          avatar_url: undefined
-        },
-        tags: []
+          display_name: newPostData.profiles.display_name || 'Anonymous',
+          avatar_url: newPostData.profiles.avatar_url
+        }
       };
 
-      setPosts(prev => [post, ...prev]);
+      setPosts(prev => [transformedPost, ...prev]);
       setNewPost('');
       
       toast({
@@ -130,9 +155,10 @@ export const CommunityPosts = () => {
       });
 
     } catch (error: any) {
+      console.error('Error creating post:', error);
       toast({
         title: "Share failed",
-        description: error.message,
+        description: error.message || "Failed to share your post. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -141,16 +167,31 @@ export const CommunityPosts = () => {
   };
 
   const likePost = async (postId: string) => {
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, likes_count: post.likes_count + 1 }
-        : post
-    ));
+    try {
+      // Increment likes count in database
+      const { error } = await supabase.rpc('increment_post_likes', { post_id: postId });
 
-    toast({
-      title: "💝 Liked!",
-      description: "Your support has been shared.",
-    });
+      if (error) throw error;
+
+      // Update local state
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, likes_count: post.likes_count + 1 }
+          : post
+      ));
+
+      toast({
+        title: "💝 Liked!",
+        description: "Your support has been shared.",
+      });
+    } catch (error: any) {
+      console.error('Error liking post:', error);
+      toast({
+        title: "Like failed",
+        description: "Failed to like the post. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getPostTypeIcon = (type: string) => {

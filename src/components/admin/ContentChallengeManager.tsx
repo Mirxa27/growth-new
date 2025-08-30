@@ -91,51 +91,33 @@ export const ContentChallengeManager = () => {
 
   const loadData = async () => {
     try {
-      // Load mock data for now since tables are newly created
-      const mockChallenges: Challenge[] = [
-        {
-          id: '1',
-          title: '7-Day Self-Discovery Journey',
-          description: 'Explore different aspects of yourself through daily reflections and activities.',
-          challenge_type: 'daily',
-          difficulty_level: 'beginner',
-          duration_days: 7,
-          crystal_reward: 150,
-          requirements: {},
-          is_active: true,
-          created_at: new Date().toISOString()
-        }
-      ];
+      setLoading(true);
 
-      const mockLevels: Level[] = [
-        {
-          id: '1',
-          level_number: 1,
-          title: 'Seeker',
-          description: 'You\'ve begun your journey of self-discovery.',
-          crystal_requirement: 0,
-          rewards: { badge: 'seeker', title: 'Seeker' },
-          unlocks: ['basic_explorations'],
-          is_active: true,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          level_number: 2,
-          title: 'Explorer',
-          description: 'You\'re actively exploring your inner world.',
-          crystal_requirement: 500,
-          rewards: { badge: 'explorer', title: 'Explorer' },
-          unlocks: ['intermediate_explorations'],
-          is_active: true,
-          created_at: new Date().toISOString()
-        }
-      ];
+      // Load real challenges from database
+      const { data: challengesData, error: challengesError } = await supabase
+        .from('challenges')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      setChallenges(mockChallenges);
-      setLevels(mockLevels);
+      if (challengesError) throw challengesError;
+
+      // Load real levels from database
+      const { data: levelsData, error: levelsError } = await supabase
+        .from('user_levels')
+        .select('*')
+        .order('level_number', { ascending: true });
+
+      if (levelsError) throw levelsError;
+
+      setChallenges(challengesData || []);
+      setLevels(levelsData || []);
     } catch (error: any) {
       console.error('Error loading data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load challenges and levels data.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -151,21 +133,40 @@ export const ContentChallengeManager = () => {
 
   const saveChallenge = async () => {
     try {
-      const newChallenge: Challenge = {
-        id: editingChallenge?.id || Date.now().toString(),
-        ...challengeForm,
-        created_at: editingChallenge?.created_at || new Date().toISOString()
+      const challengeData = {
+        title: challengeForm.title,
+        description: challengeForm.description,
+        challenge_type: challengeForm.challenge_type,
+        difficulty_level: challengeForm.difficulty_level,
+        duration_days: challengeForm.duration_days,
+        crystal_reward: challengeForm.crystal_reward,
+        requirements: challengeForm.requirements,
+        is_active: challengeForm.is_active
       };
 
       if (editingChallenge) {
-        setChallenges(prev => prev.map(c => c.id === editingChallenge.id ? newChallenge : c));
+        // Update existing challenge
+        const { error } = await supabase
+          .from('challenges')
+          .update(challengeData)
+          .eq('id', editingChallenge.id);
+
+        if (error) throw error;
+
         toast({ title: "Challenge updated successfully" });
       } else {
-        setChallenges(prev => [newChallenge, ...prev]);
+        // Create new challenge
+        const { error } = await supabase
+          .from('challenges')
+          .insert(challengeData);
+
+        if (error) throw error;
+
         toast({ title: "Challenge created successfully" });
       }
 
       resetChallengeForm();
+      loadData(); // Reload data to get updated list
     } catch (error: any) {
       toast({
         title: "Error saving challenge",
@@ -177,21 +178,39 @@ export const ContentChallengeManager = () => {
 
   const saveLevel = async () => {
     try {
-      const newLevel: Level = {
-        id: editingLevel?.id || Date.now().toString(),
-        ...levelForm,
-        created_at: editingLevel?.created_at || new Date().toISOString()
+      const levelData = {
+        level_number: levelForm.level_number,
+        title: levelForm.title,
+        description: levelForm.description,
+        crystal_requirement: levelForm.crystal_requirement,
+        rewards: levelForm.rewards,
+        unlocks: levelForm.unlocks,
+        is_active: levelForm.is_active
       };
 
       if (editingLevel) {
-        setLevels(prev => prev.map(l => l.id === editingLevel.id ? newLevel : l));
+        // Update existing level
+        const { error } = await supabase
+          .from('user_levels')
+          .update(levelData)
+          .eq('id', editingLevel.id);
+
+        if (error) throw error;
+
         toast({ title: "Level updated successfully" });
       } else {
-        setLevels(prev => [...prev, newLevel].sort((a, b) => a.level_number - b.level_number));
+        // Create new level
+        const { error } = await supabase
+          .from('user_levels')
+          .insert(levelData);
+
+        if (error) throw error;
+
         toast({ title: "Level created successfully" });
       }
 
       resetLevelForm();
+      loadData(); // Reload data to get updated list
     } catch (error: any) {
       toast({
         title: "Error saving level",
@@ -205,8 +224,15 @@ export const ContentChallengeManager = () => {
     if (!confirm('Are you sure you want to delete this challenge?')) return;
 
     try {
-      setChallenges(prev => prev.filter(c => c.id !== id));
+      const { error } = await supabase
+        .from('challenges')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       toast({ title: "Challenge deleted successfully" });
+      loadData(); // Reload data to get updated list
     } catch (error: any) {
       toast({
         title: "Error deleting challenge",
@@ -220,8 +246,15 @@ export const ContentChallengeManager = () => {
     if (!confirm('Are you sure you want to delete this level?')) return;
 
     try {
-      setLevels(prev => prev.filter(l => l.id !== id));
+      const { error } = await supabase
+        .from('user_levels')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       toast({ title: "Level deleted successfully" });
+      loadData(); // Reload data to get updated list
     } catch (error: any) {
       toast({
         title: "Error deleting level",
