@@ -77,7 +77,7 @@ export const CommunityPostsManager = () => {
         .from('community_posts')
         .select(`
           *,
-          profiles!user_id(display_name)
+          profiles(display_name, avatar_url)
         `)
         .order('created_at', { ascending: false });
 
@@ -101,7 +101,7 @@ export const CommunityPostsManager = () => {
 
       if (error) throw error;
 
-      const formattedPosts: CommunityPost[] = (data || []).map(post => ({
+      const formattedPosts: CommunityPost[] = (data || []).map((post: any) => ({
         id: post.id,
         user_id: post.user_id,
         content: post.content,
@@ -115,7 +115,7 @@ export const CommunityPostsManager = () => {
         updated_at: post.updated_at,
         user_profile: {
           display_name: post.profiles?.display_name || 'Unknown User',
-          avatar_url: undefined
+          avatar_url: post.profiles?.avatar_url || undefined
         },
         tags: post.tags || [],
         images: post.images || []

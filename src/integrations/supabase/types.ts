@@ -275,6 +275,33 @@ export type Database = {
         }
         Relationships: []
       }
+      app_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       assessment_progress: {
         Row: {
           assessment_type: string
@@ -715,6 +742,42 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_favorite: boolean | null
+          mood: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          mood?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          mood?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       moderation_rules: {
         Row: {
           auto_action: string
@@ -778,6 +841,51 @@ export type Database = {
           is_default?: boolean | null
           is_enabled?: boolean | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      payment_failures: {
+        Row: {
+          created_at: string
+          failure_reason: string
+          gateway: string
+          id: string
+          invoice_id: string | null
+          max_retries: number | null
+          next_retry_at: string | null
+          resolved_at: string | null
+          retry_count: number | null
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          failure_reason: string
+          gateway: string
+          id?: string
+          invoice_id?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          failure_reason?: string
+          gateway?: string
+          id?: string
+          invoice_id?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -945,6 +1053,96 @@ export type Database = {
           subscription_tier?: string | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      realtime_agent_configs: {
+        Row: {
+          created_at: string | null
+          id: string
+          instructions: string
+          is_active: boolean | null
+          metadata: Json | null
+          model: string
+          name: string
+          tools: Json | null
+          type: string
+          updated_at: string | null
+          user_id: string | null
+          voice: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instructions: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          model: string
+          name: string
+          tools?: Json | null
+          type: string
+          updated_at?: string | null
+          user_id?: string | null
+          voice: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instructions?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          model?: string
+          name?: string
+          tools?: Json | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string | null
+          voice?: string
+        }
+        Relationships: []
+      }
+      realtime_agent_configurations: {
+        Row: {
+          agent_pattern: string
+          agent_roles: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sequential_agents: Json | null
+          system_prompt: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          agent_pattern: string
+          agent_roles?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sequential_agents?: Json | null
+          system_prompt: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          agent_pattern?: string
+          agent_roles?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sequential_agents?: Json | null
+          system_prompt?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -1197,6 +1395,7 @@ export type Database = {
       }
       subscription_plans: {
         Row: {
+          billing_period: string | null
           created_at: string | null
           currency: string
           description: string | null
@@ -1206,12 +1405,14 @@ export type Database = {
           id: string
           interval: string
           interval_count: number
+          is_active: boolean | null
           is_popular: boolean | null
           name: string
           price: number
           updated_at: string | null
         }
         Insert: {
+          billing_period?: string | null
           created_at?: string | null
           currency: string
           description?: string | null
@@ -1221,12 +1422,14 @@ export type Database = {
           id: string
           interval: string
           interval_count: number
+          is_active?: boolean | null
           is_popular?: boolean | null
           name: string
           price: number
           updated_at?: string | null
         }
         Update: {
+          billing_period?: string | null
           created_at?: string | null
           currency?: string
           description?: string | null
@@ -1236,6 +1439,7 @@ export type Database = {
           id?: string
           interval?: string
           interval_count?: number
+          is_active?: boolean | null
           is_popular?: boolean | null
           name?: string
           price?: number
@@ -1336,6 +1540,57 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           webhook_received_at?: string | null
+        }
+        Relationships: []
+      }
+      testimonials: {
+        Row: {
+          after_state: string | null
+          author_image: string | null
+          author_name: string
+          author_role: string | null
+          before_state: string | null
+          content: string
+          created_at: string | null
+          id: string
+          is_featured: boolean | null
+          rating: number | null
+          status: string | null
+          transformation_type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          after_state?: string | null
+          author_image?: string | null
+          author_name: string
+          author_role?: string | null
+          before_state?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          rating?: number | null
+          status?: string | null
+          transformation_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          after_state?: string | null
+          author_image?: string | null
+          author_name?: string
+          author_role?: string | null
+          before_state?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          rating?: number | null
+          status?: string | null
+          transformation_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1733,6 +1988,60 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          auto_save_journal: boolean | null
+          created_at: string | null
+          id: string
+          language: string | null
+          notifications_email: boolean | null
+          notifications_marketing: boolean | null
+          notifications_push: boolean | null
+          privacy_analytics: boolean | null
+          privacy_personalization: boolean | null
+          theme: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+          voice_speed: number | null
+          voice_type: string | null
+        }
+        Insert: {
+          auto_save_journal?: boolean | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          notifications_email?: boolean | null
+          notifications_marketing?: boolean | null
+          notifications_push?: boolean | null
+          privacy_analytics?: boolean | null
+          privacy_personalization?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+          voice_speed?: number | null
+          voice_type?: string | null
+        }
+        Update: {
+          auto_save_journal?: boolean | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          notifications_email?: boolean | null
+          notifications_marketing?: boolean | null
+          notifications_push?: boolean | null
+          privacy_analytics?: boolean | null
+          privacy_personalization?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+          voice_speed?: number | null
+          voice_type?: string | null
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           anthropic_api_key: string | null
@@ -1768,6 +2077,59 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          payment_gateway_subscription_id: string
+          payment_method: string
+          plan_id: string
+          status: string
+          trial_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end: string
+          current_period_start: string
+          id?: string
+          payment_gateway_subscription_id: string
+          payment_method: string
+          plan_id: string
+          status: string
+          trial_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          payment_gateway_subscription_id?: string
+          payment_method?: string
+          plan_id?: string
+          status?: string
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       voice_chat_signals: {
         Row: {
@@ -1857,6 +2219,19 @@ export type Database = {
         }
         Relationships: []
       }
+      user_journal_stats: {
+        Row: {
+          all_tags: string[] | null
+          entries_last_30_days: number | null
+          entries_last_7_days: number | null
+          favorite_entries: number | null
+          first_entry_date: string | null
+          last_entry_date: string | null
+          total_entries: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       award_crystals: {
@@ -1877,6 +2252,40 @@ export type Database = {
           role: string
           updated_at: string
           user_id: string
+        }[]
+      }
+      get_agent_configuration_by_id: {
+        Args: { config_id: string }
+        Returns: {
+          agent_pattern: string
+          agent_roles: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sequential_agents: Json | null
+          system_prompt: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+      }
+      get_agent_configurations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          agent_pattern: string
+          agent_roles: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sequential_agents: Json | null
+          system_prompt: string
+          updated_at: string | null
+          updated_by: string | null
         }[]
       }
       get_dashboard_data: {
@@ -1915,6 +2324,14 @@ export type Database = {
           total_breathing_minutes: number
           user_id: string
         }[]
+      }
+      get_or_create_conversation: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: string
+      }
+      get_user_usage_stats: {
+        Args: { user_id: string }
+        Returns: Json
       }
       is_admin: {
         Args: { uid: string }
