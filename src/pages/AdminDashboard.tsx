@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -27,28 +26,104 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalAssessments: 0,
+    communityPosts: 0,
+    aiInteractions: 0,
+    crystalsAwarded: 0
+  });
 
-  // Mock admin data
-  const stats = {
-    totalUsers: 12547,
-    activeUsers: 8934,
-    totalAssessments: 25689,
-    communityPosts: 3421,
-    aiInteractions: 156789,
-    crystalsAwarded: 2456789
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user statistics
+      const { count: userCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch active users (logged in within last 7 days)
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      const { count: activeUserCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_login_at', weekAgo.toISOString());
+
+      // Fetch community posts count
+      const { count: postsCount } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch assessments count
+      const { count: assessmentCount } = await supabase
+        .from('assessment_responses')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch chat messages count (AI interactions)
+      const { count: messagesCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch total crystals awarded
+      const { data: crystalData } = await supabase
+        .from('profiles')
+        .select('crystals_count');
+      
+      const totalCrystals = crystalData?.reduce((sum, profile) => sum + (profile.crystals_count || 0), 0) || 0;
+
+      setStats({
+        totalUsers: userCount || 0,
+        activeUsers: activeUserCount || 0,
+        totalAssessments: assessmentCount || 0,
+        communityPosts: postsCount || 0,
+        aiInteractions: messagesCount || 0,
+        crystalsAwarded: totalCrystals
+      });
+
+      // Fetch recent activity
+      const { data: recentPosts } = await supabase
+        .from('community_posts')
+        .select('*, profiles(display_name)')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const activity = recentPosts?.map(post => ({
+        type: 'community_post',
+        message: `New post by ${post.profiles?.display_name || 'Anonymous'}: ${post.title}`,
+        time: new Date(post.created_at).toLocaleString()
+      })) || [];
+
+      setRecentActivity(activity);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: "Error loading data",
+        description: "Failed to load dashboard statistics",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const recentActivity = [
-    { type: 'user_signup', message: 'New user registered: sarah@example.com', time: '2 minutes ago' },
-    { type: 'assessment_completed', message: 'Personality assessment completed by user #1234', time: '5 minutes ago' },
-    { type: 'community_post', message: 'New community post flagged for review', time: '10 minutes ago' },
-    { type: 'ai_interaction', message: 'High volume of AI chat sessions detected', time: '15 minutes ago' }
-  ];
 
   const handleSystemAction = (action: string) => {
     toast({
@@ -56,6 +131,14 @@ const AdminDashboard = () => {
       description: "System action has been queued for processing.",
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
@@ -155,15 +238,21 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-start gap-3 p-3 glass rounded-lg">
-                        <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                        <div className="flex-1">
-                          <p className="text-sm">{activity.message}</p>
-                          <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity, index) => (
+                        <div key={index} className="flex items-start gap-3 p-3 glass rounded-lg">
+                          <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          <div className="flex-1">
+                            <p className="text-sm">{activity.message}</p>
+                            <p className="text-xs text-muted-foreground">{activity.time}</p>
+                          </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No recent activity</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>

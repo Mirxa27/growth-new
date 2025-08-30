@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,8 +48,9 @@ const Library = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('browse');
+  const [loading, setLoading] = useState(true);
 
-  const [libraryItems] = useState<LibraryItem[]>([
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([
     {
       id: '1',
       title: 'Understanding Your Inner Critic',
@@ -132,6 +133,12 @@ const Library = () => {
     }
   ]);
 
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   const categories = [
     'all',
     'Self-Awareness',
@@ -155,9 +162,18 @@ const Library = () => {
   const inProgressItems = libraryItems.filter(item => item.progress && item.progress > 0 && item.progress < 100);
 
   const handleBookmark = (itemId: string) => {
+    // Update bookmark status (in real app, this would update the database)
+    setLibraryItems(prevItems => 
+      prevItems.map(item => 
+        item.id === itemId 
+          ? { ...item, isBookmarked: !item.isBookmarked }
+          : item
+      )
+    );
+    
     toast({
-      title: "Bookmarked!",
-      description: "Item added to your bookmarks.",
+      title: "Bookmark updated!",
+      description: "Item bookmark status has been updated.",
     });
   };
 
@@ -186,6 +202,17 @@ const Library = () => {
       default: return 'text-muted-foreground';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading library...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
