@@ -1,18 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   Mic, 
-  MicOff, 
   Volume2, 
-  VolumeX, 
-  Loader2, 
   Phone,
   PhoneOff,
-  Sparkles
+  Sparkles,
+  Zap,
+  Heart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RealtimeVoiceChat } from '@/utils/RealtimeVoiceChat';
 import { useToast } from '@/hooks/use-toast';
 
 interface RealtimeVoiceInterfaceProps {
@@ -20,304 +19,441 @@ interface RealtimeVoiceInterfaceProps {
   className?: string;
 }
 
+interface RealtimeEvent {
+  type: string;
+  event_id?: string;
+  conversation?: { id: string };
+  item?: any;
+  delta?: { audio?: string; text?: string; transcript?: string };
+  transcript?: string;
+  error?: { type: string; code: string; message: string };
+}
+
 export const RealtimeVoiceInterface = ({ 
   onMessage, 
   className 
 }: RealtimeVoiceInterfaceProps) => {
+  // State management
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [userTranscript, setUserTranscript] = useState('');
-  const [aiTranscript, setAiTranscript] = useState('');
-  const [audioLevel, setAudioLevel] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
   const { toast } = useToast();
-  const voiceChatRef = useRef<RealtimeVoiceChat | null>(null);
+
+  // Refs
+  const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationRef = useRef<number>();
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioQueueRef = useRef<ArrayBuffer[]>([]);
+  const isPlayingRef = useRef(false);
 
-  const handleMessage = useCallback((message: any) => {
-    console.log('Voice chat message:', message);
+  // WebSocket connection to OpenAI Realtime API
+  const connectToOpenAI = useCallback(async () => {
+    if (connectionStatus === 'connecting' || isConnected) return;
     
-    if (message.type === 'error') {
-      toast({
-        title: "Voice Chat Error",
-        description: message.error?.message || 'An error occurred',
-        variant: "destructive"
-      });
-    }
-
-    onMessage?.(message);
-  }, [onMessage, toast]);
-
-  const handleTranscript = useCallback((transcript: string, isFinal: boolean) => {
-    if (isFinal) {
-      setUserTranscript(transcript);
-      console.log('Final user transcript:', transcript);
-    }
-  }, []);
-
-  const handleSpeakingChange = useCallback((speaking: boolean) => {
-    setIsSpeaking(speaking);
-    if (speaking) {
-      setAiTranscript(''); // Clear previous AI transcript when starting new response
-    }
-  }, []);
-
-  const startVoiceChat = async () => {
+    setConnectionStatus('connecting');
+    setIsConnecting(true);
+    
     try {
-      setIsConnecting(true);
+      // Get OpenAI API key from environment
+      const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
       
-      voiceChatRef.current = new RealtimeVoiceChat(
-        handleMessage,
-        handleTranscript,
-        handleSpeakingChange
+      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'your-openai-api-key-here') {
+        throw new Error('OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your .env file.');
+      }
+      
+      const ws = new WebSocket(
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
+        ['realtime', `openai-insecure-api-key.${OPENAI_API_KEY}`]
       );
-
-      await voiceChatRef.current.connect();
-      setIsConnected(true);
-      setIsConnecting(false);
-
-      // Start audio level monitoring
-      startAudioMonitoring();
-
-      toast({
-        title: "Voice Chat Connected",
-        description: "You can now speak with NewMe naturally",
-      });
-
-    } catch (error) {
-      console.error('Error starting voice chat:', error);
-      setIsConnecting(false);
-      toast({
-        title: "Connection Failed",
-        description: "Could not connect to voice chat. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const endVoiceChat = () => {
-    if (voiceChatRef.current) {
-      voiceChatRef.current.disconnect();
-      voiceChatRef.current = null;
-    }
-    
-    stopAudioMonitoring();
-    setIsConnected(false);
-    setIsSpeaking(false);
-    setUserTranscript('');
-    setAiTranscript('');
-    setAudioLevel(0);
-
-    toast({
-      title: "Voice Chat Ended",
-      description: "You can restart the conversation anytime",
-    });
-  };
-
-  const startAudioMonitoring = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
-      analyserRef.current.fftSize = 256;
       
-      const updateAudioLevel = () => {
-        if (analyserRef.current && isConnected) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          setAudioLevel(average / 255);
-        }
-        if (isConnected) {
-          animationRef.current = requestAnimationFrame(updateAudioLevel);
+      ws.onopen = () => {
+        console.log('Connected to OpenAI Realtime API');
+        setIsConnected(true);
+        setIsConnecting(false);
+        setConnectionStatus('connected');
+        
+        // Configure session
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            modalities: ['text', 'audio'],
+            instructions: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. Speak warmly and empathetically.`,
+            voice: 'alloy',
+            input_audio_format: 'pcm16',
+            output_audio_format: 'pcm16',
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 200
+            }
+          }
+        }));
+        
+        startRecording();
+        
+        toast({
+          title: "Connected! 🎙️",
+          description: "Voice conversation is ready. Start speaking!",
+        });
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data: RealtimeEvent = JSON.parse(event.data);
+          handleRealtimeEvent(data);
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
         }
       };
       
-      updateAudioLevel();
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionStatus('disconnected');
+        setIsConnected(false);
+        setIsConnecting(false);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to voice service. Please try again.",
+          variant: "destructive"
+        });
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket connection closed');
+        setIsConnected(false);
+        setIsConnecting(false);
+        setConnectionStatus('disconnected');
+        setIsRecording(false);
+        setIsSpeaking(false);
+      };
+      
+      wsRef.current = ws;
+      
     } catch (error) {
-      console.error('Error starting audio monitoring:', error);
+      console.error('Failed to connect to OpenAI:', error);
+      setConnectionStatus('disconnected');
+      setIsConnecting(false);
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "Could not establish voice connection. Please check your settings.",
+        variant: "destructive"
+      });
     }
-  };
+  }, [connectionStatus, isConnected, toast]);
 
-  const stopAudioMonitoring = () => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
+  // Handle realtime events from OpenAI
+  const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
+    console.log('Realtime event:', event.type, event);
+    
+    switch (event.type) {
+      case 'conversation.item.input_audio_transcription.completed':
+        if (event.transcript) {
+          setUserTranscript(event.transcript);
+        }
+        break;
+        
+      case 'response.audio.delta':
+        if (event.delta?.audio) {
+          // Queue audio for playback
+          const audioData = atob(event.delta.audio);
+          const buffer = new ArrayBuffer(audioData.length);
+          const view = new Uint8Array(buffer);
+          for (let i = 0; i < audioData.length; i++) {
+            view[i] = audioData.charCodeAt(i);
+          }
+          audioQueueRef.current.push(buffer);
+          
+          if (!isPlayingRef.current) {
+            playQueuedAudio();
+          }
+        }
+        break;
+        
+      case 'response.audio.done':
+        setIsSpeaking(false);
+        break;
+        
+      case 'input_audio_buffer.speech_started':
+        setIsRecording(true);
+        break;
+        
+      case 'input_audio_buffer.speech_stopped':
+        setIsRecording(false);
+        break;
+        
+      case 'error':
+        console.error('OpenAI Realtime API error:', event.error);
+        toast({
+          title: "Voice Error",
+          description: event.error?.message || "An error occurred during voice processing.",
+          variant: "destructive"
+        });
+        break;
     }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-    }
-    setAudioLevel(0);
-  };
 
-  useEffect(() => {
-    return () => {
-      endVoiceChat();
-    };
+    onMessage?.(event);
+  }, [onMessage, toast]);
+
+  // Audio playback
+  const playQueuedAudio = useCallback(async () => {
+    if (!audioContextRef.current || audioQueueRef.current.length === 0 || isPlayingRef.current) {
+      return;
+    }
+    
+    isPlayingRef.current = true;
+    setIsSpeaking(true);
+    
+    try {
+      while (audioQueueRef.current.length > 0) {
+        const audioBuffer = audioQueueRef.current.shift();
+        if (!audioBuffer) continue;
+        
+        // Convert raw PCM16 to AudioBuffer
+        const audioData = new Int16Array(audioBuffer);
+        const audioBuffer2 = audioContextRef.current.createBuffer(1, audioData.length, 24000);
+        const channelData = audioBuffer2.getChannelData(0);
+        
+        for (let i = 0; i < audioData.length; i++) {
+          channelData[i] = audioData[i] / 32768;
+        }
+        
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer2;
+        source.connect(audioContextRef.current.destination);
+        
+        await new Promise<void>((resolve) => {
+          source.onended = () => resolve();
+          source.start();
+        });
+      }
+    } catch (error) {
+      console.error('Audio playback error:', error);
+    } finally {
+      isPlayingRef.current = false;
+      setIsSpeaking(false);
+    }
   }, []);
 
+  // Start recording audio
+  const startRecording = useCallback(async () => {
+    if (!isConnected || !audioContextRef.current) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 24000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
+      mediaStreamRef.current = stream;
+      
+      // Create audio processor
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      
+      processor.onaudioprocess = (event) => {
+        const inputData = event.inputBuffer.getChannelData(0);
+        const outputData = new Int16Array(inputData.length);
+        
+        for (let i = 0; i < inputData.length; i++) {
+          outputData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+        }
+        
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          const base64Audio = btoa(String.fromCharCode(...new Uint8Array(outputData.buffer)));
+          wsRef.current.send(JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: base64Audio
+          }));
+        }
+      };
+      
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+      
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      toast({
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check your permissions.",
+        variant: "destructive"
+      });
+    }
+  }, [isConnected, toast]);
+
+  // Initialize audio context
+  const initializeAudioContext = useCallback(async () => {
+    try {
+      audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+    } catch (error) {
+      console.error('Failed to initialize audio context:', error);
+    }
+  }, []);
+
+  // Disconnect from OpenAI
+  const disconnect = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    
+    setIsConnected(false);
+    setIsConnecting(false);
+    setConnectionStatus('disconnected');
+    setIsRecording(false);
+    setIsSpeaking(false);
+    setUserTranscript('');
+    
+    toast({
+      title: "Disconnected",
+      description: "Voice conversation ended.",
+    });
+  }, [toast]);
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeAudioContext();
+    
+    return () => {
+      disconnect();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [initializeAudioContext, disconnect]);
+
+  const startVoiceChat = async () => {
+    await connectToOpenAI();
+  };
+
+  const endVoiceChat = () => {
+    disconnect();
+  };
+
   return (
-    <div className={cn("flex flex-col items-center space-y-6", className)}>
-      {/* Connection Status & Control */}
-      <div className="flex flex-col items-center space-y-4">
-        {!isConnected ? (
-          <Button
-            onClick={startVoiceChat}
-            disabled={isConnecting}
-            size="lg"
-            className="w-32 h-32 rounded-full bg-gradient-primary hover:scale-105 transition-all duration-300 shadow-glow"
-          >
-            {isConnecting ? (
-              <Loader2 className="w-12 h-12 animate-spin" />
-            ) : (
-              <div className="flex flex-col items-center">
-                <Phone className="w-8 h-8 mb-2" />
-                <span className="text-sm font-medium">Start Voice Chat</span>
-              </div>
-            )}
-          </Button>
-        ) : (
+    <Card className={cn("glass-card border-glass", className)}>
+      <CardHeader className="text-center pb-4">
+        <CardTitle className="flex items-center justify-center gap-2">
+          <Phone className="w-5 h-5" />
+          Real-time Voice Chat
+        </CardTitle>
+        <div className="flex justify-center">
+          <Badge variant={isConnected ? "default" : "secondary"} className="glass">
+            {connectionStatus === 'connecting' && "Connecting..."}
+            {connectionStatus === 'connected' && "Connected"}
+            {connectionStatus === 'disconnected' && "Disconnected"}
+          </Badge>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        {/* Main Voice Interface */}
+        <div className="flex flex-col items-center space-y-4">
+          {/* Voice Visualization */}
           <div className="relative">
-            {/* Outer Glow Rings */}
             <div className={cn(
-              "absolute inset-0 rounded-full transition-all duration-300",
-              isSpeaking 
-                ? "animate-ping bg-secondary/30 scale-150" 
-                : "bg-primary/20 scale-125"
-            )}></div>
-            
-            <div className={cn(
-              "absolute inset-0 rounded-full transition-all duration-500",
-              isSpeaking 
-                ? "animate-pulse bg-secondary/20 scale-125" 
-                : "bg-primary/10 scale-110"
-            )}></div>
-
-            {/* Main Voice Button */}
-            <Button
-              onClick={endVoiceChat}
-              size="lg"
-              className={cn(
-                "relative w-32 h-32 rounded-full transition-all duration-300 border-2",
-                isSpeaking 
-                  ? "bg-secondary border-secondary-glow shadow-glow scale-110" 
-                  : "bg-primary border-primary-glow shadow-glow",
-                "hover:scale-105"
+              "w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300",
+              isConnected ? "bg-gradient-primary shadow-glow" : "bg-muted",
+              isRecording && "animate-pulse scale-110",
+              isSpeaking && "bg-gradient-secondary"
+            )}>
+              {isRecording ? (
+                <Mic className="w-12 h-12 text-white" />
+              ) : isSpeaking ? (
+                <Volume2 className="w-12 h-12 text-white" />
+              ) : (
+                <Phone className="w-12 h-12 text-white opacity-60" />
               )}
-              style={{
-                transform: `scale(${1.1 + audioLevel * 0.3})`
-              }}
-            >
-              <div className="flex flex-col items-center">
-                {isSpeaking ? (
-                  <Volume2 className="w-8 h-8 mb-2" />
-                ) : (
-                  <Sparkles className="w-8 h-8 mb-2" />
-                )}
-                <span className="text-sm font-medium">
-                  {isSpeaking ? "Speaking" : "Listening"}
-                </span>
-              </div>
-            </Button>
+            </div>
+            
+            {/* Audio level visualization */}
+            {isRecording && (
+              <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping"></div>
+            )}
+          </div>
 
-            {/* Audio Level Indicator */}
-            {isConnected && !isSpeaking && (
-              <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
-                <div className="flex space-x-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-1 bg-primary rounded-full transition-all duration-100",
-                        audioLevel * 10 > i ? "h-4" : "h-1",
-                        audioLevel * 10 > i ? "bg-primary" : "bg-primary/30"
-                      )}
-                    ></div>
-                  ))}
-                </div>
+          {/* Status Text */}
+          <div className="text-center space-y-2">
+            <p className="text-lg font-medium">
+              {!isConnected && "Ready to connect"}
+              {isConnected && !isRecording && !isSpeaking && "Listening..."}
+              {isRecording && "You're speaking"}
+              {isSpeaking && "NewMe is responding"}
+            </p>
+            
+            {userTranscript && (
+              <div className="glass rounded-lg p-3 max-w-md">
+                <p className="text-sm text-muted-foreground">You said:</p>
+                <p className="text-sm">{userTranscript}</p>
               </div>
             )}
           </div>
-        )}
 
-        {/* Status Text */}
-        <div className="text-center">
-          <p className={cn(
-            "text-lg font-medium transition-colors",
-            isConnected 
-              ? isSpeaking 
-                ? "text-secondary" 
-                : "text-primary" 
-              : "text-muted-foreground"
-          )}>
-            {isConnecting 
-              ? "Connecting..."
-              : isConnected 
-                ? isSpeaking 
-                  ? "NewMe is speaking..." 
-                  : "Speak naturally with NewMe"
-                : "Start a voice conversation"
-            }
-          </p>
+          {/* Connection Controls */}
+          <div className="flex gap-4">
+            {!isConnected ? (
+              <Button 
+                onClick={startVoiceChat} 
+                disabled={isConnecting}
+                className="bg-gradient-primary px-8"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                {isConnecting ? 'Connecting...' : 'Start Voice Chat'}
+              </Button>
+            ) : (
+              <Button 
+                onClick={endVoiceChat} 
+                variant="destructive"
+                className="px-8"
+              >
+                <PhoneOff className="w-4 h-4 mr-2" />
+                End Call
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/10">
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+              <Zap className="w-4 h-4 text-primary" />
+            </div>
+            <p className="text-sm font-medium">Real-time</p>
+            <p className="text-xs text-muted-foreground">Instant voice responses</p>
+          </div>
           
-          {isConnected && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Tap the button to end the conversation
-            </p>
-          )}
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto">
+              <Heart className="w-4 h-4 text-secondary" />
+            </div>
+            <p className="text-sm font-medium">Empathetic</p>
+            <p className="text-xs text-muted-foreground">Understands emotions</p>
+          </div>
+          
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto">
+              <Sparkles className="w-4 h-4 text-accent" />
+            </div>
+            <p className="text-sm font-medium">Intelligent</p>
+            <p className="text-xs text-muted-foreground">Contextual awareness</p>
+          </div>
         </div>
-      </div>
-
-      {/* Transcripts */}
-      {isConnected && (userTranscript || aiTranscript) && (
-        <div className="w-full max-w-2xl space-y-4">
-          {userTranscript && (
-            <Card className="glass border-glass">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Mic className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground mb-1">You said:</p>
-                    <p className="text-foreground">{userTranscript}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {aiTranscript && (
-            <Card className="glass border-glass">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-secondary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground mb-1">NewMe:</p>
-                    <p className="text-foreground">{aiTranscript}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="text-center max-w-md">
-        <p className="text-xs text-muted-foreground">
-          {!isConnected 
-            ? "Experience natural conversation with NewMe using voice-to-voice technology"
-            : "Speak naturally - NewMe will respond with voice and understand the flow of conversation"
-          }
-        </p>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

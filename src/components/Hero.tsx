@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Heart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex flex-col justify-center items-center px-6 py-20 overflow-hidden">
       {/* Floating Elements */}
@@ -37,12 +40,21 @@ export const Hero = () => {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-          <Button size="lg" className="glass glass-glow interactive group px-8 py-4 text-lg font-semibold">
-            Start Your Journey
+          <Button 
+            size="lg" 
+            className="glass glass-glow interactive group px-8 py-4 text-lg font-semibold"
+            onClick={() => navigate("/mobile-assessment")}
+          >
+            Take Free Assessment
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
-          <Button variant="outline" size="lg" className="glass interactive px-8 py-4 text-lg">
-            Learn More
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="glass interactive px-8 py-4 text-lg"
+            onClick={() => navigate("/assessment")}
+          >
+            Desktop Assessment
           </Button>
         </div>
 

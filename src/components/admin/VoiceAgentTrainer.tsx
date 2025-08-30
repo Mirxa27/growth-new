@@ -49,6 +49,28 @@ interface VoiceAgentTrainerProps {
   providers: any[];
 }
 
+// Calculate audio quality based on file size, duration and format
+const calculateAudioQuality = (audioBlob: Blob): number => {
+  // Basic quality metrics
+  const sizeInKB = audioBlob.size / 1024;
+  const estimatedDuration = sizeInKB / 16; // Rough estimate for 16kbps
+  
+  // Quality factors
+  let qualityScore = 0.7; // Base score
+  
+  // Size factor (larger files generally better quality)
+  if (sizeInKB > 100) qualityScore += 0.1;
+  if (sizeInKB > 500) qualityScore += 0.1;
+  
+  // Duration factor (reasonable length recordings are better)
+  if (estimatedDuration > 5 && estimatedDuration < 60) {
+    qualityScore += 0.1;
+  }
+  
+  // Ensure score is within bounds
+  return Math.min(Math.max(qualityScore, 0.5), 1.0);
+};
+
 export const VoiceAgentTrainer = ({ providers }: VoiceAgentTrainerProps) => {
   const { toast } = useToast();
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
@@ -155,7 +177,7 @@ export const VoiceAgentTrainer = ({ providers }: VoiceAgentTrainerProps) => {
           duration: Math.round(audioBlob.size / 16000), // Rough estimate
           transcript: transcriptData?.text || '',
           audio_url: uploadData.path,
-          quality_score: Math.random() * 0.3 + 0.7 // Mock quality score
+          quality_score: calculateAudioQuality(audioBlob) // Calculate based on audio metrics
         };
 
         if (currentSession) {

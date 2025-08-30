@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
-import { EnhancedVoiceInterface } from '@/components/chat/EnhancedVoiceInterface';
+import { RealtimeVoiceInterface } from '@/components/chat/RealtimeVoiceInterface';
 import { VoiceIndicator } from '@/components/chat/VoiceIndicator';
 
 // Type definitions
@@ -546,7 +546,7 @@ You've earned 100 crystals for completing this profound journey! 💎`;
 
               <TabsContent value="voice" className="px-4 sm:px-6 pb-4 sm:pb-6">
                 <div className="min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center">
-                  <EnhancedVoiceInterface 
+                  <RealtimeVoiceInterface 
                     onMessage={handleVoiceMessage}
                     className="w-full"
                   />
