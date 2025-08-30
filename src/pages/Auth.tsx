@@ -1,149 +1,196 @@
-import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signUp, signIn, user } = useAuth();
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Redirect authenticated users to home
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
+  const from = location.state?.from?.pathname || '/dashboard';
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        await signUp(email, password);
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (!error) {
+          navigate(from, { replace: true });
+        }
       } else {
-        await signIn(email, password);
+        const { error } = await signUp(email, password);
+        if (!error) {
+          toast({
+            title: "Account created!",
+            description: "Please check your email to verify your account.",
+          });
+        }
       }
+    } catch (error) {
+      console.error('Auth error:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const toggleMode = () => {
-    setIsSignUp((prevIsSignUp) => !prevIsSignUp);
-    setEmail('');
-    setPassword('');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
-      <div className="absolute inset-0 bg-fixed bg-cover bg-center opacity-20" />
-      <Card className="w-full max-w-md glass-card border-glass relative z-10">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            {isSignUp ? 'Join Newomen' : 'Welcome Back'}
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            {isSignUp
-              ? 'Start your journey of self-discovery and empowerment'
-              : 'Continue your path to personal growth'}
-          </CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Welcome to Newomen
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {isLogin ? 'Sign in to continue your journey' : 'Create your account to get started'}
+          </p>
+        </div>
 
-        <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="glass-input"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="glass-input"
-                disabled={loading}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full glass-button"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  {isSignUp ? 'Creating Account...' : 'Signing In...'}
+        {/* Auth Form */}
+        <Card className="glass border-card-border">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {isLogin 
+                ? 'Enter your credentials to access your account'
+                : 'Fill in your details to create a new account'
+              }
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-10 glass"
+                      required={!isLogin}
+                    />
+                  </div>
                 </div>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
               )}
-            </Button>
-          </form>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 glass"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 glass"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="relative">
-            <Separator />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="bg-background px-3 text-xs text-muted-foreground glass-bg">
-                OR
-              </span>
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-primary text-lg py-6"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <>
+                    {isLogin ? 'Sign In' : 'Create Account'}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
             </div>
-          </div>
 
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-            </p>
-            <Button
-              variant="link"
-              onClick={toggleMode}
-              className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
-              disabled={loading}
-            >
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </Button>
-          </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}
+              </p>
+              <Button
+                variant="link"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-primary font-semibold"
+              >
+                {isLogin ? 'Create one here' : 'Sign in instead'}
+              </Button>
+            </div>
 
-          <div className="text-center">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="text-sm text-muted-foreground hover:text-foreground"
-              disabled={loading}
-            >
-              ← Back to Home
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Demo Account Info */}
+            <div className="p-4 glass rounded-lg bg-primary/5">
+              <p className="text-xs text-muted-foreground text-center">
+                Demo: Use any email and password to explore the platform
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Back to Home */}
+        <div className="text-center mt-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="text-muted-foreground"
+          >
+            ← Back to Home
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

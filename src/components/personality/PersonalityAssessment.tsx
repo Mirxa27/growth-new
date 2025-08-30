@@ -1,303 +1,236 @@
-
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Brain, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
-
-interface PersonalityQuestion {
-  id: string;
-  question_text: string;
-  options: string[];
-  category: string;
-  order_index: number;
-}
 
 interface PersonalityAssessmentProps {
-  onComplete: (results: any) => void;
+  onComplete?: (results: any) => void;
+  embedded?: boolean;
 }
 
-export const PersonalityAssessment = ({ onComplete }: PersonalityAssessmentProps) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [questions, setQuestions] = useState<PersonalityQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+const personalityQuestions = [
+  {
+    id: 'energy_source',
+    question: 'Where do you typically gain energy?',
+    options: [
+      { value: 'social', label: 'Being around people and social activities' },
+      { value: 'solitude', label: 'Quiet time alone for reflection' },
+      { value: 'balanced', label: 'A mix of both social and alone time' }
+    ]
+  },
+  {
+    id: 'decision_style',
+    question: 'How do you prefer to make decisions?',
+    options: [
+      { value: 'analytical', label: 'Careful analysis of facts and data' },
+      { value: 'intuitive', label: 'Following my gut feelings and instincts' },
+      { value: 'collaborative', label: 'Discussing with others and seeking input' }
+    ]
+  },
+  {
+    id: 'communication',
+    question: 'What communication style feels most natural to you?',
+    options: [
+      { value: 'direct', label: 'Direct and straightforward communication' },
+      { value: 'empathetic', label: 'Warm and emotionally aware communication' },
+      { value: 'thoughtful', label: 'Careful and considered communication' }
+    ]
+  }
+];
+
+export const PersonalityAssessment = ({ onComplete, embedded = false }: PersonalityAssessmentProps) => {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
+  const handleAnswerSelect = (value: string) => {
+    setAnswers({ ...answers, [personalityQuestions[currentQuestion].id]: value });
+  };
 
-  const fetchQuestions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('personality_questions')
-        .select('*')
-        .eq('is_active', true)
-        .order('order_index');
-
-      if (error) throw error;
-      
-      // Transform the data to match our interface, properly casting JSON fields
-      const transformedQuestions = (data || []).map(question => ({
-        id: question.id,
-        question_text: question.question_text,
-        options: Array.isArray(question.options) ? question.options as string[] : [],
-        category: question.category,
-        order_index: question.order_index
-      }));
-      
-      setQuestions(transformedQuestions);
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load assessment questions.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
+  const nextQuestion = () => {
+    if (currentQuestion < personalityQuestions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      completeAssessment();
     }
   };
 
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
-  };
-
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+  const prevQuestion = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    }
-  };
-
-  const calculateResults = () => {
-    const categoryScores: Record<string, number> = {};
-    const answerPatterns: Record<string, string[]> = {};
-
-    questions.forEach(question => {
-      const answer = answers[question.id];
-      if (answer) {
-        if (!categoryScores[question.category]) {
-          categoryScores[question.category] = 0;
-          answerPatterns[question.category] = [];
-        }
-        categoryScores[question.category]++;
-        answerPatterns[question.category].push(answer);
-      }
-    });
-
-    // Determine personality type based on dominant patterns
-    const dominantCategory = Object.keys(categoryScores).reduce((a, b) =>
-      categoryScores[a] > categoryScores[b] ? a : b
-    );
-
-    const personalityTypes = {
-      energy: 'Energetic Explorer',
-      decision_making: 'Thoughtful Analyst',
-      lifestyle: 'Balanced Harmonizer',
-      relationships: 'Connected Empath',
-      growth: 'Ambitious Achiever'
+  const completeAssessment = () => {
+    const results = {
+      answers,
+      personality_type: determinePersonalityType(answers),
+      completed_at: new Date().toISOString()
     };
 
-    return {
-      personality_type: personalityTypes[dominantCategory as keyof typeof personalityTypes] || 'Unique Individual',
-      category_scores: categoryScores,
-      dominant_traits: answerPatterns[dominantCategory] || [],
-      insights: generateInsights(dominantCategory, answerPatterns[dominantCategory] || [])
-    };
-  };
-
-  const generateInsights = (category: string, traits: string[]) => {
-    const insights: Record<string, string[]> = {
-      energy: [
-        'You have a natural ability to find energy in different ways',
-        'Consider balancing solitude with social connection',
-        'Your energy patterns can guide your daily routines'
-      ],
-      decision_making: [
-        'You have a structured approach to making choices',
-        'Trust both logic and intuition in your decisions',
-        'Your decision-making style is a strength in leadership'
-      ],
-      lifestyle: [
-        'You value balance and variety in your life',
-        'Consider how your ideal lifestyle aligns with your current reality',
-        'Small changes can bring you closer to your ideal way of living'
-      ],
-      relationships: [
-        'You understand the importance of meaningful connections',
-        'Your relationship values guide how you connect with others',
-        'Consider deepening the relationships that matter most'
-      ],
-      growth: [
-        'You have a clear vision for personal development',
-        'Your growth approach can be applied to different life areas',
-        'Consider setting specific milestones for your journey'
-      ]
-    };
-
-    return insights[category] || ['You have a unique perspective on life that brings value to every situation.'];
-  };
-
-  const handleSubmit = async () => {
-    if (!user) return;
-
-    setSubmitting(true);
-    try {
-      const results = calculateResults();
-      
-      const { data, error } = await supabase.rpc('save_personality_assessment', {
-        user_id_input: user.id,
-        answers_input: answers,
-        results_input: results
-      });
-
-      if (error) throw error;
-
-      // Update user profile with personality type
-      await supabase
-        .from('profiles')
-        .update({
-          personality_type: results.personality_type,
-          personality_data: results
-        })
-        .eq('user_id', user.id);
-
-      toast({
-        title: 'Assessment Complete!',
-        description: `You've earned 50 crystals and discovered you're a ${results.personality_type}!`
-      });
-
+    setIsComplete(true);
+    
+    if (onComplete) {
       onComplete(results);
-    } catch (error) {
-      console.error('Error saving assessment:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save assessment results.',
-        variant: 'destructive'
-      });
-    } finally {
-      setSubmitting(false);
+    }
+
+    toast({
+      title: "Assessment Complete!",
+      description: "Your personality insights are ready.",
+    });
+  };
+
+  const determinePersonalityType = (answers: Record<string, string>) => {
+    // Simple personality type determination logic
+    const traits = Object.values(answers);
+    
+    if (traits.includes('analytical') && traits.includes('direct')) {
+      return 'Analytical Leader';
+    } else if (traits.includes('empathetic') && traits.includes('social')) {
+      return 'Empathetic Connector';
+    } else if (traits.includes('intuitive') && traits.includes('thoughtful')) {
+      return 'Intuitive Thinker';
+    } else {
+      return 'Balanced Personality';
     }
   };
 
-  if (loading) {
+  const progress = ((currentQuestion + 1) / personalityQuestions.length) * 100;
+  const currentAnswerValue = answers[personalityQuestions[currentQuestion]?.id];
+  const canProceed = currentAnswerValue !== undefined;
+
+  if (isComplete) {
+    const personalityType = determinePersonalityType(answers);
+    
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <Card className="glass border-card-border">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-white" />
+          </div>
+          <CardTitle className="text-2xl">Assessment Complete!</CardTitle>
+          <CardDescription>
+            Your personality type has been identified
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-6">
+          <div className="p-6 glass rounded-2xl bg-gradient-primary/10">
+            <h3 className="text-xl font-bold mb-2 text-primary">{personalityType}</h3>
+            <p className="text-muted-foreground">
+              This assessment provides insights into your communication style and decision-making preferences.
+            </p>
+          </div>
+          
+          {!embedded && (
+            <div className="flex gap-4 justify-center">
+              <Button 
+                onClick={() => navigate('/dashboard')}
+                className="bg-gradient-primary"
+              >
+                Continue to Dashboard
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+                className="glass"
+              >
+                Retake Assessment
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   }
-
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md mx-auto glass-card">
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">No assessment questions available.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const currentQuestion = questions[currentIndex];
-  const progress = ((currentIndex + 1) / questions.length) * 100;
-  const canProceed = answers[currentQuestion.id];
-  const isLastQuestion = currentIndex === questions.length - 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 p-4">
-      <div className="max-w-2xl mx-auto pt-8">
-        <div className="text-center mb-8">
-          <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h1 className="text-3xl font-bold gradient-text mb-2">Personality Discovery</h1>
-          <p className="text-muted-foreground">Let's uncover your unique perspective</p>
+    <Card className="glass border-card-border">
+      <CardHeader>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Brain className="w-5 h-5 text-primary" />
+            <CardTitle className="text-lg">Personality Assessment</CardTitle>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {currentQuestion + 1} / {personalityQuestions.length}
+          </span>
         </div>
-
-        <Card className="glass-card mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between mb-4">
-              <CardTitle className="text-xl">Question {currentIndex + 1} of {questions.length}</CardTitle>
-              <span className="text-sm text-muted-foreground">{Math.round(progress)}% complete</span>
-            </div>
-            <Progress value={progress} className="mb-4" />
-            <CardDescription className="text-lg font-medium text-foreground">
-              {currentQuestion.question_text}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={answers[currentQuestion.id] || ''}
-              onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-              className="space-y-4"
-            >
-              {currentQuestion.options.map((option, optionIndex) => (
-                <div key={optionIndex} className="flex items-center space-x-3 p-4 rounded-lg glass-surface hover:bg-white/10 transition-all duration-200">
-                  <RadioGroupItem value={option} id={`option-${optionIndex}`} />
-                  <Label htmlFor={`option-${optionIndex}`} className="flex-1 cursor-pointer text-base">
-                    {option}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentIndex === 0}
-            className="glass-button"
+        <Progress value={progress} className="h-2" />
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        <motion.div
+          key={currentQuestion}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          <h3 className="text-lg font-semibold mb-4">
+            {personalityQuestions[currentQuestion]?.question}
+          </h3>
+          
+          <RadioGroup 
+            value={currentAnswerValue || ''} 
+            onValueChange={handleAnswerSelect}
+            className="space-y-3"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            {personalityQuestions[currentQuestion]?.options.map((option) => (
+              <div key={option.value} className="relative">
+                <RadioGroupItem 
+                  value={option.value} 
+                  id={option.value}
+                  className="peer sr-only"
+                />
+                <Label 
+                  htmlFor={option.value} 
+                  className="block p-4 rounded-lg border-2 cursor-pointer transition-all hover:border-primary/50 hover:bg-primary/5 peer-checked:border-primary peer-checked:bg-primary/10"
+                >
+                  {option.label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </motion.div>
+
+        <div className="flex justify-between items-center pt-4">
+          <Button
+            onClick={prevQuestion}
+            disabled={currentQuestion === 0}
+            variant="outline"
+            className="glass"
+          >
             Previous
           </Button>
 
-          {isLastQuestion ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={!canProceed || submitting}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Completing...
-                </>
-              ) : (
-                <>
-                  Complete Assessment
-                  <Sparkles className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed}
-              className="bg-primary hover:bg-primary/90"
-            >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          )}
+          <Button
+            onClick={nextQuestion}
+            disabled={!canProceed}
+            className="bg-gradient-primary"
+          >
+            {currentQuestion === personalityQuestions.length - 1 ? (
+              <>
+                Complete
+                <Sparkles className="w-4 h-4 ml-2" />
+              </>
+            ) : (
+              <>
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

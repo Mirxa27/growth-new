@@ -11,6 +11,7 @@ import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEv
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PublicAssessment from "./pages/PublicAssessment";
+import MobileAssessment from "./pages/MobileAssessment";
 import Dashboard from "./pages/Dashboard";
 import Explorations from "./pages/Explorations";
 import Chat from "./pages/Chat";
@@ -49,6 +50,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/assessment" element={<PublicAssessment />} />
+              <Route path="/mobile-assessment" element={<MobileAssessment />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

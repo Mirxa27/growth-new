@@ -92,11 +92,12 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     background: var(--gradient-ambient);
     background-attachment: fixed;
     position: relative;
@@ -149,21 +150,48 @@
   }
 
   .glass-card {
-    @apply glass rounded-2xl;
+    background: rgba(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(var(--glass-border));
+    box-shadow: var(--shadow-glass);
+    position: relative;
+    transition: var(--transition-spring);
+    border-radius: 1rem;
   }
 
   .glass-nav {
-    @apply glass border-b;
+    background: rgba(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(var(--glass-border));
+    box-shadow: var(--shadow-glass);
+    position: relative;
+    transition: var(--transition-spring);
+    border-bottom-width: 1px;
   }
 
   .glass-button {
-    @apply glass hover:bg-glass-ambient/10;
+    background: rgba(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(var(--glass-border));
+    box-shadow: var(--shadow-glass);
+    position: relative;
     transition: var(--transition-smooth);
   }
 
+  .glass-button:hover {
+    background: hsl(var(--glass-ambient));
+  }
+
   .glass-input {
-    @apply glass;
     background: rgba(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(var(--glass-border));
+    box-shadow: var(--shadow-glass);
+    position: relative;
     transition: var(--transition-smooth);
   }
 
@@ -309,13 +337,13 @@
     outline-offset: 2px;
   }
 }
-
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }

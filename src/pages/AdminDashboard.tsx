@@ -25,6 +25,7 @@ import { ContentModerationSettings } from '@/components/admin/ContentModerationS
 import { UserManagement } from '@/components/admin/UserManagement';
 import { VoicePlayground } from '@/components/admin/VoicePlayground';
 import { AIExplorationBuilder } from '@/components/admin/AIExplorationBuilder';
+import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
 import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
 import { useAuth } from '@/hooks/useAuth';
@@ -430,7 +431,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="ai-builder" className="space-y-6">
-            <AIExplorationBuilder />
+            <AIContentBuilder />
           </TabsContent>
 
           <TabsContent value="community" className="space-y-6">

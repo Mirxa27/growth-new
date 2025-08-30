@@ -1,81 +1,75 @@
-import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from './button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
+import React, { Component, ReactNode } from 'react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from './button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card'
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
+interface Props {
+  children: ReactNode
+  fallback?: ReactNode
 }
 
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ComponentType<{ error?: Error; resetError: () => void }>;
+interface State {
+  hasError: boolean
+  error?: Error
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props)
+    this.state = { hasError: false }
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error }
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error('Error caught by boundary:', error, errorInfo)
   }
-
-  resetError = () => {
-    this.setState({ hasError: false, error: undefined });
-  };
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+        return this.props.fallback
       }
 
-      return <DefaultErrorFallback error={this.state.error} resetError={this.resetError} />;
+      return (
+        <div className="flex items-center justify-center min-h-[400px] p-4">
+          <Card className="glass max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
+              </div>
+              <CardTitle>Something went wrong</CardTitle>
+              <CardDescription>
+                An unexpected error occurred. Please try refreshing the page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button
+                onClick={() => window.location.reload()}
+                className="w-full"
+                variant="outline"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Page
+              </Button>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-4 text-left">
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    Error Details
+                  </summary>
+                  <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto">
+                    {this.state.error.stack}
+                  </pre>
+                </details>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )
     }
 
-    return this.props.children;
+    return this.props.children
   }
 }
-
-const DefaultErrorFallback: React.FC<{ error?: Error; resetError: () => void }> = ({ 
-  error, 
-  resetError 
-}) => (
-  <div className="min-h-screen flex items-center justify-center p-4">
-    <Card className="glass-card border-glass max-w-md w-full">
-      <CardHeader className="text-center">
-        <div className="w-16 h-16 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle className="w-8 h-8 text-destructive" />
-        </div>
-        <CardTitle>Something went wrong</CardTitle>
-        <CardDescription>
-          We encountered an unexpected error. Please try refreshing the page.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer mb-2">Technical details</summary>
-            <pre className="whitespace-pre-wrap break-words bg-muted/20 p-2 rounded">
-              {error.message}
-            </pre>
-          </details>
-        )}
-        <Button onClick={resetError} className="w-full bg-primary hover:bg-primary/90">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Try Again
-        </Button>
-      </CardContent>
-    </Card>
-  </div>
-);
-
-export { ErrorBoundary, DefaultErrorFallback };

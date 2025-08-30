@@ -1,295 +1,273 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useNavigate } from 'react-router-dom';
 import { 
-  Sparkles, 
-  MessageSquare, 
+  Brain, 
+  MessageCircle, 
+  Compass, 
   BookOpen, 
-  Target, 
-  TrendingUp,
+  Users, 
+  Trophy,
+  Sparkles,
+  ArrowRight,
+  Target,
   Calendar,
-  Award,
-  Heart
+  TrendingUp
 } from 'lucide-react';
-import { useDailyInsight } from '@/hooks/useDailyInsight';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 
-export default function Dashboard() {
+const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [recentExplorations, setRecentExplorations] = useState([]);
-  const { insight, loading: insightLoading } = useDailyInsight();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchRecentExplorations();
-    }
-  }, [user]);
+    // Simulate loading user data
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRecentExplorations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exploration_sessions')
-        .select(`
-          *,
-          explorations(title, description)
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (error) throw error;
-      setRecentExplorations(data || []);
-    } catch (error) {
-      console.error('Error fetching recent explorations:', error);
-    }
-  };
-
-  const crystalCount = profile?.crystals_count || 0;
-  const level = Math.floor(crystalCount / 100) + 1;
-  const progressToNext = (crystalCount % 100);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading your dashboard..." />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
+  const quickActions = [
+    {
+      title: 'Start Chat Session',
+      description: 'Connect with your AI companion',
+      icon: MessageCircle,
+      color: 'text-primary',
+      action: () => navigate('/chat')
+    },
+    {
+      title: 'Explore Growth',
+      description: 'Discover new explorations',
+      icon: Compass,
+      color: 'text-secondary',
+      action: () => navigate('/explorations')
+    },
+    {
+      title: 'Join Community',
+      description: 'Connect with other women',
+      icon: Users,
+      color: 'text-accent',
+      action: () => navigate('/community')
+    },
+    {
+      title: 'Browse Library',
+      description: 'Access resources and content',
+      icon: BookOpen,
+      color: 'text-primary',
+      action: () => navigate('/library')
+    }
+  ];
+
+  const achievements = [
+    { name: 'First Assessment', completed: true, points: 50 },
+    { name: 'Week Streak', completed: true, points: 100 },
+    { name: 'Community Member', completed: false, points: 75 },
+    { name: 'Growth Explorer', completed: false, points: 150 }
+  ];
+
+  const completedAchievements = achievements.filter(a => a.completed).length;
+  const totalPoints = achievements.filter(a => a.completed).reduce((sum, a) => sum + a.points, 0);
+
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-ambient pb-20">
-      <div className="max-w-6xl mx-auto pt-8">
-        {/* Welcome Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold gradient-text mb-2">
-            Welcome back, {profile?.display_name || 'Beautiful Soul'}
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Continue your journey of self-discovery
-          </p>
-        </div>
-
-        {/* Stats Cards */}
-        <MobileContainer>
-          <MobileGrid cols={{ default: 1, sm: 2, lg: 3 }} className="mb-8">
-            <MobileCard>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Crystal Balance</CardTitle>
-                <Sparkles className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{crystalCount}</div>
-                <p className="text-xs text-muted-foreground">
-                  +23 from last session
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+        <MobileContainer className="py-8">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Welcome back!</h1>
+                <p className="text-muted-foreground">
+                  {user?.email || 'Ready to continue your growth journey?'}
                 </p>
-              </CardContent>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Overview */}
+          <MobileGrid cols={3} className="mb-8">
+            <MobileCard className="text-center">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Trophy className="w-5 h-5 text-primary" />
+              </div>
+              <div className="text-2xl font-bold text-primary">{totalPoints}</div>
+              <div className="text-xs text-muted-foreground">Crystals Earned</div>
             </MobileCard>
 
-            <MobileCard>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Current Level</CardTitle>
-                <Award className="h-4 w-4 text-secondary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-secondary">{level}</div>
-                <Progress value={progressToNext} className="mt-2" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {100 - progressToNext} crystals to next level
-                </p>
-              </CardContent>
+            <MobileCard className="text-center">
+              <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Target className="w-5 h-5 text-secondary" />
+              </div>
+              <div className="text-2xl font-bold text-secondary">{completedAchievements}</div>
+              <div className="text-xs text-muted-foreground">Achievements</div>
             </MobileCard>
 
-            <MobileCard>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Explorations</CardTitle>
-                <Target className="h-4 w-4 text-accent" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-accent">{recentExplorations.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Completed this month
-                </p>
-              </CardContent>
+            <MobileCard className="text-center">
+              <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <TrendingUp className="w-5 h-5 text-accent" />
+              </div>
+              <div className="text-2xl font-bold text-accent">7</div>
+              <div className="text-xs text-muted-foreground">Day Streak</div>
             </MobileCard>
           </MobileGrid>
-        </MobileContainer>
 
-        {/* Quick Actions */}
-        <MobileContainer>
-          <MobileGrid cols={{ default: 1, sm: 2, lg: 4 }} className="mb-8">
-            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/chat')}>
-            <CardContent className="p-6 text-center">
-              <div className="p-3 rounded-full bg-primary/20 text-primary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
-                <MessageSquare className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Chat with NewMe</h3>
-              <p className="text-sm text-muted-foreground">
-                Start a conversation with your AI companion
-              </p>
-              </CardContent>
-            </MobileCard>
-
-            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/explorations')}>
-            <CardContent className="p-6 text-center">
-              <div className="p-3 rounded-full bg-secondary/20 text-secondary mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
-                <Target className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Explore Themes</h3>
-              <p className="text-sm text-muted-foreground">
-                Dive deep into guided explorations
-              </p>
-              </CardContent>
-            </MobileCard>
-
-            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/library')}>
-            <CardContent className="p-6 text-center">
-              <div className="p-3 rounded-full bg-accent/20 text-accent mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Wellness Library</h3>
-              <p className="text-sm text-muted-foreground">
-                Access breathing practices and resources
-              </p>
-              </CardContent>
-            </MobileCard>
-
-            <MobileCard className="hover:scale-105 transition-all cursor-pointer group interactive" onClick={() => navigate('/profile')}>
-            <CardContent className="p-6 text-center">
-              <div className="p-3 rounded-full bg-pink-500/20 text-pink-500 mx-auto mb-4 w-fit group-hover:scale-110 transition-transform">
-                <Heart className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Your Journal</h3>
-              <p className="text-sm text-muted-foreground">
-                Review insights and progress
-              </p>
-              </CardContent>
-            </MobileCard>
-          </MobileGrid>
-        </MobileContainer>
-
-        {/* Recent Activity */}
-        <MobileContainer>
-          <MobileGrid cols={{ default: 1, lg: 2 }}>
-            <MobileCard>
-              <CardHeader>
-                <CardTitle>Recent Explorations</CardTitle>
-                <CardDescription>Your latest journey insights</CardDescription>
-              </CardHeader>
+          {/* Quick Actions */}
+          <Card className="glass border-card-border mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>
+                Continue your growth journey with these activities
+              </CardDescription>
+            </CardHeader>
             <CardContent>
-              {recentExplorations.length > 0 ? (
-                <div className="space-y-4">
-                  {recentExplorations.map((session: any) => (
-                    <div key={session.id} className="flex items-center justify-between p-3 glass-surface rounded-lg">
-                      <div>
-                        <p className="font-medium">{session.explorations?.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(session.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
-                        {session.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No explorations yet. Start your first journey!
-                </p>
-              )}
-              </CardContent>
-            </MobileCard>
-
-            <MobileCard>
-              <CardHeader>
-                <CardTitle>Growth Areas</CardTitle>
-                <CardDescription>Your focus areas for development</CardDescription>
-              </CardHeader>
-            <CardContent>
-              {profile?.growth_areas?.length > 0 ? (
-                <div className="space-y-3">
-                  {profile.growth_areas.map((area: string, index: number) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm">{area}</span>
-                      <Progress value={Math.random() * 100} className="w-20 h-2" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Complete the Balance Wheel to set your growth areas
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    className="glass-button"
-                    onClick={() => navigate('/onboarding')}
+              <MobileGrid cols={2} gap="sm">
+                {quickActions.map((action, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="glass h-auto p-4 flex flex-col items-center gap-2"
+                    onClick={action.action}
                   >
-                    Take Assessment
+                    <action.icon className={`w-6 h-6 ${action.color}`} />
+                    <div className="text-center">
+                      <div className="font-medium text-sm">{action.title}</div>
+                      <div className="text-xs text-muted-foreground">{action.description}</div>
+                    </div>
                   </Button>
-                </div>
-              )}
-              </CardContent>
-            </MobileCard>
-          </MobileGrid>
-        </MobileContainer>
-
-        {/* Daily Inspiration */}
-        <MobileContainer>
-          <MobileCard className="mt-8">
-            <CardContent className="p-6 sm:p-8 text-center">
-              <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-4">Today's Inspiration</h3>
-              {insightLoading ? (
-                <LoadingSpinner size="sm" className="mb-6" />
-              ) : (
-                <p className="text-lg italic text-muted-foreground mb-6">
-                  "{insight}"
-                </p>
-              )}
-              <Button 
-                className="bg-gradient-primary hover:opacity-90 micro-bounce"
-                onClick={() => navigate('/chat')}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Reflect on This
-              </Button>
+                ))}
+              </MobileGrid>
             </CardContent>
-          </MobileCard>
+          </Card>
+
+          {/* Progress Section */}
+          <MobileGrid cols={1} className="mb-8">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-primary" />
+                  Your Progress
+                </CardTitle>
+                <CardDescription>
+                  Track your personal development journey
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Overall Progress</span>
+                    <span>65%</span>
+                  </div>
+                  <Progress value={65} className="h-2" />
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Weekly Goal</span>
+                    <span>4/7 days</span>
+                  </div>
+                  <Progress value={57} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+          </MobileGrid>
+
+          {/* Achievements */}
+          <Card className="glass border-card-border mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-primary" />
+                Achievements
+              </CardTitle>
+              <CardDescription>
+                Your milestones and accomplishments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {achievements.map((achievement, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 glass rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        achievement.completed ? 'bg-primary text-white' : 'bg-muted'
+                      }`}>
+                        <Trophy className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{achievement.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {achievement.points} crystals
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant={achievement.completed ? "default" : "secondary"}>
+                      {achievement.completed ? 'Completed' : 'Locked'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="glass border-card-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="font-medium text-sm">Completed chat session</div>
+                    <div className="text-xs text-muted-foreground">2 hours ago</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                  <Brain className="w-5 h-5 text-secondary" />
+                  <div>
+                    <div className="font-medium text-sm">Finished personality assessment</div>
+                    <div className="text-xs text-muted-foreground">1 day ago</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                  <Users className="w-5 h-5 text-accent" />
+                  <div>
+                    <div className="font-medium text-sm">Joined community discussion</div>
+                    <div className="text-xs text-muted-foreground">3 days ago</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </MobileContainer>
-        </div>
       </div>
     </ErrorBoundary>
   );
-}
+};
+
+export default Dashboard;

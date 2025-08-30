@@ -43,9 +43,9 @@ export const Hero = () => {
           <Button 
             size="lg" 
             className="glass glass-glow interactive group px-8 py-4 text-lg font-semibold"
-            onClick={() => navigate("/mobile-assessment")}
+            onClick={() => navigate("/mobile-assessment-hub")}
           >
-            Take Free Assessment
+            Start Free Discovery
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           <Button 

@@ -1,253 +1,273 @@
-
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Target, ArrowRight, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Save, Briefcase, Heart, Users, TrendingUp, Sparkles, DollarSign, Circle } from 'lucide-react';
-
-interface BalanceArea {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  order_index: number;
-}
 
 interface BalanceWheelProps {
-  onComplete: () => void;
+  onComplete?: (results: any) => void;
+  embedded?: boolean;
 }
 
-export const BalanceWheel = ({ onComplete }: BalanceWheelProps) => {
-  const { user } = useAuth();
+const lifeAreas = [
+  {
+    id: 'career',
+    name: 'Career & Work',
+    description: 'Professional growth and job satisfaction',
+    color: 'text-blue-500'
+  },
+  {
+    id: 'relationships',
+    name: 'Relationships',
+    description: 'Family, friends, and romantic connections',
+    color: 'text-pink-500'
+  },
+  {
+    id: 'health',
+    name: 'Health & Wellness',
+    description: 'Physical and mental well-being',
+    color: 'text-green-500'
+  },
+  {
+    id: 'personal_growth',
+    name: 'Personal Growth',
+    description: 'Learning, skills, and self-development',
+    color: 'text-purple-500'
+  },
+  {
+    id: 'finances',
+    name: 'Finances',
+    description: 'Financial security and money management',
+    color: 'text-yellow-500'
+  },
+  {
+    id: 'recreation',
+    name: 'Recreation & Fun',
+    description: 'Hobbies, entertainment, and leisure time',
+    color: 'text-orange-500'
+  }
+];
+
+export const BalanceWheel = ({ onComplete, embedded = false }: BalanceWheelProps) => {
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [goals, setGoals] = useState<Record<string, string>>({});
+  const [currentArea, setCurrentArea] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [areas, setAreas] = useState<BalanceArea[]>([]);
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchBalanceAreas();
-  }, []);
+  const handleRatingChange = (areaId: string, value: number[]) => {
+    setRatings({ ...ratings, [areaId]: value[0] });
+  };
 
-  const fetchBalanceAreas = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('balance_wheel_areas')
-        .select('*')
-        .eq('is_active', true)
-        .order('order_index');
+  const handleGoalChange = (areaId: string, goal: string) => {
+    setGoals({ ...goals, [areaId]: goal });
+  };
 
-      if (error) throw error;
-      
-      const initialScores: Record<string, number> = {};
-      const initialNotes: Record<string, string> = {};
-      
-      (data || []).forEach(area => {
-        initialScores[area.id] = 5;
-        initialNotes[area.id] = '';
-      });
-
-      setAreas(data || []);
-      setScores(initialScores);
-      setNotes(initialNotes);
-    } catch (error) {
-      console.error('Error fetching balance areas:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load balance wheel areas.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
+  const nextArea = () => {
+    if (currentArea < lifeAreas.length - 1) {
+      setCurrentArea(currentArea + 1);
+    } else {
+      completeAssessment();
     }
   };
 
-  const handleScoreChange = (areaId: string, value: number[]) => {
-    setScores(prev => ({ ...prev, [areaId]: value[0] }));
-  };
-
-  const handleNotesChange = (areaId: string, value: string) => {
-    setNotes(prev => ({ ...prev, [areaId]: value }));
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-
-    setSaving(true);
-    try {
-      // Save balance scores
-      const scoreEntries = Object.entries(scores).map(([areaId, score]) => ({
-        user_id: user.id,
-        area_id: areaId,
-        score,
-        notes: notes[areaId] || null
-      }));
-
-      for (const entry of scoreEntries) {
-        const { error } = await supabase
-          .from('user_balance_scores')
-          .upsert(entry, { onConflict: 'user_id,area_id' });
-
-        if (error) throw error;
-      }
-
-      // Calculate focus areas (lowest scoring areas)
-      const sortedAreas = areas
-        .map(area => ({ ...area, score: scores[area.id] }))
-        .sort((a, b) => a.score - b.score)
-        .slice(0, 3)
-        .map(area => area.name);
-
-      // Update profile with growth areas
-      await supabase
-        .from('profiles')
-        .update({ growth_areas: sortedAreas })
-        .eq('user_id', user.id);
-
-      toast({
-        title: 'Balance Wheel Complete!',
-        description: 'Your life balance assessment has been saved.'
-      });
-
-      onComplete();
-    } catch (error) {
-      console.error('Error saving balance scores:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save balance wheel results.',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
+  const prevArea = () => {
+    if (currentArea > 0) {
+      setCurrentArea(currentArea - 1);
     }
   };
 
-  const getIconComponent = (iconName: string) => {
-    const iconMap: Record<string, React.ComponentType<any>> = {
-      Briefcase,
-      Heart,
-      Users,
-      TrendingUp,
-      Sparkles,
-      DollarSign,
-      Circle
+  const completeAssessment = () => {
+    const results = {
+      ratings,
+      goals,
+      completed_at: new Date().toISOString(),
+      overall_satisfaction: Object.values(ratings).reduce((a, b) => a + b, 0) / Object.values(ratings).length
     };
-    return iconMap[iconName] || Circle;
+
+    setIsComplete(true);
+    
+    if (onComplete) {
+      onComplete(results);
+    }
+
+    toast({
+      title: "Balance Wheel Complete!",
+      description: "Your life balance assessment is ready.",
+    });
   };
 
-  const averageScore = Object.values(scores).reduce((sum, score) => sum + score, 0) / areas.length;
-  const balanceLevel = averageScore >= 8 ? 'Excellent' : averageScore >= 6 ? 'Good' : averageScore >= 4 ? 'Fair' : 'Needs Focus';
+  const progress = ((currentArea + 1) / lifeAreas.length) * 100;
+  const currentAreaData = lifeAreas[currentArea];
+  const currentRating = ratings[currentAreaData?.id] || 5;
+  const canProceed = ratings[currentAreaData?.id] !== undefined;
 
-  if (loading) {
+  if (isComplete) {
+    const overallSatisfaction = Object.values(ratings).reduce((a, b) => a + b, 0) / Object.values(ratings).length;
+    
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <Card className="glass border-card-border">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-white" />
+          </div>
+          <CardTitle className="text-2xl">Balance Wheel Complete!</CardTitle>
+          <CardDescription>
+            Your life balance assessment is ready
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-6">
+          <div className="p-6 glass rounded-2xl bg-gradient-primary/10">
+            <h3 className="text-xl font-bold mb-2 text-primary">
+              Overall Satisfaction: {overallSatisfaction.toFixed(1)}/10
+            </h3>
+            <p className="text-muted-foreground">
+              This assessment helps identify areas for growth and improvement in your life.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {lifeAreas.map((area) => (
+              <div key={area.id} className="flex justify-between p-3 glass rounded-lg">
+                <span className={area.color}>{area.name}</span>
+                <span className="font-semibold">{ratings[area.id] || 0}/10</span>
+              </div>
+            ))}
+          </div>
+          
+          {!embedded && (
+            <div className="flex gap-4 justify-center">
+              <Button 
+                onClick={() => navigate('/dashboard')}
+                className="bg-gradient-primary"
+              >
+                Continue to Dashboard
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+                className="glass"
+              >
+                Retake Assessment
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 p-4">
-      <div className="max-w-4xl mx-auto pt-8">
-        <div className="text-center mb-8">
-          <Target className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h1 className="text-3xl font-bold gradient-text mb-2">Life Balance Wheel</h1>
-          <p className="text-muted-foreground">Rate your satisfaction in each life area (1-10)</p>
+    <Card className="glass border-card-border">
+      <CardHeader>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            <CardTitle className="text-lg">Life Balance Wheel</CardTitle>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {currentArea + 1} / {lifeAreas.length}
+          </span>
         </div>
-
-        <Card className="glass-card mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Overall Balance: {balanceLevel}</span>
-              <span className="text-sm text-muted-foreground">Average: {averageScore.toFixed(1)}/10</span>
-            </CardTitle>
-            <CardDescription>
-              Focus on areas with lower scores for the greatest impact on your well-being.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {areas.map((area) => {
-            const IconComponent = getIconComponent(area.icon);
-            return (
-              <Card key={area.id} className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    <div 
-                      className="p-2 rounded-lg"
-                      style={{ backgroundColor: `${area.color}20`, color: area.color }}
-                    >
-                      <IconComponent className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg">{area.name}</h3>
-                      <p className="text-sm text-muted-foreground font-normal">{area.description}</p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label>Satisfaction Level</Label>
-                      <span className="text-2xl font-bold" style={{ color: area.color }}>
-                        {scores[area.id]}/10
-                      </span>
-                    </div>
-                    <Slider
-                      value={[scores[area.id]]}
-                      onValueChange={(value) => handleScoreChange(area.id, value)}
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="mb-4"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`notes-${area.id}`}>Notes (optional)</Label>
-                    <Textarea
-                      id={`notes-${area.id}`}
-                      placeholder="What would make this area better?"
-                      value={notes[area.id]}
-                      onChange={(e) => handleNotesChange(area.id, e.target.value)}
-                      className="mt-2 glass-input"
-                      rows={2}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="w-full bg-secondary rounded-full h-2">
+          <div 
+            className="bg-primary h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        <motion.div
+          key={currentArea}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          <div>
+            <h3 className={`text-xl font-semibold mb-2 ${currentAreaData?.color}`}>
+              {currentAreaData?.name}
+            </h3>
+            <p className="text-muted-foreground">
+              {currentAreaData?.description}
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-medium">
+                How satisfied are you with this area? ({currentRating}/10)
+              </Label>
+              <div className="mt-3">
+                <Slider
+                  value={[currentRating]}
+                  onValueChange={(value) => handleRatingChange(currentAreaData.id, value)}
+                  max={10}
+                  min={1}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>Very Unsatisfied</span>
+                  <span>Very Satisfied</span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor={`goal-${currentAreaData.id}`} className="text-base font-medium">
+                What would you like to improve in this area? (Optional)
+              </Label>
+              <Textarea
+                id={`goal-${currentAreaData.id}`}
+                placeholder="Describe your goals or what you'd like to change..."
+                value={goals[currentAreaData.id] || ''}
+                onChange={(e) => handleGoalChange(currentAreaData.id, e.target.value)}
+                className="mt-2 glass"
+                rows={3}
+              />
+            </div>
+          </div>
+        </motion.div>
 
-        <div className="mt-8 text-center">
+        <div className="flex justify-between items-center pt-4">
           <Button
-            onClick={handleSave}
-            disabled={saving}
-            size="lg"
-            className="bg-primary hover:bg-primary/90"
+            onClick={prevArea}
+            disabled={currentArea === 0}
+            variant="outline"
+            className="glass"
           >
-            {saving ? (
+            Previous
+          </Button>
+
+          <Button
+            onClick={nextArea}
+            disabled={!canProceed}
+            className="bg-gradient-primary"
+          >
+            {currentArea === lifeAreas.length - 1 ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                Saving...
+                Complete
+                <CheckCircle className="w-4 h-4 ml-2" />
               </>
             ) : (
               <>
-                <Save className="h-5 w-5 mr-2" />
-                Complete Assessment
+                Next Area
+                <ArrowRight className="w-4 h-4 ml-2" />
               </>
             )}
           </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

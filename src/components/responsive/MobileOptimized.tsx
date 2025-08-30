@@ -1,162 +1,220 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface MobileOptimizedProps {
+// Mobile Container - Responsive container with proper padding
+interface MobileContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
 }
 
-// Container that ensures proper mobile spacing and layout
-export const MobileContainer = ({ children, className }: MobileOptimizedProps) => (
-  <div className={cn(
-    "container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl",
-    className
-  )}>
-    {children}
-  </div>
-);
-
-// Card component with mobile-optimized spacing
-export const MobileCard = ({ children, className, onClick }: MobileOptimizedProps) => (
-  <div 
-    className={cn(
-      "glass-card border-glass rounded-lg sm:rounded-xl p-4 sm:p-6",
-      onClick && "cursor-pointer",
-      className
-    )}
-    onClick={onClick}
-  >
-    {children}
-  </div>
-);
-
-// Grid that adapts from single column on mobile to multiple columns on larger screens
-interface MobileGridProps extends MobileOptimizedProps {
-  cols?: {
-    default?: number;
-    sm?: number;
-    md?: number;
-    lg?: number;
-    xl?: number;
-  };
-}
-
-export const MobileGrid = ({ children, className, cols = { default: 1, sm: 2, lg: 3 } }: MobileGridProps) => {
-  const gridCols = [
-    cols.default && `grid-cols-${cols.default}`,
-    cols.sm && `sm:grid-cols-${cols.sm}`,
-    cols.md && `md:grid-cols-${cols.md}`,
-    cols.lg && `lg:grid-cols-${cols.lg}`,
-    cols.xl && `xl:grid-cols-${cols.xl}`,
-  ].filter(Boolean).join(' ');
-
+export const MobileContainer = ({ children, className, ...props }: MobileContainerProps) => {
   return (
-    <div className={cn(
-      "grid gap-4 sm:gap-6",
-      gridCols,
-      className
-    )}>
+    <div
+      className={cn(
+        "container mx-auto px-4 sm:px-6 lg:px-8",
+        "max-w-7xl",
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
 };
 
-// Typography that scales appropriately across devices
-export const MobileTypography = {
-  H1: ({ children, className }: MobileOptimizedProps) => (
-    <h1 className={cn(
-      "text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight",
-      className
-    )}>
-      {children}
-    </h1>
-  ),
-  H2: ({ children, className }: MobileOptimizedProps) => (
-    <h2 className={cn(
-      "text-xl sm:text-2xl lg:text-3xl font-semibold leading-tight",
-      className
-    )}>
-      {children}
-    </h2>
-  ),
-  H3: ({ children, className }: MobileOptimizedProps) => (
-    <h3 className={cn(
-      "text-lg sm:text-xl lg:text-2xl font-semibold leading-tight",
-      className
-    )}>
-      {children}
-    </h3>
-  ),
-  Body: ({ children, className }: MobileOptimizedProps) => (
-    <p className={cn(
-      "text-sm sm:text-base leading-relaxed",
-      className
-    )}>
-      {children}
-    </p>
-  ),
-  Caption: ({ children, className }: MobileOptimizedProps) => (
-    <p className={cn(
-      "text-xs sm:text-sm text-muted-foreground",
-      className
-    )}>
-      {children}
-    </p>
-  ),
-};
-
-// Button with mobile-optimized touch targets
-interface MobileButtonProps extends MobileOptimizedProps {
-  variant?: 'default' | 'outline' | 'ghost' | 'destructive';
-  size?: 'sm' | 'default' | 'lg';
-  onClick?: () => void;
-  disabled?: boolean;
+// Mobile Grid - Responsive grid system
+interface MobileGridProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  cols?: 1 | 2 | 3 | 4;
+  gap?: 'sm' | 'md' | 'lg';
 }
 
-export const MobileButton = ({ 
+export const MobileGrid = ({ 
   children, 
   className, 
-  variant = 'default', 
-  size = 'default',
-  onClick,
-  disabled 
-}: MobileButtonProps) => {
-  const baseClasses = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background";
-  
-  const variantClasses = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90",
-    outline: "border border-input hover:bg-accent hover:text-accent-foreground",
-    ghost: "hover:bg-accent hover:text-accent-foreground",
-    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+  cols = 1, 
+  gap = 'md',
+  ...props 
+}: MobileGridProps) => {
+  const gridCols = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
   };
 
-  const sizeClasses = {
-    sm: "h-8 px-3 text-xs sm:text-sm min-h-[44px] sm:min-h-[32px]", // Ensure 44px touch target on mobile
-    default: "h-9 px-4 py-2 text-sm sm:text-base min-h-[44px] sm:min-h-[36px]",
-    lg: "h-10 px-8 text-base sm:text-lg min-h-[44px] sm:min-h-[40px]"
+  const gridGap = {
+    sm: 'gap-3',
+    md: 'gap-4 sm:gap-6',
+    lg: 'gap-6 sm:gap-8'
   };
 
   return (
-    <button
+    <div
       className={cn(
-        baseClasses,
-        variantClasses[variant],
-        sizeClasses[size],
+        "grid",
+        gridCols[cols],
+        gridGap[gap],
         className
       )}
-      onClick={onClick}
-      disabled={disabled}
+      {...props}
     >
       {children}
-    </button>
+    </div>
   );
 };
 
-// Responsive spacing utilities
-export const spacing = {
-  section: "py-8 sm:py-12 lg:py-16",
-  container: "px-4 sm:px-6 lg:px-8",
-  element: "mb-4 sm:mb-6 lg:mb-8",
-  gap: "gap-4 sm:gap-6 lg:gap-8"
+// Mobile Card - Enhanced card with mobile-first design
+interface MobileCardProps {
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+  description?: string;
+  interactive?: boolean;
+  onClick?: () => void;
+}
+
+export const MobileCard = ({ 
+  children, 
+  className, 
+  title, 
+  description, 
+  interactive = false,
+  onClick,
+  ...props 
+}: MobileCardProps) => {
+  return (
+    <Card
+      className={cn(
+        "glass border-card-border",
+        "transition-all duration-200",
+        interactive && "cursor-pointer hover:shadow-glow hover:scale-[1.02] active:scale-[0.98]",
+        className
+      )}
+      onClick={onClick}
+      {...props}
+    >
+      {(title || description) && (
+        <CardHeader className="pb-3">
+          {title && <CardTitle className="text-lg">{title}</CardTitle>}
+          {description && <CardDescription>{description}</CardDescription>}
+        </CardHeader>
+      )}
+      <CardContent className={title || description ? "pt-0" : ""}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Mobile Typography - Responsive text components
+interface MobileTypographyProps extends React.HTMLAttributes<HTMLElement> {
+  children: React.ReactNode;
+  variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'body' | 'caption' | 'small';
+  as?: keyof JSX.IntrinsicElements;
+}
+
+export const MobileTypography = ({ 
+  children, 
+  className, 
+  variant = 'body',
+  as,
+  ...props 
+}: MobileTypographyProps) => {
+  const variants = {
+    h1: 'text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight',
+    h2: 'text-xl sm:text-2xl lg:text-3xl font-semibold leading-tight',
+    h3: 'text-lg sm:text-xl lg:text-2xl font-semibold leading-tight',
+    h4: 'text-base sm:text-lg lg:text-xl font-medium leading-tight',
+    body: 'text-sm sm:text-base leading-relaxed',
+    caption: 'text-xs sm:text-sm text-muted-foreground',
+    small: 'text-xs text-muted-foreground'
+  };
+
+  const defaultElements = {
+    h1: 'h1',
+    h2: 'h2', 
+    h3: 'h3',
+    h4: 'h4',
+    body: 'p',
+    caption: 'p',
+    small: 'small'
+  };
+
+  const Component = as || defaultElements[variant];
+
+  return React.createElement(
+    Component,
+    {
+      className: cn(variants[variant], className),
+      ...props
+    },
+    children
+  );
+};
+
+// Mobile Section - Full-width responsive section
+interface MobileSectionProps extends React.HTMLAttributes<HTMLElement> {
+  children: React.ReactNode;
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+}
+
+export const MobileSection = ({ 
+  children, 
+  className, 
+  padding = 'md',
+  ...props 
+}: MobileSectionProps) => {
+  const paddingClasses = {
+    none: '',
+    sm: 'py-8 sm:py-12',
+    md: 'py-12 sm:py-16 lg:py-20',
+    lg: 'py-16 sm:py-20 lg:py-24'
+  };
+
+  return (
+    <section
+      className={cn(
+        paddingClasses[padding],
+        className
+      )}
+      {...props}
+    >
+      <MobileContainer>
+        {children}
+      </MobileContainer>
+    </section>
+  );
+};
+
+// Mobile Stack - Vertical spacing utility
+interface MobileStackProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  spacing?: 'sm' | 'md' | 'lg';
+}
+
+export const MobileStack = ({ 
+  children, 
+  className, 
+  spacing = 'md',
+  ...props 
+}: MobileStackProps) => {
+  const spacingClasses = {
+    sm: 'space-y-3',
+    md: 'space-y-4 sm:space-y-6',
+    lg: 'space-y-6 sm:space-y-8'
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col",
+        spacingClasses[spacing],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 };
