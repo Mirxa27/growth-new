@@ -1,5 +1,5 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,527 +8,431 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
 import { 
   User, 
   Settings, 
-  Trophy, 
-  Star, 
+  Bell, 
+  Shield, 
+  Trophy,
   Calendar,
-  Heart,
-  BookOpen,
-  Target,
-  Crown,
   Edit,
   Save,
-  X
+  Camera,
+  Mail,
+  Phone,
+  MapPin,
+  Sparkles,
+  Target,
+  Heart,
+  Brain
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface Profile {
-  id: string;
-  display_name: string;
-  email: string;
-  avatar_url?: string;
-  crystals_count: number;
-  level_progress: number;
-  login_streak_count: number;
-  subscription_tier: string;
-  personality_type?: string;
-  growth_areas: string[];
-  last_login_at: string;
-  created_at: string;
-}
-
-interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  icon?: string;
-  crystal_reward: number;
-  unlocked_at?: string;
-}
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Separator } from '@/components/ui/separator';
 
 const Profile = () => {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [completedExplorations, setCompletedExplorations] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
-    display_name: '',
-    growth_areas: [] as string[]
-  });
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [profile, setProfile] = useState({
+    name: 'Sarah Johnson',
+    email: user?.email || 'sarah@example.com',
+    phone: '+1 (555) 123-4567',
+    location: 'San Francisco, CA',
+    bio: 'Passionate about personal growth and helping others discover their authentic selves. Currently exploring mindfulness and creative expression.',
+    joinDate: 'January 2024',
+    personalityType: 'Empathetic Connector',
+    crystalsEarned: 1250,
+    completedAssessments: 5,
+    streakDays: 14
+  });
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchAchievements();
-      fetchStats();
-    }
-  }, [user]);
+  const [notifications, setNotifications] = useState({
+    emailUpdates: true,
+    pushNotifications: true,
+    weeklyDigest: false,
+    communityActivity: true,
+    assessmentReminders: true
+  });
 
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      
-      setProfile(data);
-      setEditForm({
-        display_name: data.display_name || '',
-        growth_areas: data.growth_areas || []
-      });
-    } catch (error: any) {
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsEditing(false);
       toast({
-        title: "Error loading profile",
-        description: error.message,
-        variant: "destructive"
+        title: "Profile updated!",
+        description: "Your changes have been saved successfully.",
       });
-    }
+    }, 1000);
   };
 
-  const fetchAchievements = async () => {
-    try {
-      const { data: userAchievements, error: userError } = await supabase
-        .from('user_achievements')
-        .select(`
-          achievement_id,
-          unlocked_at,
-          achievements (
-            id,
-            title,
-            description,
-            icon,
-            crystal_reward
-          )
-        `)
-        .eq('user_id', user?.id);
-
-      if (userError) throw userError;
-
-      const formattedAchievements = userAchievements?.map(ua => ({
-        id: ua.achievements.id,
-        title: ua.achievements.title,
-        description: ua.achievements.description,
-        icon: ua.achievements.icon,
-        crystal_reward: ua.achievements.crystal_reward,
-        unlocked_at: ua.unlocked_at
-      })) || [];
-
-      setAchievements(formattedAchievements);
-    } catch (error: any) {
-      console.log("Error fetching achievements:", error.message);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const { count } = await supabase
-        .from('exploration_sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user?.id)
-        .eq('status', 'completed');
-
-      setCompletedExplorations(count || 0);
-    } catch (error: any) {
-      console.log("Error fetching stats:", error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateProfile = async () => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          display_name: editForm.display_name,
-          growth_areas: editForm.growth_areas
-        })
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      });
-
-      setEditing(false);
-      fetchProfile();
-    } catch (error: any) {
-      toast({
-        title: "Error updating profile",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getSubscriptionBadge = (tier: string) => {
-    switch (tier) {
-      case 'discovery': return { color: 'bg-blue-500/20 text-blue-600', icon: <Star className="w-3 h-3" /> };
-      case 'growth': return { color: 'bg-purple-500/20 text-purple-600', icon: <Target className="w-3 h-3" /> };
-      case 'transformation': return { color: 'bg-gold-500/20 text-gold-600', icon: <Crown className="w-3 h-3" /> };
-      default: return { color: 'bg-gray-500/20 text-gray-600', icon: <User className="w-3 h-3" /> };
-    }
-  };
-
-  const getPersonalityColor = (type: string) => {
-    const colors = {
-      'introvert': 'bg-blue-500/10 text-blue-600',
-      'extrovert': 'bg-orange-500/10 text-orange-600',
-      'analytical': 'bg-green-500/10 text-green-600',
-      'creative': 'bg-purple-500/10 text-purple-600',
-      'empathetic': 'bg-pink-500/10 text-pink-600'
-    };
-    return colors[type as keyof typeof colors] || 'bg-gray-500/10 text-gray-600';
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
-        <Card className="glass-card border-glass p-8 text-center">
-          <p className="text-muted-foreground">Profile not found</p>
-        </Card>
-      </div>
-    );
-  }
-
-  const subscriptionBadge = getSubscriptionBadge(profile.subscription_tier);
-  const currentLevel = Math.floor(profile.level_progress / 100) + 1;
-  const progressInLevel = profile.level_progress % 100;
+  const achievements = [
+    { name: 'First Steps', description: 'Completed your first assessment', earned: true, date: 'Jan 15, 2024' },
+    { name: 'Consistent Growth', description: '7-day activity streak', earned: true, date: 'Jan 22, 2024' },
+    { name: 'Community Member', description: 'Made your first community post', earned: true, date: 'Jan 25, 2024' },
+    { name: 'Self-Aware', description: 'Completed personality assessment', earned: true, date: 'Jan 28, 2024' },
+    { name: 'Balanced Life', description: 'Completed life balance wheel', earned: false, date: null },
+    { name: 'Mentor', description: 'Helped 5 community members', earned: false, date: null }
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
-      <div className="container mx-auto px-4 py-8">
-        {/* Profile Header */}
-        <Card className="glass-card border-glass mb-8">
-          <CardContent className="p-8">
-            <div className="flex flex-col md:flex-row items-start gap-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-primary flex items-center justify-center text-white text-2xl font-bold">
-                {profile.display_name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
-              </div>
-              
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  {editing ? (
-                    <Input
-                      value={editForm.display_name}
-                      onChange={(e) => setEditForm({...editForm, display_name: e.target.value})}
-                      className="text-2xl font-bold bg-transparent border-0 p-0 h-auto"
-                      placeholder="Display Name"
-                    />
-                  ) : (
-                    <h1 className="text-2xl font-bold">{profile.display_name || 'Anonymous User'}</h1>
-                  )}
-                  
-                  <Badge className={subscriptionBadge.color}>
-                    {subscriptionBadge.icon}
-                    <span className="ml-1 capitalize">{profile.subscription_tier}</span>
-                  </Badge>
-                </div>
-                
-                <p className="text-muted-foreground mb-4">{profile.email}</p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Star className="w-4 h-4 text-yellow-400" />
-                      <span className="font-semibold text-lg">{profile.crystals_count}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Crystals</p>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Trophy className="w-4 h-4 text-primary" />
-                      <span className="font-semibold text-lg">{currentLevel}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Level</p>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <BookOpen className="w-4 h-4 text-secondary" />
-                      <span className="font-semibold text-lg">{completedExplorations}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Explorations</p>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Calendar className="w-4 h-4 text-accent" />
-                      <span className="font-semibold text-lg">{profile.login_streak_count}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Day Streak</p>
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Level Progress</span>
-                    <span>{progressInLevel}/100</span>
-                  </div>
-                  <Progress value={progressInLevel} className="h-2" />
-                </div>
-                
-                <div className="flex gap-2">
-                  {editing ? (
-                    <>
-                      <Button onClick={updateProfile} size="sm" className="bg-gradient-primary">
-                        <Save className="w-4 h-4 mr-2" />
-                        Save
-                      </Button>
-                      <Button onClick={() => setEditing(false)} variant="outline" size="sm">
-                        <X className="w-4 h-4 mr-2" />
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button onClick={() => setEditing(true)} variant="outline" size="sm" className="glass">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  )}
-                  
-                  <Button onClick={signOut} variant="outline" size="sm" className="glass">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Profile</h1>
+          <p className="text-muted-foreground">Manage your account and preferences</p>
+        </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
-            <TabsTrigger value="journal">Journal</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="privacy">Privacy</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="glass-card border-glass">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-primary" />
-                    Growth Areas
-                  </CardTitle>
-                  <CardDescription>
-                    Areas you're focusing on for personal development
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {editing ? (
-                    <div className="space-y-2">
-                      <Label>Focus Areas</Label>
-                      <Textarea
-                        value={editForm.growth_areas.join(', ')}
-                        onChange={(e) => setEditForm({
-                          ...editForm, 
-                          growth_areas: e.target.value.split(',').map(s => s.trim())
-                        })}
-                        placeholder="e.g., Self-confidence, Relationships, Career"
-                      />
+          <TabsContent value="profile" className="space-y-6">
+            {/* Profile Header */}
+            <Card className="glass border-card-border">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex flex-col items-center">
+                    <div className="relative">
+                      <Avatar className="w-24 h-24">
+                        <AvatarFallback className="bg-gradient-primary text-white text-2xl">
+                          {profile.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button
+                        size="sm"
+                        className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
+                        onClick={() => toast({ title: "Feature coming soon!", description: "Photo upload will be available soon." })}
+                      >
+                        <Camera className="w-4 h-4" />
+                      </Button>
                     </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {profile.growth_areas?.length > 0 ? (
-                        profile.growth_areas.map((area, index) => (
-                          <Badge key={index} variant="outline" className="glass">
-                            {area}
-                          </Badge>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground text-sm">
-                          No growth areas set. Edit your profile to add them.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card border-glass">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-secondary" />
-                    Personality Insights
-                  </CardTitle>
-                  <CardDescription>
-                    Insights from your assessments and interactions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {profile.personality_type ? (
-                    <Badge className={getPersonalityColor(profile.personality_type)}>
-                      {profile.personality_type}
+                    <Badge className="mt-3 bg-primary/20 text-primary">
+                      {profile.personalityType}
                     </Badge>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Complete assessments to unlock personality insights.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </div>
 
-            <Card className="glass-card border-glass">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h2 className="text-2xl font-bold">{profile.name}</h2>
+                        <p className="text-muted-foreground">Member since {profile.joinDate}</p>
+                      </div>
+                      <Button
+                        onClick={() => setIsEditing(!isEditing)}
+                        variant="outline"
+                        className="glass"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        {isEditing ? 'Cancel' : 'Edit'}
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 glass rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{profile.crystalsEarned}</div>
+                        <div className="text-xs text-muted-foreground">Crystals</div>
+                      </div>
+                      <div className="text-center p-3 glass rounded-lg">
+                        <div className="text-2xl font-bold text-secondary">{profile.completedAssessments}</div>
+                        <div className="text-xs text-muted-foreground">Assessments</div>
+                      </div>
+                      <div className="text-center p-3 glass rounded-lg">
+                        <div className="text-2xl font-bold text-accent">{profile.streakDays}</div>
+                        <div className="text-xs text-muted-foreground">Day Streak</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Profile Details */}
+            <Card className="glass border-card-border">
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
+                <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
-                  Your journey highlights and milestones
+                  Update your personal details and bio
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                    <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Joined Newomen</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(profile.created_at).toLocaleDateString()}
-                      </p>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="name"
+                        value={profile.name}
+                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                        disabled={!isEditing}
+                        className="pl-10 glass"
+                      />
                     </div>
                   </div>
                   
-                  {profile.last_login_at && (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/5 border border-secondary/10">
-                      <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center">
-                        <Calendar className="w-4 h-4 text-secondary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Last Login</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(profile.last_login_at).toLocaleDateString()}
-                        </p>
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profile.email}
+                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                        disabled={!isEditing}
+                        className="pl-10 glass"
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        value={profile.phone}
+                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                        disabled={!isEditing}
+                        className="pl-10 glass"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="location"
+                        value={profile.location}
+                        onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                        disabled={!isEditing}
+                        className="pl-10 glass"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={profile.bio}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    disabled={!isEditing}
+                    className="glass min-h-[100px]"
+                    placeholder="Tell us about yourself..."
+                  />
+                </div>
+
+                {isEditing && (
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      onClick={handleSaveProfile}
+                      disabled={isLoading}
+                      className="bg-gradient-primary"
+                    >
+                      {isLoading ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4 mr-2" />}
+                      Save Changes
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditing(false)}
+                      variant="outline"
+                      className="glass"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="achievements" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {achievements.length > 0 ? (
-                achievements.map((achievement) => (
-                  <Card key={achievement.id} className="glass-card border-glass">
-                    <CardContent className="p-6 text-center">
-                      <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Trophy className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="font-semibold mb-2">{achievement.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {achievement.description}
-                      </p>
-                      <Badge className="bg-yellow-500/20 text-yellow-600">
-                        <Star className="w-3 h-3 mr-1" />
-                        {achievement.crystal_reward} crystals
-                      </Badge>
-                      {achievement.unlocked_at && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Unlocked {new Date(achievement.unlocked_at).toLocaleDateString()}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <Card className="glass-card border-glass col-span-full text-center py-12">
-                  <CardContent>
-                    <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Trophy className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">No achievements yet</h3>
-                    <p className="text-muted-foreground">
-                      Complete explorations and engage with the platform to unlock achievements.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="journal" className="space-y-6">
-            <Card className="glass-card border-glass text-center py-12">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Your Achievements
+                </CardTitle>
+                <CardDescription>
+                  Track your progress and milestones
+                </CardDescription>
+              </CardHeader>
               <CardContent>
-                <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="w-8 h-8 text-muted-foreground" />
+                <div className="grid md:grid-cols-2 gap-4">
+                  {achievements.map((achievement, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        achievement.earned
+                          ? 'bg-primary/5 border-primary/20'
+                          : 'bg-muted/5 border-muted/20'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          achievement.earned ? 'bg-primary text-white' : 'bg-muted'
+                        }`}>
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{achievement.name}</h4>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {achievement.description}
+                          </p>
+                          {achievement.earned && achievement.date && (
+                            <Badge variant="secondary" className="text-xs">
+                              Earned {achievement.date}
+                            </Badge>
+                          )}
+                          {!achievement.earned && (
+                            <Badge variant="outline" className="text-xs">
+                              Not earned yet
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Journal entries coming soon</h3>
-                <p className="text-muted-foreground">
-                  Your completed exploration analyses and personal reflections will appear here.
-                </p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <Card className="glass-card border-glass">
+            <Card className="glass border-card-border">
               <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-primary" />
+                  Notifications
+                </CardTitle>
                 <CardDescription>
-                  Manage your account preferences and subscription
+                  Manage your notification preferences
                 </CardDescription>
               </CardHeader>
+              <CardContent className="space-y-6">
+                {Object.entries(notifications).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">
+                        {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {key === 'emailUpdates' && 'Receive updates via email'}
+                        {key === 'pushNotifications' && 'Get push notifications on your device'}
+                        {key === 'weeklyDigest' && 'Weekly summary of your progress'}
+                        {key === 'communityActivity' && 'Notifications from community interactions'}
+                        {key === 'assessmentReminders' && 'Reminders to complete assessments'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={value}
+                      onCheckedChange={(checked) =>
+                        setNotifications({ ...notifications, [key]: checked })
+                      }
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-primary" />
+                  Account Actions
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/5">
-                  <div>
-                    <h4 className="font-medium">Subscription</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Current plan: {profile.subscription_tier}
-                    </p>
+                <Button
+                  onClick={() => toast({ title: "Feature coming soon!", description: "Export functionality will be available soon." })}
+                  variant="outline"
+                  className="w-full glass"
+                >
+                  Export My Data
+                </Button>
+                <Button
+                  onClick={() => toast({ title: "Feature coming soon!", description: "Account deletion will be available soon." })}
+                  variant="outline"
+                  className="w-full text-destructive hover:bg-destructive/10"
+                >
+                  Delete Account
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="privacy" className="space-y-6">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  Privacy & Security
+                </CardTitle>
+                <CardDescription>
+                  Control your privacy settings and data sharing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Profile Visibility</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Make your profile visible to other community members
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
                   </div>
-                  <Button variant="outline" size="sm" className="glass">
-                    Upgrade
-                  </Button>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Activity Status</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Show when you're active in the community
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Assessment Results</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow sharing of assessment insights for better recommendations
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
                 </div>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/5">
-                  <div>
-                    <h4 className="font-medium">Privacy</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Manage your data and privacy settings
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" className="glass">
-                    Manage
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/10">
-                  <div>
-                    <h4 className="font-medium text-red-600">Delete Account</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Permanently delete your account and all data
-                    </p>
-                  </div>
-                  <Button variant="destructive" size="sm">
-                    Delete
+
+                <div className="pt-4">
+                  <Button
+                    onClick={signOut}
+                    variant="outline"
+                    className="w-full glass"
+                  >
+                    Sign Out
                   </Button>
                 </div>
               </CardContent>

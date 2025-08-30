@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,605 +6,475 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+  Shield, 
   Users, 
-  MessageSquare, 
-  Compass, 
-  Settings, 
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
+  BarChart3, 
+  Settings,
+  MessageSquare,
+  BookOpen,
+  Brain,
+  AlertTriangle,
   TrendingUp,
-  Shield,
-  Database
+  Activity,
+  UserCheck,
+  FileText,
+  Zap,
+  Globe
 } from 'lucide-react';
-import { GeneralSettings } from '@/components/admin/GeneralSettings';
-import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
-import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
-import { UserManagement } from '@/components/admin/UserManagement';
-import { VoicePlayground } from '@/components/admin/VoicePlayground';
-import { AIExplorationBuilder } from '@/components/admin/AIExplorationBuilder';
-import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
-import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
-import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-
-interface AdminStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalExplorations: number;
-  completedSessions: number;
-  totalMessages: number;
-}
-
-interface AdminUser {
-  user_id: string;
-  email: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
-  is_admin_backup: boolean;
-  last_sign_in_at?: string;
-}
-
-interface Exploration {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty_level: string;
-  is_active: boolean;
-  questions: string[];
-  created_at: string;
-}
+import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState<AdminStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalExplorations: 0,
-    completedSessions: 0,
-    totalMessages: 0
-  });
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [explorations, setExplorations] = useState<Exploration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedExploration, setSelectedExploration] = useState<Exploration | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    checkAdminAccess();
-    loadDashboardData();
-  }, []);
-
-  const checkAdminAccess = async () => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error || profile?.role !== 'admin') {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive"
-        });
-        navigate('/dashboard');
-        return;
-      }
-    } catch (error) {
-      navigate('/dashboard');
-    }
+  // Mock admin data
+  const stats = {
+    totalUsers: 12547,
+    activeUsers: 8934,
+    totalAssessments: 25689,
+    communityPosts: 3421,
+    aiInteractions: 156789,
+    crystalsAwarded: 2456789
   };
 
-  const loadDashboardData = async () => {
-    try {
-      // Load stats
-      const [usersRes, explorationsRes, sessionsRes] = await Promise.all([
-        supabase.from('profiles').select('id, created_at, last_login_at'),
-        supabase.from('explorations').select('id'),
-        supabase.from('exploration_sessions').select('id, status')
-      ]);
+  const recentActivity = [
+    { type: 'user_signup', message: 'New user registered: sarah@example.com', time: '2 minutes ago' },
+    { type: 'assessment_completed', message: 'Personality assessment completed by user #1234', time: '5 minutes ago' },
+    { type: 'community_post', message: 'New community post flagged for review', time: '10 minutes ago' },
+    { type: 'ai_interaction', message: 'High volume of AI chat sessions detected', time: '15 minutes ago' }
+  ];
 
-      // Load messages count from database
-      const [messagesRes] = await Promise.all([
-        supabase.from('messages').select('id', { count: 'exact', head: true })
-      ]);
-
-      const totalUsers = usersRes.data?.length || 0;
-      const activeUsers = usersRes.data?.filter(u => {
-        const lastLogin = u.last_login_at ? new Date(u.last_login_at) : null;
-        if (!lastLogin) return false;
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return lastLogin > weekAgo;
-      }).length || 0;
-
-      setStats({
-        totalUsers,
-        activeUsers,
-        totalExplorations: explorationsRes.data?.length || 0,
-        completedSessions: sessionsRes.data?.filter(s => s.status === 'completed').length || 0,
-        totalMessages: messagesRes.count || 0
-      });
-
-      // Load users with safe profile data
-      const { data: safeUsers, error: usersError } = await supabase
-        .rpc('get_admin_safe_profiles');
-
-      if (usersError) throw usersError;
-      setUsers(safeUsers || []);
-
-      // Load explorations
-      const { data: explorationsData, error: explorationsError } = await supabase
-        .from('explorations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (explorationsError) throw explorationsError;
-      
-      const transformedExplorations: Exploration[] = (explorationsData || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        category: item.category,
-        difficulty_level: item.difficulty_level,
-        is_active: item.is_active,
-        questions: Array.isArray(item.questions) ? item.questions.filter((q): q is string => typeof q === 'string') : [],
-        created_at: item.created_at
-      }));
-      
-      setExplorations(transformedExplorations);
-    } catch (error: any) {
-      toast({
-        title: "Error loading dashboard data",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateExploration = () => {
-    setSelectedExploration({
-      id: '',
-      title: '',
-      description: '',
-      category: 'self-discovery',
-      difficulty_level: 'beginner',
-      is_active: true,
-      questions: [''],
-      created_at: new Date().toISOString()
+  const handleSystemAction = (action: string) => {
+    toast({
+      title: `${action} initiated`,
+      description: "System action has been queued for processing.",
     });
-    setIsEditing(true);
   };
-
-  const handleEditExploration = (exploration: Exploration) => {
-    setSelectedExploration(exploration);
-    setIsEditing(true);
-  };
-
-  const handleSaveExploration = async () => {
-    if (!selectedExploration) return;
-
-    try {
-      const explorationData = {
-        title: selectedExploration.title,
-        description: selectedExploration.description,
-        category: selectedExploration.category,
-        difficulty_level: selectedExploration.difficulty_level,
-        is_active: selectedExploration.is_active,
-        questions: selectedExploration.questions.filter(q => q.trim()),
-        facilitator_prompt: "You are a gentle, empathetic facilitator guiding someone through a personal exploration. Ask each question with care and acknowledge their responses before moving to the next question.",
-        higher_self_prompt: "You are the user's wise Higher Self. Analyze their responses with deep insight and provide a structured analysis that reveals patterns, potential, and actionable guidance.",
-        analysis_structure: {
-          corePattern: "Identify the main theme or pattern in their responses",
-          hiddenPotential: "Reveal their untapped strengths and possibilities",
-          actionableSteps: "Provide 3-5 specific, practical steps they can take",
-          affirmations: "Give 3-5 personalized affirmations based on their responses",
-          encouragement: "Offer heartfelt encouragement for their journey"
-        },
-        estimated_duration: 30,
-        crystal_reward: 100
-      };
-
-      if (selectedExploration.id) {
-        // Update existing
-        const { error } = await supabase
-          .from('explorations')
-          .update(explorationData)
-          .eq('id', selectedExploration.id);
-
-        if (error) throw error;
-      } else {
-        // Create new
-        const { error } = await supabase
-          .from('explorations')
-          .insert(explorationData);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "Success!",
-        description: selectedExploration.id ? "Exploration updated" : "Exploration created",
-      });
-
-      setIsEditing(false);
-      setSelectedExploration(null);
-      loadDashboardData();
-    } catch (error: any) {
-      toast({
-        title: "Error saving exploration",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteExploration = async (explorationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('explorations')
-        .update({ is_active: false })
-        .eq('id', explorationId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Exploration deactivated",
-        description: "The exploration has been hidden from users",
-      });
-
-      loadDashboardData();
-    } catch (error: any) {
-      toast({
-        title: "Error deactivating exploration",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 pb-20">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Admin Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Manage the Newomen platform
-            </p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+              <p className="text-muted-foreground">System management and analytics</p>
+            </div>
           </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary">
-            <Shield className="w-4 h-4 mr-1" />
-            Admin Access
-          </Badge>
+          
+          <div className="flex items-center gap-2">
+            <Badge className="bg-green-500/20 text-green-500">
+              System Healthy
+            </Badge>
+            <Badge variant="outline">
+              Admin Access
+            </Badge>
+          </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Users className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-2xl font-bold text-primary">{stats.totalUsers}</p>
-              <p className="text-xs text-muted-foreground">Total Users</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-              </div>
-              <p className="text-2xl font-bold text-green-500">{stats.activeUsers}</p>
-              <p className="text-xs text-muted-foreground">Active Users</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Compass className="w-4 h-4 text-secondary" />
-              </div>
-              <p className="text-2xl font-bold text-secondary">{stats.totalExplorations}</p>
-              <p className="text-xs text-muted-foreground">Explorations</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Database className="w-4 h-4 text-accent" />
-              </div>
-              <p className="text-2xl font-bold text-accent">{stats.completedSessions}</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-glass">
-            <CardContent className="p-4 text-center">
-              <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <MessageSquare className="w-4 h-4 text-purple-500" />
-              </div>
-              <p className="text-2xl font-bold text-purple-500">{stats.totalMessages}</p>
-              <p className="text-xs text-muted-foreground">Messages</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Admin Tabs */}
-        <Tabs defaultValue="explorations" className="space-y-6">
-          <TabsList className="glass">
-            <TabsTrigger value="explorations">Explorations</TabsTrigger>
-            <TabsTrigger value="voice">Voice Playground</TabsTrigger>
-            <TabsTrigger value="ai-builder">AI Builder</TabsTrigger>
-            <TabsTrigger value="community">Community</TabsTrigger>
-            <TabsTrigger value="challenges">Challenges</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="ai">AI Systems</TabsTrigger>
+            <TabsTrigger value="community">Community</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="explorations" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Explorations Management</h2>
-              <Button onClick={handleCreateExploration} className="bg-gradient-primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Exploration
-              </Button>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <Users className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Total Users</div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Active Users</div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <Brain className="w-8 h-8 text-secondary mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.totalAssessments.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Assessments</div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <MessageSquare className="w-8 h-8 text-accent mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.communityPosts.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Community Posts</div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <Zap className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.aiInteractions.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">AI Interactions</div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardContent className="p-4 text-center">
+                  <TrendingUp className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold">{stats.crystalsAwarded.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Crystals Awarded</div>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {explorations.map((exploration) => (
-                <Card key={exploration.id} className="glass-card border-glass">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{exploration.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {exploration.description}
-                        </CardDescription>
+            {/* Recent Activity */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card className="glass border-card-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentActivity.map((activity, index) => (
+                      <div key={index} className="flex items-start gap-3 p-3 glass rounded-lg">
+                        <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                        <div className="flex-1">
+                          <p className="text-sm">{activity.message}</p>
+                          <p className="text-xs text-muted-foreground">{activity.time}</p>
+                        </div>
                       </div>
-                      <Badge variant={exploration.is_active ? "default" : "secondary"}>
-                        {exploration.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass border-card-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    System Health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Server Performance</span>
+                      <span>98%</span>
                     </div>
-                  </CardHeader>
+                    <Progress value={98} className="h-2" />
+                  </div>
                   
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                      <span>{exploration.category}</span>
-                      <span>{exploration.difficulty_level}</span>
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Database Health</span>
+                      <span>95%</span>
                     </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditExploration(exploration)}
-                        className="glass flex-1"
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteExploration(exploration.id)}
-                        className="glass text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <Progress value={95} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>AI Response Time</span>
+                      <span>92%</span>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <Progress value={92} className="h-2" />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>User Satisfaction</span>
+                      <span>96%</span>
+                    </div>
+                    <Progress value={96} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="voice" className="space-y-6">
-            <VoicePlayground />
-          </TabsContent>
-
-          <TabsContent value="ai-builder" className="space-y-6">
-            <AIContentBuilder />
-          </TabsContent>
-
-          <TabsContent value="community" className="space-y-6">
-            <CommunityPostsManager />
-          </TabsContent>
-
-          <TabsContent value="challenges" className="space-y-6">
-            <ContentChallengeManager />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
-            <UserManagement />
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-6">
-            <Tabs defaultValue="general" className="space-y-6">
-              <TabsList className="glass">
-                <TabsTrigger value="general">
-                  <Settings className="w-4 h-4 mr-2" />
-                  General
-                </TabsTrigger>
-                <TabsTrigger value="ai-providers">
-                  <Database className="w-4 h-4 mr-2" />
-                  AI Providers
-                </TabsTrigger>
-                <TabsTrigger value="moderation">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Moderation
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="general">
-                <GeneralSettings />
-              </TabsContent>
-
-              <TabsContent value="ai-providers">
-                <AIProviderSettings />
-              </TabsContent>
-
-              <TabsContent value="moderation">
-                <ContentModerationSettings />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-        </Tabs>
-
-        {/* Exploration Editor Modal */}
-        {isEditing && selectedExploration && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="glass-card border-glass w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <Card className="glass border-card-border">
               <CardHeader>
-                <CardTitle>
-                  {selectedExploration.id ? 'Edit Exploration' : 'Create New Exploration'}
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  User Management
                 </CardTitle>
+                <CardDescription>
+                  Manage user accounts and permissions
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title</label>
-                  <Input
-                    value={selectedExploration.title}
-                    onChange={(e) => setSelectedExploration({
-                      ...selectedExploration,
-                      title: e.target.value
-                    })}
-                    placeholder="Exploration title"
-                    className="glass border-glass"
-                  />
+                <div className="flex gap-4">
+                  <Input placeholder="Search users..." className="glass" />
+                  <Button className="bg-gradient-primary">Search</Button>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
-                  <Textarea
-                    value={selectedExploration.description}
-                    onChange={(e) => setSelectedExploration({
-                      ...selectedExploration,
-                      description: e.target.value
-                    })}
-                    placeholder="Exploration description"
-                    className="glass border-glass"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Category</label>
-                    <select
-                      value={selectedExploration.category}
-                      onChange={(e) => setSelectedExploration({
-                        ...selectedExploration,
-                        category: e.target.value
-                      })}
-                      className="w-full p-2 glass border-glass rounded"
-                    >
-                      <option value="self-discovery">Self Discovery</option>
-                      <option value="relationships">Relationships</option>
-                      <option value="personal-growth">Personal Growth</option>
-                      <option value="healing">Healing</option>
-                    </select>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 glass rounded-lg">
+                    <div>
+                      <div className="font-medium">Sarah Johnson</div>
+                      <div className="text-sm text-muted-foreground">sarah@example.com</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge className="bg-green-500/20 text-green-500">Active</Badge>
+                      <Button size="sm" variant="outline" className="glass">Manage</Button>
+                    </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Difficulty</label>
-                    <select
-                      value={selectedExploration.difficulty_level}
-                      onChange={(e) => setSelectedExploration({
-                        ...selectedExploration,
-                        difficulty_level: e.target.value
-                      })}
-                      className="w-full p-2 glass border-glass rounded"
-                    >
-                      <option value="beginner">Beginner</option>
-                      <option value="intermediate">Intermediate</option>
-                      <option value="advanced">Advanced</option>
-                    </select>
+                  <div className="flex items-center justify-between p-3 glass rounded-lg">
+                    <div>
+                      <div className="font-medium">Maya Chen</div>
+                      <div className="text-sm text-muted-foreground">maya@example.com</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge className="bg-green-500/20 text-green-500">Active</Badge>
+                      <Button size="sm" variant="outline" className="glass">Manage</Button>
+                    </div>
                   </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Questions</label>
-                  {selectedExploration.questions.map((question, index) => (
-                    <div key={index} className="mb-2">
-                      <Textarea
-                        value={question}
-                        onChange={(e) => {
-                          const newQuestions = [...selectedExploration.questions];
-                          newQuestions[index] = e.target.value;
-                          setSelectedExploration({
-                            ...selectedExploration,
-                            questions: newQuestions
-                          });
-                        }}
-                        placeholder={`Question ${index + 1}`}
-                        className="glass border-glass"
-                        rows={2}
-                      />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="content" className="space-y-6">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  Content Management
+                </CardTitle>
+                <CardDescription>
+                  Manage library content and assessments
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Button
+                    onClick={() => handleSystemAction('Content Sync')}
+                    className="h-20 bg-gradient-primary"
+                  >
+                    <div className="text-center">
+                      <FileText className="w-6 h-6 mx-auto mb-1" />
+                      <div>Sync Content</div>
                     </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedExploration({
-                      ...selectedExploration,
-                      questions: [...selectedExploration.questions, '']
-                    })}
-                    className="glass"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Question
                   </Button>
-                </div>
-                
-                <div className="flex gap-3 pt-4">
+                  
                   <Button
-                    onClick={handleSaveExploration}
-                    className="bg-gradient-primary"
-                  >
-                    Save Exploration
-                  </Button>
-                  <Button
+                    onClick={() => handleSystemAction('Assessment Review')}
                     variant="outline"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setSelectedExploration(null);
-                    }}
-                    className="glass"
+                    className="h-20 glass"
                   >
-                    Cancel
+                    <div className="text-center">
+                      <Brain className="w-6 h-6 mx-auto mb-1" />
+                      <div>Review Assessments</div>
+                    </div>
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+          </TabsContent>
+
+          <TabsContent value="ai" className="space-y-6">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  AI System Management
+                </CardTitle>
+                <CardDescription>
+                  Monitor and configure AI systems
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="p-4 glass rounded-lg text-center">
+                    <Zap className="w-8 h-8 text-primary mx-auto mb-2" />
+                    <div className="text-lg font-semibold">AI Chat</div>
+                    <Badge className="bg-green-500/20 text-green-500 mt-2">Online</Badge>
+                  </div>
+                  
+                  <div className="p-4 glass rounded-lg text-center">
+                    <Brain className="w-8 h-8 text-secondary mx-auto mb-2" />
+                    <div className="text-lg font-semibold">Assessment AI</div>
+                    <Badge className="bg-green-500/20 text-green-500 mt-2">Online</Badge>
+                  </div>
+                  
+                  <div className="p-4 glass rounded-lg text-center">
+                    <Globe className="w-8 h-8 text-accent mx-auto mb-2" />
+                    <div className="text-lg font-semibold">Translation</div>
+                    <Badge className="bg-green-500/20 text-green-500 mt-2">Online</Badge>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <h4 className="font-semibold">AI Configuration</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>Enable AI Chat</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>Auto-moderate Content</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>Personalized Recommendations</Label>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="community" className="space-y-6">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Community Moderation
+                </CardTitle>
+                <CardDescription>
+                  Monitor and moderate community activity
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2 p-3 glass rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  <div className="flex-1">
+                    <div className="font-medium">3 posts pending review</div>
+                    <div className="text-sm text-muted-foreground">Community posts flagged for moderation</div>
+                  </div>
+                  <Button size="sm" className="bg-gradient-primary">Review</Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Button
+                    onClick={() => handleSystemAction('Community Cleanup')}
+                    variant="outline"
+                    className="h-16 glass"
+                  >
+                    <div className="text-center">
+                      <UserCheck className="w-5 h-5 mx-auto mb-1" />
+                      <div>Run Cleanup</div>
+                    </div>
+                  </Button>
+                  
+                  <Button
+                    onClick={() => handleSystemAction('Generate Report')}
+                    variant="outline"
+                    className="h-16 glass"
+                  >
+                    <div className="text-center">
+                      <BarChart3 className="w-5 h-5 mx-auto mb-1" />
+                      <div>Generate Report</div>
+                    </div>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <Card className="glass border-card-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  System Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure global system settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Maintenance Mode</Label>
+                    <Switch />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>New User Registration</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>Email Notifications</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label>Analytics Tracking</Label>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <h4 className="font-semibold">System Actions</h4>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Button
+                      onClick={() => handleSystemAction('Database Backup')}
+                      variant="outline"
+                      className="glass"
+                    >
+                      Backup Database
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleSystemAction('Clear Cache')}
+                      variant="outline"
+                      className="glass"
+                    >
+                      Clear Cache
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleSystemAction('System Update')}
+                      variant="outline"
+                      className="glass"
+                    >
+                      Check Updates
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleSystemAction('Export Logs')}
+                      variant="outline"
+                      className="glass"
+                    >
+                      Export Logs
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

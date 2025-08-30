@@ -1,304 +1,418 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { Clock, Star, Users, Sparkles, Play, Heart, Target } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Compass, 
+  Play, 
+  Clock, 
+  Star,
+  Users,
+  Brain,
+  Heart,
+  Target,
+  Sparkles,
+  ArrowRight,
+  Filter,
+  Search
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard, MobileTypography } from '@/components/responsive/MobileOptimized';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Exploration {
   id: string;
   title: string;
   description: string;
   category: string;
-  difficulty_level: string;
-  estimated_duration: number;
-  crystal_reward: number;
-  is_active: boolean;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  duration: string;
+  participants: number;
+  rating: number;
+  crystalReward: number;
+  isCompleted: boolean;
+  progress?: number;
+  tags: string[];
+  facilitatorType: 'ai' | 'human' | 'self-guided';
 }
 
-export default function Explorations() {
+const Explorations = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
-  const [explorations, setExplorations] = useState<Exploration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userStats, setUserStats] = useState({ completed: 0, totalMinutes: 0 });
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('available');
 
-  useEffect(() => {
-    fetchExplorations();
-    if (user) {
-      fetchUserStats();
+  const [explorations] = useState<Exploration[]>([
+    {
+      id: '1',
+      title: 'Discovering Your Core Values',
+      description: 'A deep dive into understanding what truly matters to you and how to align your life with your values.',
+      category: 'Self-Discovery',
+      difficulty: 'beginner',
+      duration: '45 min',
+      participants: 1247,
+      rating: 4.8,
+      crystalReward: 150,
+      isCompleted: false,
+      tags: ['values', 'purpose', 'alignment'],
+      facilitatorType: 'ai'
+    },
+    {
+      id: '2',
+      title: 'Overcoming Fear of Failure',
+      description: 'Transform your relationship with failure and learn to see it as a stepping stone to growth.',
+      category: 'Confidence Building',
+      difficulty: 'intermediate',
+      duration: '60 min',
+      participants: 892,
+      rating: 4.9,
+      crystalReward: 200,
+      isCompleted: true,
+      progress: 100,
+      tags: ['fear', 'resilience', 'growth-mindset'],
+      facilitatorType: 'ai'
+    },
+    {
+      id: '3',
+      title: 'Building Authentic Relationships',
+      description: 'Learn to create deeper, more meaningful connections by showing up as your authentic self.',
+      category: 'Relationships',
+      difficulty: 'intermediate',
+      duration: '90 min',
+      participants: 634,
+      rating: 4.7,
+      crystalReward: 250,
+      isCompleted: false,
+      progress: 30,
+      tags: ['authenticity', 'connection', 'communication'],
+      facilitatorType: 'human'
+    },
+    {
+      id: '4',
+      title: 'Mindful Leadership Journey',
+      description: 'Develop your leadership skills through mindfulness and emotional intelligence practices.',
+      category: 'Leadership',
+      difficulty: 'advanced',
+      duration: '120 min',
+      participants: 423,
+      rating: 4.6,
+      crystalReward: 300,
+      isCompleted: false,
+      tags: ['leadership', 'mindfulness', 'emotional-intelligence'],
+      facilitatorType: 'human'
+    },
+    {
+      id: '5',
+      title: 'Creative Expression Therapy',
+      description: 'Explore your inner world through various creative mediums and unlock new insights about yourself.',
+      category: 'Creativity',
+      difficulty: 'beginner',
+      duration: '75 min',
+      participants: 756,
+      rating: 4.5,
+      crystalReward: 175,
+      isCompleted: false,
+      tags: ['creativity', 'self-expression', 'therapy'],
+      facilitatorType: 'self-guided'
+    },
+    {
+      id: '6',
+      title: 'Healing from Past Trauma',
+      description: 'A gentle, supportive journey to process and heal from past experiences with professional guidance.',
+      category: 'Healing',
+      difficulty: 'advanced',
+      duration: '150 min',
+      participants: 289,
+      rating: 4.9,
+      crystalReward: 400,
+      isCompleted: false,
+      tags: ['trauma', 'healing', 'recovery'],
+      facilitatorType: 'human'
     }
-  }, [user]);
+  ]);
 
-  const fetchExplorations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('explorations')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+  const categories = [
+    'all',
+    'Self-Discovery',
+    'Confidence Building',
+    'Relationships',
+    'Leadership',
+    'Creativity',
+    'Healing'
+  ];
 
-      if (error) throw error;
-      setExplorations(data || []);
-    } catch (error) {
-      console.error('Error fetching explorations:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load explorations.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const filteredExplorations = explorations.filter(exploration => {
+    const matchesSearch = exploration.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         exploration.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         exploration.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = selectedCategory === 'all' || exploration.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const fetchUserStats = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exploration_sessions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('status', 'completed');
-
-      if (error) throw error;
-      
-      const stats = {
-        completed: data?.length || 0,
-        totalMinutes: data?.reduce((sum, session) => {
-          // Assuming average 30 minutes per session
-          return sum + 30;
-        }, 0) || 0
-      };
-      
-      setUserStats(stats);
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-    }
-  };
+  const availableExplorations = filteredExplorations.filter(e => !e.isCompleted);
+  const inProgressExplorations = filteredExplorations.filter(e => e.progress && e.progress > 0 && e.progress < 100);
+  const completedExplorations = filteredExplorations.filter(e => e.isCompleted);
 
   const handleStartExploration = (exploration: Exploration) => {
+    toast({
+      title: `Starting ${exploration.title}`,
+      description: "Preparing your exploration session...",
+    });
+    // Navigate to exploration session
     navigate(`/explorations/${exploration.id}`);
   };
 
-  const getDifficultyColor = (level: string) => {
-    switch (level) {
-      case 'beginner': return 'hsl(142, 71%, 45%)';
-      case 'intermediate': return 'hsl(45, 93%, 47%)';
-      case 'advanced': return 'hsl(346, 87%, 58%)';
-      default: return 'hsl(220, 85%, 57%)';
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner': return 'text-green-500 bg-green-500/10';
+      case 'intermediate': return 'text-yellow-500 bg-yellow-500/10';
+      case 'advanced': return 'text-red-500 bg-red-500/10';
+      default: return 'text-muted-foreground bg-muted/10';
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'self-discovery': return Star;
-      case 'relationships': return Users;
-      case 'personal-growth': return Sparkles;
-      default: return Star;
+  const getFacilitatorIcon = (type: string) => {
+    switch (type) {
+      case 'ai': return Brain;
+      case 'human': return Users;
+      case 'self-guided': return Target;
+      default: return Compass;
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'self-discovery': return 'hsl(320, 85%, 65%)';
-      case 'relationships': return 'hsl(346, 87%, 58%)';
-      case 'personal-growth': return 'hsl(280, 70%, 60%)';
-      default: return 'hsl(320, 85%, 65%)';
-    }
-  };
-
-  if (loading) {
+  const ExplorationCard = ({ exploration }: { exploration: Exploration }) => {
+    const FacilitatorIcon = getFacilitatorIcon(exploration.facilitatorType);
+    
     return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
-        <LoadingSpinner size="lg" text="Loading explorations..." />
-      </div>
+      <MobileCard className="p-6 hover:shadow-lg transition-all">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold leading-tight mb-2">
+                {exploration.title}
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {exploration.description}
+              </p>
+            </div>
+            <div className="ml-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                <FacilitatorIcon className="w-6 h-6 text-primary" />
+              </div>
+            </div>
+          </div>
+
+          {/* Badges */}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="glass">
+              {exploration.category}
+            </Badge>
+            <Badge className={getDifficultyColor(exploration.difficulty)}>
+              {exploration.difficulty}
+            </Badge>
+            <Badge variant="outline" className="text-primary">
+              {exploration.crystalReward} crystals
+            </Badge>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              {exploration.duration}
+            </div>
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              {exploration.participants.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-current text-yellow-500" />
+              {exploration.rating}
+            </div>
+          </div>
+
+          {/* Progress */}
+          {exploration.progress && exploration.progress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span>{exploration.progress}%</span>
+              </div>
+              <Progress value={exploration.progress} className="h-2" />
+            </div>
+          )}
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1">
+            {exploration.tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Action */}
+          <div className="pt-2">
+            <Button
+              onClick={() => handleStartExploration(exploration)}
+              className="w-full bg-gradient-primary"
+            >
+              {exploration.isCompleted ? (
+                <>
+                  <Star className="w-4 h-4 mr-2" />
+                  Completed
+                </>
+              ) : exploration.progress && exploration.progress > 0 ? (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Continue
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Exploration
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </MobileCard>
     );
-  }
+  };
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-ambient pb-20">
-        <MobileContainer className="pt-8">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+        <MobileContainer className="py-8">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
+                <Compass className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Explorations</h1>
+                <p className="text-muted-foreground">Guided journeys for personal growth</p>
               </div>
             </div>
-            <MobileTypography.H1 className="gradient-text mb-4">
-              Themed Explorations
-            </MobileTypography.H1>
-            <MobileTypography.Body className="text-muted-foreground max-w-2xl mx-auto">
-              Guided journeys of self-discovery with your AI companion NewMe. Each exploration is designed to help you uncover deeper insights about yourself.
-            </MobileTypography.Body>
+
+            {/* Search and Filter */}
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search explorations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 glass"
+                />
+              </div>
+              
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {categories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(category)}
+                    className={selectedCategory === category ? "bg-gradient-primary" : "glass whitespace-nowrap"}
+                  >
+                    {category === 'all' ? 'All' : category}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* User Stats */}
-          {user && (
-            <MobileGrid cols={{ default: 2, md: 4 }} className="mb-8">
-              <MobileCard>
-                <CardContent className="p-4 text-center">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Target className="w-4 h-4 text-primary" />
-                  </div>
-                  <p className="text-2xl font-bold text-primary">{userStats.completed}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </CardContent>
-              </MobileCard>
-              
-              <MobileCard>
-                <CardContent className="p-4 text-center">
-                  <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Clock className="w-4 h-4 text-secondary" />
-                  </div>
-                  <p className="text-2xl font-bold text-secondary">{userStats.totalMinutes}</p>
-                  <p className="text-xs text-muted-foreground">Minutes</p>
-                </CardContent>
-              </MobileCard>
-              
-              <MobileCard>
-                <CardContent className="p-4 text-center">
-                  <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Sparkles className="w-4 h-4 text-accent" />
-                  </div>
-                  <p className="text-2xl font-bold text-accent">{userStats.completed * 150}</p>
-                  <p className="text-xs text-muted-foreground">Crystals Earned</p>
-                </CardContent>
-              </MobileCard>
-              
-              <MobileCard>
-                <CardContent className="p-4 text-center">
-                  <div className="w-8 h-8 bg-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Heart className="w-4 h-4 text-pink-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-pink-500">{explorations.length}</p>
-                  <p className="text-xs text-muted-foreground">Available</p>
-                </CardContent>
-              </MobileCard>
-            </MobileGrid>
-          )}
-
-          {/* Explorations Grid */}
-          {explorations.length === 0 ? (
-            <MobileCard className="max-w-md mx-auto">
-              <CardContent className="pt-6 text-center">
-                <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No explorations available at the moment.</p>
-              </CardContent>
+          {/* Stats Overview */}
+          <MobileGrid cols={3} className="mb-8">
+            <MobileCard className="text-center p-4">
+              <div className="text-2xl font-bold text-primary">
+                {availableExplorations.length}
+              </div>
+              <div className="text-sm text-muted-foreground">Available</div>
             </MobileCard>
-          ) : (
-            <MobileGrid cols={{ default: 1, md: 2, lg: 3 }}>
-              {explorations.map((exploration) => {
-                const IconComponent = getCategoryIcon(exploration.category);
-                const categoryColor = getCategoryColor(exploration.category);
-                return (
-                  <MobileCard key={exploration.id} className="hover:scale-105 transition-all duration-300 cursor-pointer group interactive">
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-3">
-                        <div 
-                          className="p-2 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${categoryColor}20` }}
-                        >
-                          <IconComponent className="h-5 w-5" style={{ color: categoryColor }} />
-                        </div>
-                        <Badge 
-                          variant="outline" 
-                          className="glass text-xs"
-                          style={{ 
-                            borderColor: getDifficultyColor(exploration.difficulty_level),
-                            color: getDifficultyColor(exploration.difficulty_level)
-                          }}
-                        >
-                          {exploration.difficulty_level}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                        {exploration.title}
-                      </CardTitle>
-                      <CardDescription className="text-base line-clamp-3">
-                        {exploration.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {exploration.estimated_duration} min
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Sparkles className="h-4 w-4 text-primary" />
-                          {exploration.crystal_reward} crystals
-                        </div>
-                      </div>
-                      
-                      <Button 
-                        onClick={() => handleStartExploration(exploration)}
-                        className="w-full bg-gradient-primary hover:opacity-90 group-hover:shadow-lg transition-all micro-bounce"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Begin Exploration
-                      </Button>
-                    </CardContent>
-                  </MobileCard>
-                );
-              })}
-            </MobileGrid>
-          )}
+            
+            <MobileCard className="text-center p-4">
+              <div className="text-2xl font-bold text-secondary">
+                {inProgressExplorations.length}
+              </div>
+              <div className="text-sm text-muted-foreground">In Progress</div>
+            </MobileCard>
+            
+            <MobileCard className="text-center p-4">
+              <div className="text-2xl font-bold text-accent">
+                {completedExplorations.length}
+              </div>
+              <div className="text-sm text-muted-foreground">Completed</div>
+            </MobileCard>
+          </MobileGrid>
 
-          {/* How It Works */}
-          <div className="mt-12">
-            <MobileCard className="max-w-4xl mx-auto">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">How Explorations Work</CardTitle>
-                <CardDescription>
-                  Your journey through deep self-discovery
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <MobileGrid cols={{ default: 1, md: 2 }}>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                        <span className="text-primary font-bold">1</span>
-                      </div>
-                      <h4 className="font-semibold">Phase 1: Reflection</h4>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-11">
-                      Answer 10 carefully crafted questions with honest self-reflection. NewMe acts as a gentle facilitator, creating a safe space for you to explore your thoughts and feelings.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center">
-                        <span className="text-secondary font-bold">2</span>
-                      </div>
-                      <h4 className="font-semibold">Phase 2: Higher Self Analysis</h4>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-11">
-                      Receive a deep, structured analysis from your Higher Self with insights, patterns, actionable guidance, and personalized affirmations for your growth journey.
-                    </p>
-                  </div>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="available">Available</TabsTrigger>
+              <TabsTrigger value="progress">In Progress</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="available">
+              <MobileGrid cols={1} className="space-y-6">
+                {availableExplorations.map((exploration) => (
+                  <ExplorationCard key={exploration.id} exploration={exploration} />
+                ))}
+              </MobileGrid>
+            </TabsContent>
+
+            <TabsContent value="progress">
+              {inProgressExplorations.length > 0 ? (
+                <MobileGrid cols={1} className="space-y-6">
+                  {inProgressExplorations.map((exploration) => (
+                    <ExplorationCard key={exploration.id} exploration={exploration} />
+                  ))}
                 </MobileGrid>
-                
-                <div className="pt-4 border-t border-white/10 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    🌟 Each exploration is a journey of discovery. Allow yourself to be vulnerable and open to growth. Your insights are automatically saved to your private journal for future reflection.
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No explorations in progress</h3>
+                  <p className="text-muted-foreground">
+                    Start an exploration to begin your growth journey
                   </p>
-                </div>
-              </CardContent>
-            </MobileCard>
-          </div>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="completed">
+              {completedExplorations.length > 0 ? (
+                <MobileGrid cols={1} className="space-y-6">
+                  {completedExplorations.map((exploration) => (
+                    <ExplorationCard key={exploration.id} exploration={exploration} />
+                  ))}
+                </MobileGrid>
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No completed explorations yet</h3>
+                  <p className="text-muted-foreground">
+                    Complete explorations to build your achievement collection
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </MobileContainer>
       </div>
     </ErrorBoundary>
   );
-}
+};
+
+export default Explorations;

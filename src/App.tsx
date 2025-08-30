@@ -20,7 +20,7 @@ import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
-import { ExplorationSession } from "./components/exploration/ExplorationSession";
+import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 
 const queryClient = new QueryClient();

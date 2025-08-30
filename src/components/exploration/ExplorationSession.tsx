@@ -1,338 +1,276 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Sparkles } from 'lucide-react';
-import { VoiceInterface } from './VoiceInterface';
-import { AnalysisResults } from './AnalysisResults';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Compass, 
+  ArrowLeft, 
+  ArrowRight, 
+  CheckCircle,
+  Brain,
+  Heart,
+  Sparkles,
+  Clock,
+  Target
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
-interface Exploration {
+interface ExplorationQuestion {
   id: string;
-  title: string;
-  description: string;
-  questions: string[];
-  facilitator_prompt: string;
-  higher_self_prompt: string;
+  question: string;
+  type: 'reflection' | 'choice' | 'scale';
+  options?: string[];
 }
 
-interface ExplorationSession {
-  id: string;
-  user_id: string;
-  exploration_id: string;
-  status: 'in-progress' | 'completed';
-  current_question: number;
-  user_answers: string[];
-  final_analysis?: any;
-}
-
-export const ExplorationSession = () => {
-  const { explorationId } = useParams<{ explorationId: string }>();
+const ExplorationSession = () => {
+  const { explorationId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const [exploration, setExploration] = useState<Exploration | null>(null);
-  const [session, setSession] = useState<ExplorationSession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<string[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [currentTranscript, setCurrentTranscript] = useState('');
-  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isComplete, setIsComplete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const exploration = {
+    id: explorationId,
+    title: 'Discovering Your Core Values',
+    description: 'A deep dive into understanding what truly matters to you',
+    estimatedDuration: '45 min',
+    crystalReward: 150,
+    questions: [
+      {
+        id: 'values_importance',
+        question: 'Think about a time when you felt most fulfilled and authentic. What values were you honoring in that moment?',
+        type: 'reflection'
+      },
+      {
+        id: 'decision_values',
+        question: 'When making important decisions, which of these considerations matters most to you?',
+        type: 'choice',
+        options: [
+          'Impact on family and loved ones',
+          'Personal growth and learning',
+          'Financial security and stability',
+          'Creative expression and authenticity',
+          'Contributing to something bigger than myself'
+        ]
+      },
+      {
+        id: 'values_conflict',
+        question: 'Describe a situation where your values conflicted with external expectations. How did you navigate this?',
+        type: 'reflection'
+      }
+    ] as ExplorationQuestion[]
+  };
 
   useEffect(() => {
-    if (explorationId) {
-      initializeSession();
-    }
-  }, [explorationId]);
+    // Simulate loading exploration data
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const initializeSession = async () => {
-    try {
-      setIsProcessing(true);
-      
-      // Fetch exploration details
-      const { data: explorationData, error: explorationError } = await supabase
-        .from('explorations')
-        .select('*')
-        .eq('id', explorationId)
-        .single();
+  const handleAnswerChange = (value: string) => {
+    setAnswers({ ...answers, [exploration.questions[currentQuestion].id]: value });
+  };
 
-      if (explorationError) throw explorationError;
-      
-      // Transform the data to match our interface, properly casting JSON fields
-      const transformedExploration: Exploration = {
-        id: explorationData.id,
-        title: explorationData.title,
-        description: explorationData.description,
-        questions: Array.isArray(explorationData.questions) ? explorationData.questions as string[] : [],
-        facilitator_prompt: explorationData.facilitator_prompt,
-        higher_self_prompt: explorationData.higher_self_prompt
-      };
-      
-      setExploration(transformedExploration);
-
-      // Start new session
-      const { data: sessionId, error: sessionError } = await supabase.rpc('start_exploration_session', {
-        exploration_id_input: explorationId,
-        user_id_input: (await supabase.auth.getUser()).data.user?.id
-      });
-
-      if (sessionError) throw sessionError;
-
-      // Create session object
-      const newSession: ExplorationSession = {
-        id: sessionId,
-        user_id: (await supabase.auth.getUser()).data.user?.id || '',
-        exploration_id: explorationId,
-        status: 'in-progress',
-        current_question: 0,
-        user_answers: []
-      };
-
-      setSession(newSession);
-      setCurrentQuestion(0);
-      setAnswers([]);
-
-      // Speak the first question
-      if (transformedExploration.questions.length > 0) {
-        speakQuestion(transformedExploration.questions[0]);
-      }
-
-    } catch (error) {
-      console.error('Error initializing session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start exploration session",
-        variant: "destructive"
-      });
-      navigate('/explorations');
-    } finally {
-      setIsProcessing(false);
+  const nextQuestion = () => {
+    if (currentQuestion < exploration.questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      completeExploration();
     }
   };
 
-  const speakQuestion = async (question: string) => {
-    if ('speechSynthesis' in window) {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(question);
-      utterance.rate = 0.9;
-      utterance.pitch = 1.1;
-      utterance.volume = 0.8;
-      
-      utterance.onend = () => {
-        setIsSpeaking(false);
-      };
-      
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-      };
-      
-      speechSynthesis.speak(utterance);
+  const prevQuestion = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
-  const handleSpeechResult = async (transcript: string) => {
-    if (!exploration || !session) return;
-
-    setCurrentTranscript(transcript);
-    setIsProcessing(true);
-
-    try {
-      // Update the session with the new answer
-      await supabase.rpc('update_exploration_progress', {
-        session_id_input: session.id,
-        question_index_input: currentQuestion,
-        answer_input: transcript
-      });
-
-      const newAnswers = [...answers, transcript];
-      setAnswers(newAnswers);
-
-      // Check if we've completed all questions
-      if (currentQuestion + 1 >= exploration.questions.length) {
-        // Time for analysis phase
-        await performAnalysis(newAnswers);
-      } else {
-        // Move to next question
-        const nextQuestion = currentQuestion + 1;
-        setCurrentQuestion(nextQuestion);
-        setCurrentTranscript('');
-        
-        // Speak the next question
-        setTimeout(() => {
-          speakQuestion(exploration.questions[nextQuestion]);
-        }, 1000);
-      }
-
-    } catch (error) {
-      console.error('Error processing answer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process your answer",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+  const completeExploration = () => {
+    setIsComplete(true);
+    toast({
+      title: "Exploration Complete!",
+      description: `You've earned ${exploration.crystalReward} crystals!`,
+    });
   };
 
-  const performAnalysis = async (allAnswers: string[]) => {
-    if (!exploration || !session) return;
+  const progress = ((currentQuestion + 1) / exploration.questions.length) * 100;
+  const currentAnswer = answers[exploration.questions[currentQuestion]?.id] || '';
+  const canProceed = currentAnswer.trim().length > 0;
 
-    try {
-      setIsProcessing(true);
-      
-      // Call our edge function for AI analysis
-      const { data, error } = await supabase.functions.invoke('chat-completion', {
-        body: {
-          messages: [
-            {
-              role: 'system',
-              content: exploration.higher_self_prompt
-            },
-            {
-              role: 'user',
-              content: `Here are my answers to the exploration questions:\n\n${allAnswers.map((answer, i) => `Question ${i + 1}: ${exploration.questions[i]}\nAnswer: ${answer}`).join('\n\n')}\n\nPlease provide your analysis as my Higher Self.`
-            }
-          ]
-        }
-      });
-
-      if (error) throw error;
-
-      const analysis = data.choices[0].message.content;
-      
-      // Complete the session
-      await supabase.rpc('complete_exploration_session', {
-        session_id_input: session.id,
-        final_analysis_input: { analysis }
-      });
-
-      setAnalysisResult({ analysis });
-      setIsAnalysisComplete(true);
-
-      toast({
-        title: "Exploration Complete!",
-        description: "You've earned crystals for completing this journey",
-      });
-
-    } catch (error) {
-      console.error('Error performing analysis:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate analysis",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleStartListening = () => {
-    setIsListening(true);
-    setCurrentTranscript('');
-  };
-
-  const handleStopListening = () => {
-    setIsListening(false);
-  };
-
-  const progress = exploration ? ((currentQuestion + 1) / exploration.questions.length) * 100 : 0;
-
-  if (isAnalysisComplete && analysisResult && exploration) {
+  if (isLoading) {
     return (
-      <AnalysisResults 
-        analysis={analysisResult}
-        exploration={exploration}
-        onClose={() => navigate('/explorations')}
-        onSaveToJournal={async () => {
-          // Implementation for saving to journal
-          console.log('Save to journal');
-        }}
-      />
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
     );
   }
 
+  if (isComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+        <Card className="glass border-card-border max-w-2xl w-full text-center">
+          <CardContent className="p-8">
+            <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold mb-4">Exploration Complete!</h1>
+            <p className="text-muted-foreground mb-6">
+              You've successfully completed "{exploration.title}". Your insights have been saved and you've earned {exploration.crystalReward} crystals!
+            </p>
+            
+            <div className="flex gap-4 justify-center">
+              <Button 
+                onClick={() => navigate('/explorations')}
+                className="bg-gradient-primary"
+              >
+                <Compass className="w-4 h-4 mr-2" />
+                More Explorations
+              </Button>
+              <Button 
+                onClick={() => navigate('/dashboard')}
+                variant="outline"
+                className="glass"
+              >
+                Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentQuestionData = exploration.questions[currentQuestion];
+
   return (
-    <div className="min-h-screen bg-gradient-ambient p-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4 mb-6">
           <Button
             variant="ghost"
-            size="sm"
             onClick={() => navigate('/explorations')}
-            className="flex items-center gap-2"
+            className="text-muted-foreground"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <span className="font-medium text-foreground">
-              {exploration?.title}
-            </span>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold">{exploration.title}</h1>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {exploration.estimatedDuration}
+              </div>
+              <div className="flex items-center gap-1">
+                <Sparkles className="w-4 h-4" />
+                {exploration.crystalReward} crystals
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Progress */}
-        {exploration && (
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-muted-foreground mb-2">
-              <span>Question {currentQuestion + 1} of {exploration.questions.length}</span>
-              <span>{Math.round(progress)}% Complete</span>
-            </div>
-            <Progress value={progress} className="h-2" />
+        <div className="mb-8">
+          <div className="flex justify-between text-sm text-muted-foreground mb-2">
+            <span>Question {currentQuestion + 1} of {exploration.questions.length}</span>
+            <span>{Math.round(progress)}% Complete</span>
           </div>
-        )}
-
-        {/* Question */}
-        {exploration && (
-          <div className="glass rounded-2xl p-8 mb-8 text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-4">
-              {exploration.questions[currentQuestion]}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Take your time and speak from the heart. NewMe is here to listen.
-            </p>
-          </div>
-        )}
-
-        {/* Voice Interface */}
-        <div className="glass rounded-2xl p-8 mb-8">
-          <VoiceInterface
-            isListening={isListening}
-            onStartListening={handleStartListening}
-            onStopListening={handleStopListening}
-            onSpeechResult={handleSpeechResult}
-            currentText={currentTranscript}
-            isProcessing={isProcessing}
-            isSpeaking={isSpeaking}
-          />
+          <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Previous Answers */}
-        {answers.length > 0 && (
-          <div className="glass rounded-2xl p-6">
-            <h3 className="font-medium text-foreground mb-4">Your Journey So Far</h3>
-            <div className="space-y-3">
-              {answers.map((answer, index) => (
-                <div key={index} className="border-l-2 border-primary/30 pl-4">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Question {index + 1}
-                  </p>
-                  <p className="text-sm text-foreground">{answer}</p>
-                </div>
-              ))}
+        {/* Question */}
+        <Card className="glass border-card-border mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Reflection Question
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <h2 className="text-lg font-medium leading-relaxed">
+              {currentQuestionData?.question}
+            </h2>
+
+            {currentQuestionData?.type === 'reflection' && (
+              <Textarea
+                placeholder="Take your time to reflect and share your thoughts..."
+                value={currentAnswer}
+                onChange={(e) => handleAnswerChange(e.target.value)}
+                className="glass min-h-[150px]"
+              />
+            )}
+
+            {currentQuestionData?.type === 'choice' && currentQuestionData.options && (
+              <div className="space-y-3">
+                {currentQuestionData.options.map((option, index) => (
+                  <Button
+                    key={index}
+                    variant={currentAnswer === option ? "default" : "outline"}
+                    className={`w-full text-left justify-start p-4 h-auto ${
+                      currentAnswer === option ? "bg-gradient-primary" : "glass"
+                    }`}
+                    onClick={() => handleAnswerChange(option)}
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground">
+              💡 Take your time to reflect deeply. There are no right or wrong answers.
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center">
+          <Button
+            onClick={prevQuestion}
+            disabled={currentQuestion === 0}
+            variant="outline"
+            className="glass"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Previous
+          </Button>
+
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              Swipe or use buttons to navigate
+            </p>
           </div>
-        )}
+
+          {currentQuestion === exploration.questions.length - 1 ? (
+            <Button
+              onClick={completeExploration}
+              disabled={!canProceed}
+              className="bg-gradient-primary"
+            >
+              Complete
+              <CheckCircle className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              onClick={nextQuestion}
+              disabled={!canProceed}
+              className="bg-gradient-primary"
+            >
+              Next
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
+export default ExplorationSession;

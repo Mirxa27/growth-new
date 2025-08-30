@@ -15,8 +15,14 @@ import MobileAssessment from "./pages/MobileAssessment";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Community from "./pages/Community";
+import Profile from "./pages/Profile";
+import Library from "./pages/Library";
+import Explorations from "./pages/Explorations";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import ExplorationSession from "./components/exploration/ExplorationSession";
+import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +66,36 @@ const AppPreview = () => {
                   <Route path="/community" element={
                     <ProtectedRoute>
                       <Community />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/profile" element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/library" element={
+                    <ProtectedRoute>
+                      <Library />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/explorations" element={
+                    <ProtectedRoute>
+                      <Explorations />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/explorations/:explorationId" element={
+                    <ProtectedRoute>
+                      <ExplorationSession />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/onboarding" element={
+                    <ProtectedRoute>
+                      <OnboardingFlow />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
