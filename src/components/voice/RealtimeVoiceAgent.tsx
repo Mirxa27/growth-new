@@ -36,7 +36,6 @@ const RealtimeVoiceAgent: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
-  const [session, setSession] = useState<VoiceSession | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [audioLevel, setAudioLevel] = useState(0);
@@ -73,8 +72,7 @@ const RealtimeVoiceAgent: React.FC = () => {
       }
 
       const sessionData: VoiceSession = await response.json();
-      setSession(sessionData);
-
+      
       // Initialize WebRTC or WebSocket connection to OpenAI Realtime API
       await connectToRealtime(sessionData);
 
@@ -290,7 +288,6 @@ const RealtimeVoiceAgent: React.FC = () => {
     cleanup();
     setIsConnected(false);
     setConnectionStatus('disconnected');
-    setSession(null);
     setTranscript([]);
 
     toast({

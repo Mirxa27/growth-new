@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 
@@ -36,10 +36,10 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
         setLoading(false);
         return;
       }
-      setQuestions(qData as any[]);
+      setQuestions(qData as any);
       // Fetch options for each question
       const optionMap: { [key: number]: Option[] } = {};
-      for (const q of (qData as any[])) {
+      for (const q of qData as any[]) {
         if (q.question_type === 'multiple_choice') {
           const { data: oData } = await supabase
             .from('assessment_options' as any)
@@ -72,7 +72,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
     // Store result for signed-in users
     if (userId) {
       const { error } = await supabase
-        .from('assessment_results')
+        .from('assessment_results' as any)
         .insert({
           user_id: userId,
           assessment_id: assessmentId,
