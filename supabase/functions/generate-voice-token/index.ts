@@ -1,7 +1,7 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Database } from '../../types'; // Import the Database type
+// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +22,8 @@ serve(async (req) => {
       throw new Error('No authorization header')
     }
 
-    // Create Supabase client
-    const supabaseClient = createClient<Database>(
+    // Create Supabase client without explicit Database typing
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {

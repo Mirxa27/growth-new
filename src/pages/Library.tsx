@@ -23,16 +23,15 @@ import {
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type LibraryItem = Tables<'library_items'> & {
   isBookmarked: boolean;
   isCompleted: boolean;
   progress?: number;
-  rating_count?: number;
 };
-type UserLibraryProgress = Tables<'user_library_progress'>; // Assuming this table exists
-type AnalyticsEvent = TablesInsert<'analytics_events'>; // Assuming this table exists
+type UserLibraryProgress = Tables<'user_library_progress'>;
+type AnalyticsEvent = TablesInsert<'analytics_events'>;
 
 const Library = () => {
   const { toast } = useToast();
@@ -58,7 +57,7 @@ const Library = () => {
         .from('library_items')
         .select('*')
         .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false }); // Changed to created_at for consistency
+        .order('created_at', { ascending: false });
 
       if (itemsError) throw itemsError;
 
@@ -78,7 +77,7 @@ const Library = () => {
       }
 
       // Transform data to match interface
-      const transformedItems: LibraryItem[] = items?.map((item: Tables<'library_items'>) => {
+      const transformedItems: LibraryItem[] = (items || []).map((item) => {
         const userItemProgress = userProgress.find(p => p.library_item_id === item.id);
         
         return {
@@ -86,9 +85,8 @@ const Library = () => {
           isBookmarked: userItemProgress?.is_bookmarked || false,
           isCompleted: userItemProgress?.is_completed || false,
           progress: userItemProgress?.progress || 0,
-          rating_count: item.rating_count || 0 // Assuming rating_count exists on library_items
         };
-      }) || [];
+      });
 
       setLibraryItems(transformedItems);
     } catch (err: any) {
@@ -145,7 +143,7 @@ const Library = () => {
           progress: item.progress || 0,
           is_completed: item.isCompleted,
           last_accessed: new Date().toISOString()
-        } as TablesInsert<'user_library_progress'>, { // Explicitly type insert
+        } as TablesInsert<'user_library_progress'>, {
           onConflict: 'user_id,library_item_id'
         });
 
@@ -190,11 +188,11 @@ const Library = () => {
             event_label: item.title,
             metadata: {
               item_id: item.id,
-              type: item.content_type, // Changed from 'type' to 'content_type'
+              type: item.content_type,
               category: item.category,
-              difficulty: item.difficulty_level // Changed from 'difficulty' to 'difficulty_level'
+              difficulty: item.difficulty_level
             }
-          } as AnalyticsEvent); // Explicitly type insert
+          } as AnalyticsEvent);
 
         // Update last accessed time
         await supabase
@@ -206,7 +204,7 @@ const Library = () => {
             is_completed: item.isCompleted,
             is_bookmarked: item.isBookmarked,
             last_accessed: new Date().toISOString()
-          } as TablesInsert<'user_library_progress'>, { // Explicitly type insert
+          } as TablesInsert<'user_library_progress'>, {
             onConflict: 'user_id,library_item_id'
           });
       }

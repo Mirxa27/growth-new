@@ -1,4 +1,5 @@
-// No Json import needed here, it's defined in the root types.ts
+import { Json } from '../../types';
+
 export type AuthTables = {
   profiles: {
     Row: {
@@ -20,6 +21,9 @@ export type AuthTables = {
       user_id: string | null
       is_banned: boolean | null
       bio: string | null
+      avatar_url: string | null // Added avatar_url
+      phone: string | null // Added phone
+      location: string | null // Added location
     }
     Insert: {
       created_at?: string | null
@@ -40,6 +44,9 @@ export type AuthTables = {
       user_id?: string | null
       is_banned?: boolean | null
       bio?: string | null
+      avatar_url?: string | null // Added avatar_url
+      phone?: string | null // Added phone
+      location?: string | null // Added location
     }
     Update: {
       created_at?: string | null
@@ -60,6 +67,9 @@ export type AuthTables = {
       user_id?: string | null
       is_banned?: boolean | null
       bio?: string | null
+      avatar_url?: string | null // Added avatar_url
+      phone?: string | null // Added phone
+      location?: string | null // Added location
     }
     Relationships: []
   }

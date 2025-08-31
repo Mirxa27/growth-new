@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-import { Database } from '../../types'; // Import the Database type
+// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +27,8 @@ interface ChatRequest {
   } & Partial<ExplorationContext>; // Extend context with optional ExplorationContext properties
 }
 
-const supabase = createClient<Database>(
+// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
+const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );

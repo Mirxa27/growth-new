@@ -1,6 +1,6 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-import { Database } from '../../types'; // Import the Database type
+// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const supabase = createClient<Database>(
+// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
+const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );

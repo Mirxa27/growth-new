@@ -1,4 +1,5 @@
-// No Json import needed here, it's defined in the root types.ts
+import { Json } from '../../types';
+
 export type CommunityTables = {
   community_posts: {
     Row: {
@@ -217,7 +218,7 @@ export type CommunityTables = {
     }
     Relationships: []
   }
-  conversations: {
+  conversations: { // Added missing table
     Row: {
       id: string;
       user_id: string;
@@ -253,7 +254,7 @@ export type CommunityTables = {
     };
     Relationships: [];
   };
-  messages: {
+  messages: { // Added missing table
     Row: {
       id: string;
       conversation_id: string;

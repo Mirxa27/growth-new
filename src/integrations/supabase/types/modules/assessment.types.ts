@@ -1,4 +1,5 @@
-// No Json import needed here, it's defined in the root types.ts
+import { Json } from '../../types';
+
 export type AssessmentTables = {
   assessment_options: {
     Row: {
@@ -285,7 +286,7 @@ export type AssessmentTables = {
       quiz_id?: string;
       status?: string;
       score?: number | null;
-      completed_at?: string | null;
+      completed_at?: string | null
       time_taken_seconds?: number | null;
       created_at?: string;
       updated_at?: string;

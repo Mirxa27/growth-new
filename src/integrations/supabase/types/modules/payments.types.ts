@@ -1,4 +1,5 @@
-// No Json import needed here, it's defined in the root types.ts
+import { Json } from '../../types';
+
 export type PaymentsTables = {
   subscription_packages: {
     Row: {

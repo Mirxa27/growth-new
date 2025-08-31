@@ -23,12 +23,12 @@ import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 
-type Profile = Tables<'profiles'>;
+type ProfileRow = Tables<'profiles'>; // Renamed to avoid conflict with local 'Profile'
 type Assessment = Tables<'assessments'>;
 type CommunityPost = Tables<'community_posts'>;
 type LibraryItem = Tables<'library_items'>;
 type ExplorationSession = Tables<'exploration_sessions'>;
-type AdminLog = Tables<'admin_logs'>; // Assuming admin_logs is in PlatformTables
+type AdminLog = Tables<'admin_logs'>;
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -46,7 +46,7 @@ const Dashboard = () => {
         // Fetch user data
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('created_at, last_login_at')
+          .select('created_at, last_login_at, avatar_url') // Added avatar_url
           .eq('user_id', user.id);
         if (profilesError) throw profilesError;
         const currentUserProfile = profilesData?.[0];

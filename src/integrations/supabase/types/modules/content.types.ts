@@ -1,4 +1,5 @@
-// No Json import needed here, it's defined in the root types.ts
+import { Json } from '../../types';
+
 export type ContentTables = {
   explorations: {
     Row: {
@@ -125,6 +126,8 @@ export type ContentTables = {
       duration_minutes: number | null
       created_at: string | null
       updated_at: string | null
+      rating: number | null // Added rating
+      rating_count: number | null // Added rating_count
     }
     Insert: {
       id?: string
@@ -143,6 +146,8 @@ export type ContentTables = {
       duration_minutes?: number | null
       created_at?: string | null
       updated_at?: string | null
+      rating?: number | null // Added rating
+      rating_count?: number | null // Added rating_count
     }
     Update: {
       id?: string
@@ -161,6 +166,8 @@ export type ContentTables = {
       duration_minutes?: number | null
       created_at?: string | null
       updated_at?: string | null
+      rating?: number | null // Added rating
+      rating_count?: number | null // Added rating_count
     }
     Relationships: []
   }
@@ -430,4 +437,48 @@ export type ContentTables = {
     }
     Relationships: []
   }
+  user_library_progress: { // Added missing table
+    Row: {
+      id: string;
+      user_id: string;
+      library_item_id: string;
+      progress: number;
+      is_completed: boolean;
+      is_bookmarked: boolean;
+      last_accessed: string;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: {
+      id?: string;
+      user_id: string;
+      library_item_id: string;
+      progress?: number;
+      is_completed?: boolean;
+      is_bookmarked?: boolean;
+      last_accessed?: string;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Update: {
+      id?: string;
+      user_id?: string;
+      library_item_id?: string;
+      progress?: number;
+      is_completed?: boolean;
+      is_bookmarked?: boolean;
+      last_accessed?: string;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Relationships: [
+      {
+        foreignKeyName: "user_library_progress_library_item_id_fkey";
+        columns: ["library_item_id"];
+        isOneToOne: false;
+        referencedRelation: "library_items";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
 };
