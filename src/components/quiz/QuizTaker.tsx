@@ -15,19 +15,23 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-interface Quiz {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: string;
-  is_public: boolean;
-  time_limit_minutes?: number;
-  passing_score: number;
-  show_correct_answers: boolean;
-  quiz_questions: any[];
-}
+type Quiz = Tables<'quizzes'> & {
+  quiz_questions: Array<{
+    id: string;
+    question_text: string;
+    points?: number;
+    quiz_question_options: Array<{
+      id: string;
+      option_text: string;
+      is_correct: boolean;
+    }>;
+  }>;
+};
+type QuizAttemptInsert = TablesInsert<'quiz_attempts'>;
+type QuizAttemptUpdate = TablesUpdate<'quiz_attempts'>;
+type QuizAnswerInsert = TablesInsert<'quiz_answers'>;
 
 interface QuizTakerProps {
   quiz: Quiz;
@@ -71,17 +75,17 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
     if (!user) return;
     try {
       const { data, error } = await supabase
-        .from('quiz_attempts' as any)
+        .from('quiz_attempts')
         .insert({
           user_id: user.id,
           quiz_id: quiz.id,
           status: 'in-progress'
-        })
+        } as QuizAttemptInsert)
         .select('id')
         .single();
       
       if (error) throw error;
-      setQuizAttemptId((data as any).id);
+      setQuizAttemptId(data.id);
     } catch (error) {
       console.error('Error starting quiz attempt:', error);
       toast({ title: "Error", description: "Could not start quiz attempt.", variant: "destructive" });
@@ -98,7 +102,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
 
     let score = 0;
     let correctAnswers = 0;
-    const answerInserts: any[] = [];
+    const answerInserts: QuizAnswerInsert[] = [];
 
     quiz.quiz_questions.forEach(q => {
       const userAnswer = answers[q.id];
@@ -108,7 +112,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
         score += q.points || 1;
         correctAnswers++;
       }
-      if (userAnswer) {
+      if (userAnswer && quizAttemptId) {
         answerInserts.push({
           quiz_attempt_id: quizAttemptId,
           quiz_question_id: q.id,
@@ -123,7 +127,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
       score,
       correctAnswers,
       totalQuestions: quiz.quiz_questions.length,
-      passed: score >= quiz.passing_score,
+      passed: score >= (quiz.passing_score || 0),
       timeTaken: quiz.time_limit_minutes ? (quiz.time_limit_minutes * 60) - timeLeft : null
     };
     setResults(finalResults);
@@ -132,19 +136,19 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
       try {
         // Update quiz attempt
         const { error: attemptError } = await supabase
-          .from('quiz_attempts' as any)
+          .from('quiz_attempts')
           .update({
             status: 'completed',
             score: finalResults.score,
             completed_at: new Date().toISOString(),
             time_taken_seconds: finalResults.timeTaken
-          })
+          } as QuizAttemptUpdate)
           .eq('id', quizAttemptId);
         if (attemptError) throw attemptError;
 
         // Insert answers
         const { error: answersError } = await supabase
-          .from('quiz_answers' as any)
+          .from('quiz_answers')
           .insert(answerInserts);
         if (answersError) throw answersError;
 

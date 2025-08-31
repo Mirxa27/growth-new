@@ -11,6 +11,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
 import { Save, AlertCircle, Mic, Settings } from 'lucide-react';
 import { ValidationError } from '@/utils/validation';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type VoiceAgentConfig = Tables<'voice_agent_configs'>;
+type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
+type VoiceAgentConfigUpdate = TablesUpdate<'voice_agent_configs'>;
 
 const VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
 
@@ -20,8 +25,17 @@ export const VoiceAgentConfigManager: React.FC = () => {
   
   const activeConfig = useMemo(() => configs?.find(c => c.is_active) ?? configs?.[0] ?? null, [configs]);
 
-  const [form, setForm] = useState({
-    id: '', name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-mini', temperature: 0.7, instructions: '', is_active: true
+  const [form, setForm] = useState<Partial<VoiceAgentConfigInsert>>(activeConfig ? {
+    id: activeConfig.id,
+    name: activeConfig.name,
+    provider: activeConfig.provider,
+    voice: activeConfig.voice,
+    model: activeConfig.model,
+    temperature: activeConfig.temperature,
+    instructions: activeConfig.instructions ?? '',
+    is_active: activeConfig.is_active
+  } : {
+    name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-mini', temperature: 0.7, instructions: '', is_active: true
   });
   
   useEffect(() => {
@@ -42,7 +56,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const validate = (data: typeof form) => {
+  const validate = (data: Partial<VoiceAgentConfigInsert>) => {
     if (!data.name || data.name.trim().length < 2) throw new ValidationError('Name must be at least 2 characters', 'name');
     if (!data.voice || !VOICES.includes(data.voice as typeof VOICES[number])) throw new ValidationError('Invalid voice', 'voice');
     if (!data.model || data.model.trim().length < 3) throw new ValidationError('Model is required', 'model');
@@ -55,20 +69,21 @@ export const VoiceAgentConfigManager: React.FC = () => {
       validate(form);
       setIsSaving(true);
       
+      // If toggling is_active, ensure only one active config
       if (form.is_active) {
-        await supabase.from('voice_agent_configs').update({ is_active: false }).neq('id', form.id as string);
+        await supabase.from('voice_agent_configs').update({ is_active: false } as VoiceAgentConfigUpdate).neq('id', form.id as string);
       }
 
       const { error } = await supabase.from('voice_agent_configs').upsert({
         id: form.id,
         name: form.name!,
-        provider: form.provider,
-        voice: form.voice,
+        provider: form.provider!,
+        voice: form.voice!,
         model: form.model!,
         temperature: form.temperature!,
         instructions: form.instructions ?? '',
         is_active: !!form.is_active
-      });
+      } as VoiceAgentConfigInsert);
 
       if (error) throw error;
       toast({ title: "Success", description: "Configuration saved successfully." });
@@ -99,12 +114,12 @@ export const VoiceAgentConfigManager: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="name">Configuration Name</Label>
-              <Input id="name" className="glass-input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+              <Input id="name" className="glass-input" value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="voice">Voice</Label>
-              <Select value={form.voice} onValueChange={(v) => setForm(p => ({ ...p, voice: v as any }))}>
+              <Select value={form.voice || ''} onValueChange={(v) => setForm(p => ({ ...p, voice: v as any }))}>
                 <SelectTrigger className="glass"><SelectValue placeholder="Select voice" /></SelectTrigger>
                 <SelectContent>
                   {VOICES.map(v => <SelectItem key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>)}
@@ -114,7 +129,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="model">AI Model</Label>
-              <Input id="model" className="glass-input" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} />
+              <Input id="model" className="glass-input" value={form.model || ''} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} />
               {errors.model && <p className="text-sm text-red-500">{errors.model}</p>}
             </div>
             <div className="space-y-2">

@@ -14,15 +14,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Quiz {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: string;
-  time_limit_minutes?: number;
-}
+type Quiz = Tables<'quizzes'>;
 
 interface QuizBrowserProps {
   onQuizSelect: (quiz: Quiz) => void;
@@ -42,7 +36,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
       setLoading(true);
       try {
         let query = supabase
-          .from('quizzes' as any)
+          .from('quizzes')
           .select(`
             id,
             title,
@@ -59,8 +53,8 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
         const { data, error } = await query;
         if (error) throw error;
 
-        setQuizzes((data as any) || []);
-        setFilteredQuizzes((data as any) || []);
+        setQuizzes(data || []);
+        setFilteredQuizzes(data || []);
       } catch (error) {
         console.error('Error loading quizzes:', error);
         toast({
@@ -144,7 +138,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                  {getCategoryIcon(quiz.category)}
+                  {getCategoryIcon(quiz.category || 'default')}
                 </div>
                 <Badge variant="secondary" className="glass">{quiz.category}</Badge>
               </div>

@@ -5,9 +5,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, Mic, AlertCircle } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
+import { Tables, TablesUpdate } from '@/integrations/supabase/types';
 
-type VoiceConfig = Database['public']['Tables']['voice_agent_configs']['Row'];
+type VoiceConfig = Tables<'voice_agent_configs'>;
+type VoiceConfigUpdate = TablesUpdate<'voice_agent_configs'>;
 
 export const VoiceAgentTrainer: React.FC = () => {
   const [config, setConfig] = useState<VoiceConfig | null>(null);
@@ -40,7 +41,7 @@ export const VoiceAgentTrainer: React.FC = () => {
     if (!config) return;
     try {
       setSaving(true);
-      const { error } = await supabase.from('voice_agent_configs').update({ instructions }).eq('id', config.id);
+      const { error } = await supabase.from('voice_agent_configs').update({ instructions } as VoiceConfigUpdate).eq('id', config.id);
       if (error) throw error;
       toast({ title: "Success", description: "Instructions updated successfully." });
     } catch (e: any) {

@@ -26,20 +26,21 @@ import {
   PlusCircle,
   MinusCircle
 } from 'lucide-react';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 interface Assessment {
-  id: string;
+  id: number;
   title: string;
-  description: string;
+  description: string | null;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
-  created_at: string;
-  updated_at: string;
   question_count: number;
   completion_count: number;
-  ai_provider?: string;
-  ai_model?: string;
-  ai_prompt?: string;
+  ai_provider?: string | null;
+  ai_model?: string | null;
+  ai_prompt?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Question {
@@ -61,12 +62,12 @@ interface Option {
 
 interface AssessmentForm {
   title: string;
-  description: string;
+  description: string | null;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
-  ai_provider: string;
-  ai_model: string;
-  ai_prompt: string;
+  ai_provider: string | null;
+  ai_model: string | null;
+  ai_prompt: string | null;
   questions: Question[];
 }
 
@@ -86,12 +87,12 @@ export const AssessmentManager: React.FC = () => {
   // Form state
   const [assessmentForm, setAssessmentForm] = useState<AssessmentForm>({
     title: '',
-    description: '',
+    description: null,
     type: 'quiz',
     visibility: 'private',
-    ai_provider: 'openai',
-    ai_model: 'gpt-4o-mini',
-    ai_prompt: '',
+    ai_provider: null,
+    ai_model: null,
+    ai_prompt: null,
     questions: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,14 +112,14 @@ export const AssessmentManager: React.FC = () => {
 
       if (error) throw error;
 
-      const assessmentsWithCounts = data?.map((assessment) => ({
+      const assessmentsWithCounts: Assessment[] = (data || []).map((assessment) => ({
         ...assessment,
-        question_count: assessment.assessment_questions?.[0]?.count || 0,
+        question_count: (assessment.assessment_questions as unknown as { count: number }[])?.[0]?.count || 0,
         completion_count: Math.floor(Math.random() * 100) // TODO: Get real completion count
-      })) || [];
+      }));
 
-      setAssessments(assessmentsWithCounts as Assessment[]);
-      setFilteredAssessments(assessmentsWithCounts as Assessment[]);
+      setAssessments(assessmentsWithCounts);
+      setFilteredAssessments(assessmentsWithCounts);
     } catch (error) {
       console.error('Error fetching assessments:', error);
       toast({
@@ -141,7 +142,7 @@ export const AssessmentManager: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter(a => 
         a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.description.toLowerCase().includes(searchTerm.toLowerCase())
+        a.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -159,12 +160,12 @@ export const AssessmentManager: React.FC = () => {
   const resetForm = () => {
     setAssessmentForm({
       title: '',
-      description: '',
+      description: null,
       type: 'quiz',
       visibility: 'private',
-      ai_provider: 'openai',
-      ai_model: 'gpt-4o-mini',
-      ai_prompt: '',
+      ai_provider: null,
+      ai_model: null,
+      ai_prompt: null,
       questions: []
     });
   };
@@ -272,7 +273,8 @@ export const AssessmentManager: React.FC = () => {
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
         _ai_prompt: assessmentForm.ai_prompt,
-        _questions: assessmentForm.questions as any
+        _questions: assessmentForm.questions,
+        _created_by: null // This RPC function doesn't have _created_by, setting to null or removing if not needed
       });
 
       if (error) throw error;
@@ -296,9 +298,9 @@ export const AssessmentManager: React.FC = () => {
       description: assessment.description,
       type: assessment.type,
       visibility: assessment.visibility,
-      ai_provider: assessment.ai_provider || 'openai',
-      ai_model: assessment.ai_model || 'gpt-4o-mini',
-      ai_prompt: assessment.ai_prompt || '',
+      ai_provider: assessment.ai_provider || null,
+      ai_model: assessment.ai_model || null,
+      ai_prompt: assessment.ai_prompt || null,
       questions: [] // TODO: Load questions from database
     });
     // setIsEditDialogOpen(true);
@@ -309,7 +311,7 @@ export const AssessmentManager: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this assessment?')) return;
     
     try {
@@ -340,7 +342,7 @@ export const AssessmentManager: React.FC = () => {
           ai_provider: assessment.ai_provider,
           ai_model: assessment.ai_model,
           ai_prompt: assessment.ai_prompt
-        });
+        } as TablesInsert<'assessments'>); // Explicitly type insert
 
       if (error) throw error;
 
@@ -581,7 +583,7 @@ export const AssessmentManager: React.FC = () => {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  value={assessmentForm.description}
+                  value={assessmentForm.description || ''}
                   onChange={(e) => setAssessmentForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe what this assessment measures..."
                   rows={3}
@@ -708,7 +710,7 @@ export const AssessmentManager: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>AI Provider</Label>
-                  <Select value={assessmentForm.ai_provider} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_provider: value }))}>
+                  <Select value={assessmentForm.ai_provider || ''} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_provider: value }))}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -721,7 +723,7 @@ export const AssessmentManager: React.FC = () => {
                 </div>
                 <div>
                   <Label>AI Model</Label>
-                  <Select value={assessmentForm.ai_model} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_model: value }))}>
+                  <Select value={assessmentForm.ai_model || ''} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_model: value }))}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -738,7 +740,7 @@ export const AssessmentManager: React.FC = () => {
               <div>
                 <Label>AI Prompt</Label>
                 <Textarea
-                  value={assessmentForm.ai_prompt}
+                  value={assessmentForm.ai_prompt || ''}
                   onChange={(e) => setAssessmentForm(prev => ({ ...prev, ai_prompt: e.target.value }))}
                   placeholder="Enter custom prompt for AI generation..."
                   rows={4}

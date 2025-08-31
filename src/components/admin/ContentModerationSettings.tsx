@@ -26,7 +26,7 @@ export const ContentModerationSettings: React.FC = () => {
         
         if (error) throw error;
         
-        const map = new Map<string, any>((data as any[]).map(r => [r.key, r.value]));
+        const map = new Map<string, any>((data || []).map(r => [r.key, r.value]));
         setEnabled(Boolean(JSON.parse(map.get('content_moderation_enabled') ?? 'true')));
         setThreshold(Number(JSON.parse(map.get('auto_flag_threshold') ?? '0.8')));
       } catch (e: any) {

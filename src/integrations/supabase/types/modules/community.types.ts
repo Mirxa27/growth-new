@@ -217,4 +217,78 @@ export type CommunityTables = {
     }
     Relationships: []
   }
+  conversations: {
+    Row: {
+      id: string;
+      user_id: string;
+      title: string;
+      ai_provider: string;
+      model_used: string;
+      last_activity: string | null;
+      total_messages: number | null;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: {
+      id?: string;
+      user_id: string;
+      title: string;
+      ai_provider: string;
+      model_used: string;
+      last_activity?: string | null;
+      total_messages?: number | null;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Update: {
+      id?: string;
+      user_id?: string;
+      title?: string;
+      ai_provider?: string;
+      model_used?: string;
+      last_activity?: string | null;
+      total_messages?: number | null;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Relationships: [];
+  };
+  messages: {
+    Row: {
+      id: string;
+      conversation_id: string;
+      user_id: string;
+      role: string;
+      content: string;
+      usage: Json | null;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      conversation_id: string;
+      user_id: string;
+      role: string;
+      content: string;
+      usage?: Json | null;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      conversation_id?: string;
+      user_id?: string;
+      role?: string;
+      content?: string;
+      usage?: Json | null;
+      created_at?: string;
+    };
+    Relationships: [
+      {
+        foreignKeyName: "messages_conversation_id_fkey";
+        columns: ["conversation_id"];
+        isOneToOne: false;
+        referencedRelation: "conversations";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
 };

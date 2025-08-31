@@ -17,15 +17,12 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-interface Exploration {
-  id: string;
-  title: string;
-  description: string;
-  estimated_duration: number;
-  crystal_reward: number;
-  questions: string[];
-}
+type Exploration = Tables<'explorations'>;
+type ExplorationSessionRow = Tables<'exploration_sessions'>;
+type ExplorationSessionInsert = TablesInsert<'exploration_sessions'>;
+type ExplorationSessionUpdate = TablesUpdate<'exploration_sessions'>;
 
 const ExplorationSession = () => {
   const { explorationId } = useParams();
@@ -50,7 +47,7 @@ const ExplorationSession = () => {
       const { data: explorationData, error: explorationError } = await supabase
         .from('explorations')
         .select('*')
-        .eq('id', explorationId)
+        .eq('id', explorationId!)
         .single();
 
       if (explorationError) throw explorationError;
@@ -64,17 +61,17 @@ const ExplorationSession = () => {
 
       if (user) {
         const { data: existingResponse } = await supabase
-          .from('exploration_sessions' as any)
+          .from('exploration_sessions')
           .select('*')
-          .eq('exploration_id', explorationId)
+          .eq('exploration_id', explorationId!)
           .eq('user_id', user.id)
           .single();
 
         if (existingResponse) {
-          setResponseId((existingResponse as any).id);
-          setAnswers((existingResponse as any).responses || {});
+          setResponseId(existingResponse.id);
+          setAnswers(existingResponse.user_answers as Record<string, string> || {});
           
-          if ((existingResponse as any).completed_at) {
+          if (existingResponse.completed_at) {
             setIsComplete(true);
           }
         }
@@ -101,27 +98,29 @@ const ExplorationSession = () => {
     if (!user || !exploration) return;
 
     try {
-      const responseData = {
-        exploration_id: explorationId,
+      const responseData: ExplorationSessionInsert = {
+        exploration_id: explorationId!,
         user_id: user.id,
-        responses: answers,
-        crystal_reward: exploration.crystal_reward
+        user_answers: answers,
+        crystals_earned: exploration.crystal_reward,
+        current_question: currentQuestion,
+        status: 'in-progress'
       };
 
       if (responseId) {
         await supabase
-          .from('exploration_sessions' as any)
-          .update(responseData)
+          .from('exploration_sessions')
+          .update(responseData as ExplorationSessionUpdate)
           .eq('id', responseId);
       } else {
         const { data, error } = await supabase
-          .from('exploration_sessions' as any)
+          .from('exploration_sessions')
           .insert(responseData)
           .select()
           .single();
         
         if (error) throw error;
-        setResponseId((data as any).id);
+        setResponseId(data.id);
       }
     } catch (error) {
       console.error('Error saving progress:', error);
@@ -155,12 +154,12 @@ const ExplorationSession = () => {
       
       if (responseId) {
         await supabase
-          .from('exploration_sessions' as any)
-          .update({ completed_at: new Date().toISOString() })
+          .from('exploration_sessions')
+          .update({ completed_at: new Date().toISOString(), status: 'completed' } as ExplorationSessionUpdate)
           .eq('id', responseId);
       }
 
-      await (supabase as any).rpc('increment_user_crystals', {
+      await supabase.rpc('increment_user_crystals', {
         user_id: user.id,
         amount: exploration.crystal_reward
       });

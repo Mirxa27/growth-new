@@ -12,38 +12,10 @@ import AssessmentTaker from '@/components/assessment/AssessmentTaker';
 import { AssessmentResults } from '@/components/assessment/AssessmentResults';
 import QuizBrowser from '@/components/quiz/QuizBrowser';
 import QuizTaker from '@/components/quiz/QuizTaker';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Assessment {
-  id: number;
-  title: string;
-  description: string;
-  instructions?: string;
-  is_public: boolean;
-  scoring_algorithm: string;
-  assessment_type: {
-    estimated_duration: number;
-    category: string;
-  };
-  assessment_questions: {
-    question: any;
-    order_index: number;
-    is_required: boolean;
-    weight: number;
-  }[];
-}
-
-interface Quiz {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: string;
-  is_public: boolean;
-  time_limit_minutes?: number;
-  passing_score: number;
-  show_correct_answers: boolean;
-  quiz_questions: any[];
-}
+type Assessment = Tables<'assessments'>;
+type Quiz = Tables<'quizzes'>;
 
 type ViewMode = 'home' | 'assessment-browser' | 'assessment-taking' | 'assessment-results' | 'quiz-browser' | 'quiz-taking';
 
@@ -165,7 +137,7 @@ const MobileAssessmentHub: React.FC = () => {
         <AssessmentResults
           results={assessmentResults}
           assessmentTitle={selectedAssessment?.title || 'Assessment'}
-          assessmentCategory={selectedAssessment?.assessment_type.category || 'general'}
+          assessmentCategory={selectedAssessment?.type || 'general'} // Changed to selectedAssessment.type
           onRetake={() => {
             setAssessmentResults(null);
             setViewMode('assessment-taking');
@@ -202,7 +174,7 @@ const MobileAssessmentHub: React.FC = () => {
           </Button>
         </div>
         <AssessmentBrowser
-          onAssessmentSelect={handleAssessmentSelect as any}
+          onAssessmentSelect={handleAssessmentSelect}
           filterPublic={true}
         />
       </div>
@@ -219,7 +191,7 @@ const MobileAssessmentHub: React.FC = () => {
           </Button>
         </div>
         <QuizBrowser
-          onQuizSelect={handleQuizSelect as any}
+          onQuizSelect={handleQuizSelect}
           filterPublic={true}
         />
       </div>

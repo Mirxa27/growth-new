@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { TablesInsert } from '@/integrations/supabase/types';
 
 interface GeneratedQuestion {
   question_text: string;
@@ -39,6 +40,8 @@ interface GeneratedContent {
   questions: GeneratedQuestion[];
 }
 
+type AdminLogInsert = TablesInsert<'admin_logs'>;
+
 export const AIContentBuilder = () => {
   const { toast } = useToast();
   const { user } = useAuth(); // Use the auth hook
@@ -49,6 +52,14 @@ export const AIContentBuilder = () => {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
+
+  // Placeholder for assessmentForm, as it's used in saveAssessment but not defined in this component
+  // This would typically come from a state or context if the form was more complex
+  const assessmentForm = {
+    ai_provider: 'openai',
+    ai_model: 'gpt-4o-mini',
+    ai_prompt: '',
+  };
 
   const generateAssessment = async () => {
     if (!topic.trim()) {
@@ -97,11 +108,27 @@ export const AIContentBuilder = () => {
         _ai_provider: assessmentForm.ai_provider, // Use form data for AI provider
         _ai_model: assessmentForm.ai_model,     // Use form data for AI model
         _ai_prompt: assessmentForm.ai_prompt,   // Use form data for AI prompt
-        _questions: generatedContent.questions as any,
+        _questions: generatedContent.questions,
         _created_by: user.id // Pass the user's ID
       });
 
       if (error) throw error;
+
+      // Log the generation for admin tracking
+      await supabase
+        .from('admin_logs')
+        .insert({
+          admin_id: user.id,
+          action: 'AI_CONTENT_GENERATED',
+          details: {
+            assessment_id: null, // RPC function doesn't return ID directly, need to fetch or adjust RPC
+            topic: topic,
+            type: type,
+            provider: assessmentForm.ai_provider,
+            model: assessmentForm.ai_model,
+            question_count: generatedContent.questions?.length || 0
+          }
+        } as AdminLogInsert);
 
       toast({ title: "Assessment saved successfully!" });
       setGeneratedContent(null);

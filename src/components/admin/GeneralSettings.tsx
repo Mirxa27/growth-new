@@ -8,10 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, Settings, AlertCircle } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
+import { TablesInsert } from '@/integrations/supabase/types';
 
 interface SettingsMap {
   [key: string]: any;
 }
+
+type PlatformSettingInsert = TablesInsert<'platform_settings'>;
 
 export const GeneralSettings: React.FC = () => {
   const [settings, setSettings] = useState<SettingsMap>({});

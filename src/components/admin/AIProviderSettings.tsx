@@ -18,10 +18,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Database as DBTypes } from '@/integrations/supabase/types';
+import { Database, Tables, TablesInsert } from '@/integrations/supabase/types';
 
-type AIProvider = DBTypes['public']['Tables']['admin_ai_providers']['Row'];
-type AIProviderInsert = DBTypes['public']['Tables']['admin_ai_providers']['Insert'];
+type AIProvider = Tables<'admin_ai_providers'>;
+type AIProviderInsert = TablesInsert<'admin_ai_providers'>;
 
 export const AIProviderSettings: React.FC = () => {
   const [providers, setProviders] = useState<AIProvider[]>([]);

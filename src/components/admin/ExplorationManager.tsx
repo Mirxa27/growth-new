@@ -19,10 +19,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-type Exploration = Database['public']['Tables']['explorations']['Row'];
-type ExplorationInsert = Database['public']['Tables']['explorations']['Insert'];
+type Exploration = Tables<'explorations'>;
+type ExplorationInsert = TablesInsert<'explorations'>;
+type ExplorationUpdate = TablesUpdate<'explorations'>;
 
 export const ExplorationManager: React.FC = () => {
   const [explorations, setExplorations] = useState<Exploration[]>([]);
@@ -110,7 +111,7 @@ export const ExplorationManager: React.FC = () => {
     try {
       const { error } = await supabase
         .from('explorations')
-        .update({ is_active: !isActive })
+        .update({ is_active: !isActive } as ExplorationUpdate)
         .eq('id', id);
       if (error) throw error;
       toast({ title: "Success", description: "Exploration status updated" });

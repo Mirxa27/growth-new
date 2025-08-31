@@ -11,9 +11,14 @@ import {
   TrendingUp, 
   Star, 
   Brain,
-  
   Award
 } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
+
+type Profile = Tables<'profiles'>;
+type ExplorationSession = Tables<'exploration_sessions'> & {
+  explorations: Tables<'explorations'> | null;
+};
 
 interface AnalyticsData {
   totalUsers: number;
@@ -87,9 +92,9 @@ export const AdminAnalytics = () => {
       ).length || 0;
 
       // Calculate popular explorations with real ratings
-      const explorationCounts = explorationStats?.reduce((acc, session) => {
+      const explorationCounts = (explorationStats || []).reduce((acc, session) => {
         if (session.status === 'completed' && session.explorations) {
-          const exploration = session.explorations as any;
+          const exploration = session.explorations;
           const key = exploration.id;
           if (!acc[key]) {
             acc[key] = {
@@ -102,7 +107,7 @@ export const AdminAnalytics = () => {
           }
           acc[key].completions++;
           // Add rating if available, otherwise use a baseline rating
-          const rating = (session as any).rating || 4.0;
+          const rating = (session as any).rating || 4.0; // Assuming rating might be on session or a default
           acc[key].totalRating += rating;
           acc[key].avgRating = acc[key].totalRating / acc[key].completions;
         }
@@ -114,9 +119,9 @@ export const AdminAnalytics = () => {
         .slice(0, 5);
 
       // Calculate category statistics
-      const categoryStats = explorationStats?.reduce((acc, session) => {
+      const categoryStats = (explorationStats || []).reduce((acc, session) => {
         if (session.explorations) {
-          const exploration = session.explorations as any;
+          const exploration = session.explorations;
           const category = exploration.category || 'other';
           if (!acc[category]) {
             acc[category] = {

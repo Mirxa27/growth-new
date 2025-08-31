@@ -3,22 +3,11 @@ import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
-interface AssessmentQuestion {
-  id: number;
-  question_text: string;
-  question_type: 'multiple_choice' | 'free_text';
-  position: number;
-  assessment_id: number;
-}
-
-interface AssessmentOption {
-  id: number;
-  question_id: number;
-  option_text: string;
-  is_correct: boolean;
-  position: number;
-}
+type AssessmentQuestion = Tables<'assessment_questions'>;
+type AssessmentOption = Tables<'assessment_options'>;
+type AssessmentResultInsert = TablesInsert<'assessment_results'>;
 
 interface AssessmentTakerProps {
   assessmentId: number;
@@ -97,7 +86,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
           assessment_id: assessmentId,
           score,
           answers,
-        } as any);
+        } as AssessmentResultInsert); // Explicitly type insert
       if (error) {
         setError(error.message);
         setSubmitting(false);

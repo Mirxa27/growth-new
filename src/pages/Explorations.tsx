@@ -20,16 +20,9 @@ import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Exploration {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty_level: string;
-  estimated_duration: number;
-  crystal_reward: number;
-}
+type Exploration = Tables<'explorations'>;
 
 const Explorations = () => {
   const navigate = useNavigate();

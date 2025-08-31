@@ -20,6 +20,15 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
+import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
+
+type Profile = Tables<'profiles'>;
+type Assessment = Tables<'assessments'>;
+type CommunityPost = Tables<'community_posts'>;
+type LibraryItem = Tables<'library_items'>;
+type ExplorationSession = Tables<'exploration_sessions'>;
+type AdminLog = Tables<'admin_logs'>; // Assuming admin_logs is in PlatformTables
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -27,10 +36,53 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading user data
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchDashboardData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch user data
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('created_at, last_login_at')
+          .eq('user_id', user.id);
+        if (profilesError) throw profilesError;
+        const currentUserProfile = profilesData?.[0];
+
+        // Fetch other data for overview (simplified for dashboard, full analytics in AdminAnalytics)
+        const { data: assessmentsData, error: assessmentsError } = await supabase
+          .from('assessments')
+          .select('id, title, created_at');
+        if (assessmentsError) throw assessmentsError;
+
+        const { data: communityPostsData, error: communityPostsError } = await supabase
+          .from('community_posts')
+          .select('id, created_at');
+        if (communityPostsError) throw communityPostsError;
+
+        const { data: libraryItemsData, error: libraryItemsError } = await supabase
+          .from('library_items')
+          .select('id, created_at');
+        if (libraryItemsError) throw libraryItemsError;
+
+        const { data: explorationSessionsData, error: explorationSessionsError } = await supabase
+          .from('exploration_sessions')
+          .select('created_at, status')
+          .eq('user_id', user.id);
+        if (explorationSessionsError) throw explorationSessionsError;
+
+        // Simulate loading user data
+        setTimeout(() => setIsLoading(false), 1000);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -208,17 +260,15 @@ const Dashboard = () => {
               <div className="space-y-3">
                 {achievements.map((achievement, index) => (
                   <div key={index} className="flex items-center justify-between p-3 glass-subtle rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        achievement.completed ? 'bg-primary text-white' : 'bg-muted'
-                      }`}>
-                        <Trophy className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">{achievement.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {achievement.points} crystals
-                        </div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      achievement.completed ? 'bg-primary text-white' : 'bg-muted'
+                    }`}>
+                      <Trophy className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{achievement.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {achievement.points} crystals
                       </div>
                     </div>
                     <Badge variant={achievement.completed ? "default" : "secondary"}>

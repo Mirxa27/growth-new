@@ -12,6 +12,7 @@ import {
   Heart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TablesInsert } from '@/integrations/supabase/types';
 
 interface RealtimeVoiceInterfaceProps {
   onMessage?: (message: any) => void;
@@ -27,6 +28,8 @@ interface RealtimeEvent {
   transcript?: string;
   error?: { type: string; code: string; message: string };
 }
+
+type VoiceSessionInsert = TablesInsert<'voice_sessions'>;
 
 export const RealtimeVoiceInterface = ({ 
   onMessage, 

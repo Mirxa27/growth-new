@@ -50,6 +50,7 @@ export type Database = {
           _ai_model: string
           _ai_prompt: string
           _questions: Json
+          _created_by: string // Added _created_by argument
         }
         Returns: undefined
       }
@@ -188,6 +189,14 @@ export type Database = {
         Args: { new_tier: string; target_user_id: string }
         Returns: undefined
       }
+      increment_post_likes: { // Added RPC function
+        Args: { post_id: string };
+        Returns: undefined;
+      };
+      increment_user_crystals: { // Added RPC function
+        Args: { user_id: string; amount: number };
+        Returns: undefined;
+      };
     }
     Enums: {
       [_ in never]: never

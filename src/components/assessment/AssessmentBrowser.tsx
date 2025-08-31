@@ -2,13 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Assessment {
-  id: number;
-  title: string;
-  description: string;
-  type: string;
-}
+type Assessment = Tables<'assessments'>;
 
 interface AssessmentBrowserProps {
   onAssessmentSelect?: (assessment: Assessment) => void;
@@ -24,7 +20,7 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
     const fetchAssessments = async () => {
       setLoading(true);
       let query = supabase
-        .from('assessments' as any)
+        .from('assessments')
         .select('id, title, description, type')
         .order('created_at', { ascending: false });
       
@@ -37,7 +33,7 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
       if (error) {
         setError(error.message);
       } else {
-        setAssessments(data as any as Assessment[]);
+        setAssessments(data || []);
       }
       setLoading(false);
     };

@@ -23,27 +23,16 @@ import {
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-interface LibraryItem {
-  id: string;
-  title: string;
-  description: string;
-  type: 'article' | 'audio' | 'video' | 'exercise' | 'meditation' | 'course';
-  category: string;
-  duration: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  rating: number;
+type LibraryItem = Tables<'library_items'> & {
   isBookmarked: boolean;
   isCompleted: boolean;
   progress?: number;
-  tags: string[];
-  author?: string;
-  thumbnail_url?: string;
-  content_url?: string;
-  is_featured?: boolean;
-  is_premium?: boolean;
   rating_count?: number;
-}
+};
+type UserLibraryProgress = Tables<'user_library_progress'>; // Assuming this table exists
+type AnalyticsEvent = TablesInsert<'analytics_events'>; // Assuming this table exists
 
 const Library = () => {
   const { toast } = useToast();
@@ -66,20 +55,20 @@ const Library = () => {
     try {
       // Fetch library items from database
       const { data: items, error: itemsError } = await supabase
-        .from('library_items' as any)
+        .from('library_items')
         .select('*')
         .order('is_featured', { ascending: false })
-        .order('rating', { ascending: false });
+        .order('created_at', { ascending: false }); // Changed to created_at for consistency
 
       if (itemsError) throw itemsError;
 
       // Get current user for progress/bookmarks
       const { data: { user } } = await supabase.auth.getUser();
       
-      let userProgress: any[] = [];
+      let userProgress: UserLibraryProgress[] = [];
       if (user) {
         const { data: progressData, error: progressError } = await supabase
-          .from('user_library_progress' as any)
+          .from('user_library_progress')
           .select('*')
           .eq('user_id', user.id);
         
@@ -89,28 +78,15 @@ const Library = () => {
       }
 
       // Transform data to match interface
-      const transformedItems: LibraryItem[] = items?.map((item: any) => {
+      const transformedItems: LibraryItem[] = items?.map((item: Tables<'library_items'>) => {
         const userItemProgress = userProgress.find(p => p.library_item_id === item.id);
         
         return {
-          id: item.id,
-          title: item.title,
-          description: item.description || '',
-          type: item.type,
-          category: item.category,
-          duration: item.duration || '',
-          difficulty: item.difficulty || 'beginner',
-          rating: parseFloat(item.rating) || 0,
+          ...item,
           isBookmarked: userItemProgress?.is_bookmarked || false,
           isCompleted: userItemProgress?.is_completed || false,
           progress: userItemProgress?.progress || 0,
-          tags: item.tags || [],
-          author: item.author,
-          thumbnail_url: item.thumbnail_url,
-          content_url: item.content_url,
-          is_featured: item.is_featured,
-          is_premium: item.is_premium,
-          rating_count: item.rating_count || 0
+          rating_count: item.rating_count || 0 // Assuming rating_count exists on library_items
         };
       }) || [];
 
@@ -133,8 +109,8 @@ const Library = () => {
 
   const filteredItems = libraryItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         item.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -161,7 +137,7 @@ const Library = () => {
 
       // Update or insert user progress with bookmark status
       const { error } = await supabase
-        .from('user_library_progress' as any)
+        .from('user_library_progress')
         .upsert({
           user_id: user.id,
           library_item_id: itemId,
@@ -169,7 +145,7 @@ const Library = () => {
           progress: item.progress || 0,
           is_completed: item.isCompleted,
           last_accessed: new Date().toISOString()
-        }, {
+        } as TablesInsert<'user_library_progress'>, { // Explicitly type insert
           onConflict: 'user_id,library_item_id'
         });
 
@@ -205,7 +181,7 @@ const Library = () => {
       // Track analytics for content start
       if (user) {
         await supabase
-          .from('analytics_events' as any)
+          .from('analytics_events')
           .insert({
             user_id: user.id,
             event_type: 'content_start',
@@ -214,15 +190,15 @@ const Library = () => {
             event_label: item.title,
             metadata: {
               item_id: item.id,
-              type: item.type,
+              type: item.content_type, // Changed from 'type' to 'content_type'
               category: item.category,
-              difficulty: item.difficulty
+              difficulty: item.difficulty_level // Changed from 'difficulty' to 'difficulty_level'
             }
-          });
+          } as AnalyticsEvent); // Explicitly type insert
 
         // Update last accessed time
         await supabase
-          .from('user_library_progress' as any)
+          .from('user_library_progress')
           .upsert({
             user_id: user.id,
             library_item_id: item.id,
@@ -230,7 +206,7 @@ const Library = () => {
             is_completed: item.isCompleted,
             is_bookmarked: item.isBookmarked,
             last_accessed: new Date().toISOString()
-          }, {
+          } as TablesInsert<'user_library_progress'>, { // Explicitly type insert
             onConflict: 'user_id,library_item_id'
           });
       }
@@ -241,14 +217,14 @@ const Library = () => {
       } else {
         toast({
           title: `Starting ${item.title}`,
-          description: `Opening ${item.type} content...`,
+          description: `Opening ${item.content_type} content...`,
         });
       }
     } catch (err: any) {
       console.error('Error starting item:', err);
       toast({
         title: `Starting ${item.title}`,
-        description: `Opening ${item.type} content...`,
+        description: `Opening ${item.content_type} content...`,
       });
     }
   };
@@ -354,7 +330,7 @@ const Library = () => {
           <TabsContent value="browse">
             <MobileGrid cols={1} className="space-y-6">
               {filteredItems.map((item) => {
-                const TypeIcon = getTypeIcon(item.type);
+                const TypeIcon = getTypeIcon(item.content_type);
                 return (
                   <MobileCard key={item.id} className="p-6">
                     <div className="flex flex-col sm:flex-row gap-4">
@@ -386,12 +362,12 @@ const Library = () => {
                           <Badge variant="secondary" className="glass">
                             {item.category}
                           </Badge>
-                          <Badge variant="outline" className={getDifficultyColor(item.difficulty)}>
-                            {item.difficulty}
+                          <Badge variant="outline" className={getDifficultyColor(item.difficulty_level)}>
+                            {item.difficulty_level}
                           </Badge>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Clock className="w-3 h-3" />
-                            {item.duration}
+                            {item.duration_minutes} min
                           </div>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Star className="w-3 h-3 fill-current text-yellow-500" />
@@ -410,7 +386,7 @@ const Library = () => {
                         )}
 
                         <div className="flex flex-wrap gap-1">
-                          {item.tags.map((tag) => (
+                          {item.tags?.map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
                               #{tag}
                             </Badge>
@@ -442,7 +418,7 @@ const Library = () => {
               {bookmarkedItems.length > 0 ? (
                 <MobileGrid cols={1}>
                   {bookmarkedItems.map((item) => {
-                    const TypeIcon = getTypeIcon(item.type);
+                    const TypeIcon = getTypeIcon(item.content_type);
                     return (
                       <MobileCard key={item.id} className="p-4">
                         <div className="flex items-center gap-3">
@@ -451,7 +427,7 @@ const Library = () => {
                           </div>
                           <div className="flex-1">
                             <h4 className="font-semibold">{item.title}</h4>
-                            <p className="text-sm text-muted-foreground">{item.category} • {item.duration}</p>
+                            <p className="text-sm text-muted-foreground">{item.category} • {item.duration_minutes} min</p>
                           </div>
                           <Button size="sm" className="bg-gradient-primary">
                             <Play className="w-4 h-4" />
@@ -478,7 +454,7 @@ const Library = () => {
               {inProgressItems.length > 0 ? (
                 <MobileGrid cols={1}>
                   {inProgressItems.map((item) => {
-                    const TypeIcon = getTypeIcon(item.type);
+                    const TypeIcon = getTypeIcon(item.content_type);
                     return (
                       <MobileCard key={item.id} className="p-4">
                         <div className="flex items-center gap-3 mb-3">
@@ -521,7 +497,7 @@ const Library = () => {
               {completedItems.length > 0 ? (
                 <MobileGrid cols={1}>
                   {completedItems.map((item) => {
-                    const TypeIcon = getTypeIcon(item.type);
+                    const TypeIcon = getTypeIcon(item.content_type);
                     return (
                       <MobileCard key={item.id} className="p-4">
                         <div className="flex items-center gap-3">

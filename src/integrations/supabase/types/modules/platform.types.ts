@@ -167,4 +167,61 @@ export type PlatformTables = {
     }
     Relationships: []
   }
+  admin_logs: {
+    Row: {
+      id: string;
+      admin_id: string;
+      action: string;
+      details: Json | null;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      admin_id: string;
+      action: string;
+      details?: Json | null;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      admin_id?: string;
+      action?: string;
+      details?: Json | null;
+      created_at?: string;
+    };
+    Relationships: [];
+  };
+  analytics_events: {
+    Row: {
+      id: string;
+      user_id: string | null;
+      event_type: string;
+      event_category: string;
+      event_action: string;
+      event_label: string | null;
+      metadata: Json | null;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      user_id?: string | null;
+      event_type: string;
+      event_category: string;
+      event_action: string;
+      event_label?: string | null;
+      metadata?: Json | null;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      user_id?: string | null;
+      event_type?: string;
+      event_category?: string;
+      event_action?: string;
+      event_label?: string | null;
+      metadata?: Json | null;
+      created_at?: string;
+    };
+    Relationships: [];
+  };
 };

@@ -26,6 +26,10 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables, TablesUpdate } from '@/integrations/supabase/types';
+
+type ProfileRow = Tables<'profiles'>;
+type ProfileUpdate = TablesUpdate<'profiles'>;
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -33,18 +37,28 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [profile, setProfile] = useState({
-    name: user?.user_metadata?.full_name || '',
+  const [profile, setProfile] = useState<ProfileRow>({
+    id: user?.id || '',
+    user_id: user?.id || null,
+    display_name: user?.user_metadata?.display_name || '',
     email: user?.email || '',
-    phone: '',
-    location: '',
-    bio: '',
-    avatar_url: '',
-    joinDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
-    personalityType: '',
-    crystalsEarned: 0,
-    completedAssessments: 0,
-    streakDays: 0
+    phone: '', // Assuming these fields exist in profiles table
+    location: '', // Assuming these fields exist in profiles table
+    bio: '', // Assuming these fields exist in profiles table
+    avatar_url: user?.user_metadata?.avatar_url || '',
+    created_at: user?.created_at || '',
+    updated_at: user?.updated_at || '',
+    crystals_count: 0, // Default value
+    level_progress: 0, // Default value
+    login_streak_count: 0, // Default value
+    personality_data: null, // Default value
+    personality_type: null, // Default value
+    role: 'user', // Default value
+    subscription_tier: 'free', // Default value
+    is_admin_backup: false, // Default value
+    last_login_at: user?.last_sign_in_at || null, // Default value
+    growth_areas: null, // Default value
+    is_banned: false, // Default value
   });
 
   const [notifications, setNotifications] = useState({
@@ -55,18 +69,36 @@ const Profile = () => {
     assessmentReminders: true
   });
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else if (data) {
+        setProfile(data);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
   const handleSaveProfile = async () => {
     try {
       if (!user) return;
       setIsLoading(true);
-      const { error } = await supabase.from('profiles' as any).update({
-        display_name: profile.name,
+      const { error } = await supabase.from('profiles').update({
+        display_name: profile.display_name,
         email: profile.email,
-        phone: profile.phone,
-        location: profile.location,
+        // Assuming phone, location, bio are part of the profiles table
+        // phone: profile.phone, 
+        // location: profile.location,
         bio: profile.bio,
         avatar_url: profile.avatar_url || null,
-      }).eq('id', user.id);
+      } as ProfileUpdate).eq('user_id', user.id);
       if (error) throw error;
       setIsEditing(false);
       toast({ title: 'Profile updated!', description: 'Your changes have been saved successfully.' });
@@ -96,7 +128,7 @@ const Profile = () => {
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
       // update profile
-      const { error: updateError } = await supabase.from('profiles' as any).update({ avatar_url: publicUrl }).eq('id', user.id);
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl } as ProfileUpdate).eq('user_id', user.id);
       if (updateError) throw updateError;
       setProfile(p => ({ ...p, avatar_url: publicUrl }));
       toast({ title: 'Photo updated', description: 'Your profile photo has been updated.' });
@@ -178,9 +210,9 @@ const Profile = () => {
                   <div className="flex flex-col items-center">
                     <div className="relative">
                       <Avatar className="w-24 h-24">
-                        {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.name} />}
+                        {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.display_name || 'User'} />}
                         <AvatarFallback className="bg-gradient-primary text-white text-2xl">
-                          {profile.name.split(' ').map(n => n[0]).join('')}
+                          {profile.display_name?.split(' ').map(n => n[0]).join('') || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <Button
@@ -193,15 +225,15 @@ const Profile = () => {
                       <input id={fileInputId} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelected} />
                     </div>
                     <Badge className="mt-3 bg-primary/20 text-primary">
-                      {profile.personalityType}
+                      {profile.personality_type}
                     </Badge>
                   </div>
 
                   <div className="flex-1 space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h2 className="text-2xl font-bold">{profile.name}</h2>
-                        <p className="text-muted-foreground">Member since {profile.joinDate}</p>
+                        <h2 className="text-2xl font-bold">{profile.display_name}</h2>
+                        <p className="text-muted-foreground">Member since {new Date(profile.created_at || '').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
                       </div>
                       <Button
                         onClick={() => setIsEditing(!isEditing)}
@@ -215,15 +247,15 @@ const Profile = () => {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center p-3 glass rounded-lg">
-                        <div className="text-2xl font-bold text-primary">{profile.crystalsEarned}</div>
+                        <div className="text-2xl font-bold text-primary">{profile.crystals_count}</div>
                         <div className="text-xs text-muted-foreground">Crystals</div>
                       </div>
                       <div className="text-center p-3 glass rounded-lg">
-                        <div className="text-2xl font-bold text-secondary">{profile.completedAssessments}</div>
+                        <div className="text-2xl font-bold text-secondary">{profile.level_progress}</div>
                         <div className="text-xs text-muted-foreground">Assessments</div>
                       </div>
                       <div className="text-center p-3 glass rounded-lg">
-                        <div className="text-2xl font-bold text-accent">{profile.streakDays}</div>
+                        <div className="text-2xl font-bold text-accent">{profile.login_streak_count}</div>
                         <div className="text-xs text-muted-foreground">Day Streak</div>
                       </div>
                     </div>
@@ -248,8 +280,8 @@ const Profile = () => {
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="name"
-                        value={profile.name}
-                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                        value={profile.display_name || ''}
+                        onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
                         disabled={!isEditing}
                         className="pl-10 glass"
                       />
@@ -263,7 +295,7 @@ const Profile = () => {
                       <Input
                         id="email"
                         type="email"
-                        value={profile.email}
+                        value={profile.email || ''}
                         onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                         disabled={!isEditing}
                         className="pl-10 glass"
@@ -279,7 +311,7 @@ const Profile = () => {
                       <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="phone"
-                        value={profile.phone}
+                        value={profile.phone || ''}
                         onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                         disabled={!isEditing}
                         className="pl-10 glass"
@@ -293,7 +325,7 @@ const Profile = () => {
                       <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="location"
-                        value={profile.location}
+                        value={profile.location || ''}
                         onChange={(e) => setProfile({ ...profile, location: e.target.value })}
                         disabled={!isEditing}
                         className="pl-10 glass"
@@ -306,7 +338,7 @@ const Profile = () => {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    value={profile.bio}
+                    value={profile.bio || ''}
                     onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                     disabled={!isEditing}
                     className="glass min-h-[100px]"

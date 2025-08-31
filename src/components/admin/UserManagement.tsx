@@ -18,9 +18,10 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Tables, TablesUpdate } from '@/integrations/supabase/types';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+type Profile = Tables<'profiles'>;
+type ProfileUpdate = TablesUpdate<'profiles'>;
 
 interface UserStats {
   totalUsers: number;

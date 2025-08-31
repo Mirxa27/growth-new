@@ -561,4 +561,34 @@ export type AiTables = {
       },
     ]
   }
+  voice_sessions: {
+    Row: {
+      id: string;
+      user_id: string;
+      session_id: string;
+      model: string;
+      voice: string;
+      status: string;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      user_id: string;
+      session_id: string;
+      model: string;
+      voice: string;
+      status?: string;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      user_id?: string;
+      session_id?: string;
+      model?: string;
+      voice?: string;
+      status?: string;
+      created_at?: string;
+    };
+    Relationships: [];
+  };
 };

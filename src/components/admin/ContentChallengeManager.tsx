@@ -20,10 +20,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-type Challenge = Database['public']['Tables']['content_challenges']['Row'];
-type ChallengeInsert = Database['public']['Tables']['content_challenges']['Insert'];
+type Challenge = Tables<'content_challenges'>;
+type ChallengeInsert = TablesInsert<'content_challenges'>;
+type ChallengeUpdate = TablesUpdate<'content_challenges'>;
 
 export const ContentChallengeManager: React.FC = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -111,7 +112,7 @@ export const ContentChallengeManager: React.FC = () => {
     try {
       const { error } = await supabase
         .from('content_challenges')
-        .update({ is_active: !isActive })
+        .update({ is_active: !isActive } as ChallengeUpdate)
         .eq('id', id);
       if (error) throw error;
       toast({ title: "Success", description: "Challenge status updated" });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Mic, MicOff, Volume2, Loader2, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { RealtimeVoiceChat } from '@/utils/RealtimeVoiceChat';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 interface VoiceChatMessage {
   id: string;
@@ -14,7 +15,6 @@ interface VoiceChatMessage {
   timestamp: Date;
   audioUrl?: string;
 }
-import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 interface EnhancedVoiceInterfaceProps {
   className?: string;

@@ -214,4 +214,128 @@ export type AssessmentTables = {
     }
     Relationships: []
   }
+  quizzes: {
+    Row: {
+      id: string;
+      title: string;
+      description: string | null;
+      category: string | null;
+      difficulty: string | null;
+      is_public: boolean;
+      time_limit_minutes: number | null;
+      passing_score: number | null;
+      show_correct_answers: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: {
+      id?: string;
+      title: string;
+      description?: string | null;
+      category?: string | null;
+      difficulty?: string | null;
+      is_public?: boolean;
+      time_limit_minutes?: number | null;
+      passing_score?: number | null;
+      show_correct_answers?: boolean;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Update: {
+      id?: string;
+      title?: string;
+      description?: string | null;
+      category?: string | null;
+      difficulty?: string | null;
+      is_public?: boolean;
+      time_limit_minutes?: number | null;
+      passing_score?: number | null;
+      show_correct_answers?: boolean;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Relationships: [];
+  };
+  quiz_attempts: {
+    Row: {
+      id: string;
+      user_id: string;
+      quiz_id: string;
+      status: string;
+      score: number | null;
+      completed_at: string | null;
+      time_taken_seconds: number | null;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: {
+      id?: string;
+      user_id: string;
+      quiz_id: string;
+      status?: string;
+      score?: number | null;
+      completed_at?: string | null;
+      time_taken_seconds?: number | null;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Update: {
+      id?: string;
+      user_id?: string;
+      quiz_id?: string;
+      status?: string;
+      score?: number | null;
+      completed_at?: string | null;
+      time_taken_seconds?: number | null;
+      created_at?: string;
+      updated_at?: string;
+    };
+    Relationships: [
+      {
+        foreignKeyName: "quiz_attempts_quiz_id_fkey";
+        columns: ["quiz_id"];
+        isOneToOne: false;
+        referencedRelation: "quizzes";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
+  quiz_answers: {
+    Row: {
+      id: string;
+      quiz_attempt_id: string;
+      quiz_question_id: string;
+      user_answer: string | null;
+      is_correct: boolean | null;
+      points_earned: number | null;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      quiz_attempt_id: string;
+      quiz_question_id: string;
+      user_answer?: string | null;
+      is_correct?: boolean | null;
+      points_earned?: number | null;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      quiz_attempt_id?: string;
+      quiz_question_id?: string;
+      user_answer?: string | null;
+      is_correct?: boolean | null;
+      points_earned?: number | null;
+      created_at?: string;
+    };
+    Relationships: [
+      {
+        foreignKeyName: "quiz_answers_quiz_attempt_id_fkey";
+        columns: ["quiz_attempt_id"];
+        isOneToOne: false;
+        referencedRelation: "quiz_attempts";
+        referencedColumns: ["id"];
+      },
+    ];
+  };
 };
