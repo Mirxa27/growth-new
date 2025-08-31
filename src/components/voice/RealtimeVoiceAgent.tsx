@@ -36,6 +36,7 @@ const RealtimeVoiceAgent: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
+  const [session, setSession] = useState<VoiceSession | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [audioLevel, setAudioLevel] = useState(0);
