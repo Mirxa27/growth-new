@@ -1,6 +1,8 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -99,6 +101,11 @@ async function testGoogleVoice(_config: VoiceTestConfig): Promise<any> {
     suggestion: 'Consider using OpenAI or ElevenLabs for quick testing.'
   };
 }
+
+const supabaseClient = createClient<Database>(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

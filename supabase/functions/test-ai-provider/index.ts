@@ -2,6 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,6 +112,11 @@ async function testAnthropicProvider(apiKey: string): Promise<any> {
   };
 }
 
+const supabaseClient = createClient<Database>(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -122,12 +128,6 @@ serve(async (req) => {
     if (!providerId) {
       throw new Error('Provider ID is required');
     }
-
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Get provider details
     const { data: provider, error } = await supabaseClient
@@ -207,7 +207,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 400,

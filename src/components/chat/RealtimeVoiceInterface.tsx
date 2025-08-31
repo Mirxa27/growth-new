@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { TablesInsert } from '@/integrations/supabase/types';
 
 interface RealtimeVoiceInterfaceProps {
-  onMessage?: (message: any) => void;
+  onMessage?: (message: RealtimeEvent) => void;
   className?: string;
 }
 
@@ -23,7 +23,11 @@ interface RealtimeEvent {
   type: string;
   event_id?: string;
   conversation?: { id: string };
-  item?: any;
+  item?: {
+    type: string;
+    role: string;
+    content?: Array<{ type: string; text: string }>;
+  };
   delta?: { audio?: string; text?: string; transcript?: string };
   transcript?: string;
   error?: { type: string; code: string; message: string };

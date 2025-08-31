@@ -1,6 +1,7 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ serve(async (req) => {
     }
 
     // Create Supabase client
-    const supabaseClient = createClient(
+    const supabaseClient = createClient<Database>(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {

@@ -16,6 +16,20 @@ interface VoiceChatMessage {
   audioUrl?: string;
 }
 
+interface RealtimeEvent {
+  type: string;
+  event_id?: string;
+  conversation?: { id: string };
+  item?: {
+    type: string;
+    role: string;
+    content?: Array<{ type: string; text: string }>;
+  };
+  delta?: { audio?: string; text?: string; transcript?: string };
+  transcript?: string;
+  error?: { type: string; code: string; message: string };
+}
+
 interface EnhancedVoiceInterfaceProps {
   className?: string;
   onMessage?: (message: VoiceChatMessage) => void;
@@ -40,18 +54,18 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>();
 
-  const handleMessage = (data: any) => {
+  const handleMessage = (data: RealtimeEvent) => { // Explicitly type data
     // Handle different message types from the WebSocket
     if (data.type === 'response.audio_transcript.delta' && data.delta) {
       const message: VoiceChatMessage = {
         id: Date.now().toString(),
         type: 'assistant',
-        content: data.delta,
+        content: data.delta.text || '', // Access text property
         timestamp: new Date()
       };
       setMessages(prev => [...prev, message]);
       onMessage?.(message);
-      setAiResponse(data.delta);
+      setAiResponse(data.delta.text || ''); // Access text property
       setTimeout(() => setAiResponse(''), 5000);
     }
   };
@@ -186,8 +200,23 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
       <div className={cn("space-y-6", className)}>
         {/* Main Voice Interface */}
         <Card className="glass-card border-glass">
-          <CardContent className="p-8">
-            <div className="flex flex-col items-center space-y-6">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Phone className="w-5 h-5" />
+              Real-time Voice Chat
+            </CardTitle>
+            <div className="flex justify-center">
+              <Badge variant={isConnected ? "default" : "secondary"} className="glass">
+                {connectionStatus === 'connecting' && "Connecting..."}
+                {connectionStatus === 'connected' && "Connected"}
+                {connectionStatus === 'disconnected' && "Disconnected"}
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Main Voice Interface */}
+            <div className="flex flex-col items-center space-y-4">
               
               {/* Connection Status & Main Button */}
               <div className="relative">

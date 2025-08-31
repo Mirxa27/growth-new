@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const supabase = createClient(
+const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
@@ -119,7 +120,7 @@ Remember: You're speaking with someone who has chosen to invest in their persona
 
     // Log session creation for monitoring
     await supabase
-      .from('voice_sessions' as any)
+      .from('voice_sessions')
       .insert({
         user_id: user.id,
         session_id: sessionData.id,
@@ -127,8 +128,7 @@ Remember: You're speaking with someone who has chosen to invest in their persona
         voice: 'alloy',
         status: 'active',
         created_at: new Date().toISOString()
-      })
-      .select();
+      });
 
     return new Response(
       JSON.stringify({

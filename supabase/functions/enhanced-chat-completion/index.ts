@@ -1,6 +1,8 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +27,12 @@ interface ChatRequest {
   } & Partial<ExplorationContext>; // Extend context with optional ExplorationContext properties
 }
 
-serve(async (req) => {
+const supabase = createClient<Database>(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -38,15 +45,12 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Get user profile for personalization
-    const userResponse = await fetch(`${supabaseUrl}/rest/v1/profiles?select=*`, {
-      headers: {
-        'Authorization': authHeader,
-        'apikey': supabaseKey,
-        'Content-Type': 'application/json',
-      },
-    });
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .limit(1);
 
-    const profiles = await userResponse.json();
+    if (profileError) throw profileError;
     const userProfile = profiles?.[0];
 
     let systemPrompt = '';
@@ -153,44 +157,26 @@ Keep responses conversational, authentic, and focused on the user's growth journ
 
     // Save conversation to database if conversationId provided
     if (conversationId) {
-      const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          'Authorization': authHeader,
-          'apikey': supabaseKey,
-        },
-      });
-      const userData = await userResponse.json();
+      const userResponse = await supabase.auth.getUser();
+      const userData = userResponse.data.user;
 
-      if (userData.id) {
+      if (userData?.id) {
         // Save AI response
-        await fetch(`${supabaseUrl}/rest/v1/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'apikey': supabaseKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        await supabase.from('messages').insert({
             conversation_id: conversationId,
             user_id: userData.id,
             role: 'assistant',
             content: responseContent,
-          }),
-        });
+          });
 
         // Update conversation activity
-        await fetch(`${supabaseUrl}/rest/v1/conversations?id=eq.${conversationId}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': authHeader,
-            'apikey': supabaseKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        await supabase
+          .from('conversations')
+          .update({ 
             last_activity: new Date().toISOString(),
             total_messages: 1, // This would need to be incremented properly
-          }),
-        });
+          })
+          .eq('id', conversationId);
       }
     }
 

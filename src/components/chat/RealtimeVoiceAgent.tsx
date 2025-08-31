@@ -195,21 +195,25 @@ const RealtimeVoiceAgent: React.FC = () => {
     });
   };
 
-  const handleRealtimeMessage = (message: any) => {
+  const handleRealtimeMessage = (message: RealtimeEvent) => { // Explicitly type message
     console.log('Received Realtime message:', message);
 
     switch (message.type) {
       case 'conversation.item.input_audio_transcription.completed':
-        addTranscriptEntry('user', message.transcript);
+        if (message.transcript) {
+          addTranscriptEntry('user', message.transcript);
+        }
         break;
 
       case 'response.audio_transcript.delta':
-        updateAssistantTranscript(message.delta);
+        if (message.delta?.text) { // Access text property
+          updateAssistantTranscript(message.delta.text);
+        }
         break;
 
       case 'response.audio.delta':
-        if (isSpeakerEnabled) {
-          playAudioDelta(message.delta);
+        if (isSpeakerEnabled && message.delta?.audio) { // Access audio property
+          playAudioDelta(message.delta.audio);
         }
         break;
 
@@ -221,7 +225,7 @@ const RealtimeVoiceAgent: React.FC = () => {
         console.error('Realtime API error:', message.error);
         toast({
           title: "Voice Assistant Error",
-          description: message.error.message || "An error occurred during conversation.",
+          description: message.error?.message || "An error occurred during conversation.",
           variant: "destructive"
         });
         break;

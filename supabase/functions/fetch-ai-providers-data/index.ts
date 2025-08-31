@@ -13,7 +13,38 @@ interface ProviderConfig {
   endpoint_url?: string;
 }
 
-async function fetchOpenAIModels(apiKey: string, endpointUrl?: string): Promise<any> {
+interface OpenAIModel {
+  id: string;
+  name: string;
+  description: string;
+  capabilities: string[];
+}
+
+interface OpenAIVoice {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ElevenLabsModel {
+  model_id: string;
+  name: string;
+  description: string;
+}
+
+interface ElevenLabsVoice {
+  voice_id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  labels?: {
+    accent?: string;
+    age?: string;
+    gender?: string;
+  };
+}
+
+async function fetchOpenAIModels(apiKey: string, endpointUrl?: string): Promise<{ models: OpenAIModel[]; voices: OpenAIVoice[] }> {
   const baseUrl = endpointUrl || 'https://api.openai.com/v1';
   
   const response = await fetch(`${baseUrl}/models`, {
@@ -27,9 +58,9 @@ async function fetchOpenAIModels(apiKey: string, endpointUrl?: string): Promise<
     throw new Error(`OpenAI API error: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const data: { data: Array<{ id: string }> } = await response.json();
   return {
-    models: data.data.map((model: any) => ({
+    models: data.data.map((model) => ({
       id: model.id,
       name: model.id,
       description: `OpenAI ${model.id}`,
@@ -48,7 +79,7 @@ async function fetchOpenAIModels(apiKey: string, endpointUrl?: string): Promise<
   };
 }
 
-async function fetchElevenLabsData(apiKey: string): Promise<any> {
+async function fetchElevenLabsData(apiKey: string): Promise<{ models: ElevenLabsModel[]; voices: ElevenLabsVoice[] }> {
   // Fetch models
   const modelsResponse = await fetch('https://api.elevenlabs.io/v1/models', {
     headers: {
@@ -61,7 +92,7 @@ async function fetchElevenLabsData(apiKey: string): Promise<any> {
     throw new Error(`ElevenLabs API error: ${modelsResponse.statusText}`);
   }
 
-  const modelsData = await modelsResponse.json();
+  const modelsData: ElevenLabsModel[] = await modelsResponse.json();
 
   // Fetch voices
   const voicesResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
@@ -75,17 +106,16 @@ async function fetchElevenLabsData(apiKey: string): Promise<any> {
     throw new Error(`ElevenLabs API error: ${voicesResponse.statusText}`);
   }
 
-  const voicesData = await voicesResponse.json();
+  const voicesData: { voices: ElevenLabsVoice[] } = await voicesResponse.json();
 
   return {
-    models: modelsData.map((model: any) => ({
-      id: model.model_id,
+    models: modelsData.map((model) => ({
+      model_id: model.model_id,
       name: model.name,
       description: model.description,
-      capabilities: ['text-to-speech', 'voice-conversion']
     })),
-    voices: voicesData.voices.map((voice: any) => ({
-      id: voice.voice_id,
+    voices: voicesData.voices.map((voice) => ({
+      voice_id: voice.voice_id,
       name: voice.name,
       description: voice.description || `${voice.name} voice`,
       category: voice.category,
@@ -96,7 +126,7 @@ async function fetchElevenLabsData(apiKey: string): Promise<any> {
   };
 }
 
-async function fetchGoogleVertexData(_apiKey: string): Promise<any> {
+async function fetchGoogleVertexData(_apiKey: string): Promise<{ models: any[]; voices: any[] }> {
   // Google Vertex AI models (static list as they require OAuth)
   return {
     models: [

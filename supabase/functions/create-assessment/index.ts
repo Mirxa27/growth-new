@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { Database } from '../../types'; // Import the Database type
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +21,7 @@ interface CreateAssessmentPayload {
   targetAudience?: string;
 }
 
-const supabase = createClient(
+const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
@@ -263,7 +264,7 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
     }
 
     // Save the generated content to database
-    const { data: assessmentId, error: saveError } = await (supabase as any)
+    const { data: assessmentId, error: saveError } = await supabase
       .rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
         _description: generatedContent.description,
@@ -274,7 +275,7 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
         _ai_provider: payload.provider,
         _ai_model: payload.model,
         _ai_prompt: systemPrompt,
-        _questions: JSON.stringify(generatedContent.questions || []),
+        _questions: generatedContent.questions || [],
         _created_by: user.id
       });
 
@@ -285,7 +286,7 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
 
     // Log the generation for admin tracking
     await supabase
-      .from('admin_logs' as any)
+      .from('admin_logs')
       .insert({
         admin_id: user.id,
         action: 'AI_CONTENT_GENERATED',

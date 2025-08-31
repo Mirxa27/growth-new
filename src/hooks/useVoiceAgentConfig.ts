@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export type VoiceAgentConfig = Database['public']['Tables']['voice_agent_configs']['Row'];
+export type VoiceAgentConfig = Tables<'voice_agent_configs'>;
+type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
+type VoiceAgentConfigUpdate = TablesUpdate<'voice_agent_configs'>;
 
 export const useVoiceAgentConfig = () => {
   const [configs, setConfigs] = useState<VoiceAgentConfig[]>([]);
@@ -31,16 +33,16 @@ export const useVoiceAgentConfig = () => {
     fetchConfigs();
   }, [fetchConfigs]);
 
-  const addConfig = async (config: Omit<VoiceAgentConfig, 'id' | 'created_at'>) => {
+  const addConfig = async (config: Omit<VoiceAgentConfigInsert, 'id' | 'created_at'>) => {
     const { data, error: addErr } = await supabase
       .from('voice_agent_configs')
-      .insert(config as any)
+      .insert(config)
       .select();
     if (addErr) throw addErr;
     if (data) setConfigs(prev => [data[0], ...prev]);
   };
 
-  const updateConfig = async (id: string, updates: Partial<VoiceAgentConfig>) => {
+  const updateConfig = async (id: string, updates: Partial<VoiceAgentConfigUpdate>) => {
     const { data, error: updateErr } = await supabase
       .from('voice_agent_configs')
       .update(updates)

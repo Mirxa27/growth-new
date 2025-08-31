@@ -82,13 +82,13 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+        const data: { type: string; item?: { type: string; role: string; content?: Array<{ text: string }> }; delta?: { text: string }; error?: { message: string } } = JSON.parse(event.data);
         
         switch (data.type) {
           case 'conversation.item.created':
-            if (data.item.type === 'message') {
+            if (data.item?.type === 'message') {
               const newMessage: VoiceMessage = {
-                id: data.item.id,
+                id: Date.now().toString(), // Generate a unique ID
                 type: data.item.role === 'user' ? 'user' : 'assistant',
                 content: data.item.content?.[0]?.text || '',
                 timestamp: new Date(),
@@ -99,8 +99,8 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
             break;
             
           case 'response.audio_transcript.delta':
-            if (data.delta) {
-              setState(prev => ({ ...prev, transcript: data.delta }));
+            if (data.delta?.text) {
+              setState(prev => ({ ...prev, transcript: data.delta.text }));
             }
             break;
             
