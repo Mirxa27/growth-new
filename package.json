@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@kombai/react-error-boundary": "^1.1.0",
+    "@openai/agents-realtime": "^0.1.0",
     "@radix-ui/react-avatar": "latest",
     "@radix-ui/react-checkbox": "latest",
     "@radix-ui/react-dialog": "latest",

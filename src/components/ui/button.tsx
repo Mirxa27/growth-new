@@ -20,10 +20,10 @@ const buttonVariants = cva(
         hero: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-ambient hover:scale-105 active:scale-95 font-semibold",
       },
       size: {
-        default: "h-11 px-6 py-2",
-        sm: "h-9 rounded-lg px-4 text-sm",
-        lg: "h-14 rounded-xl px-8 text-lg font-semibold",
-        icon: "h-11 w-11 rounded-xl",
+        default: "h-11 px-6 py-2 min-h-[44px]",
+        sm: "h-11 min-h-[44px] rounded-lg px-4 text-sm",
+        lg: "h-14 min-h-[44px] rounded-xl px-8 text-lg font-semibold",
+        icon: "h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl",
       },
     },
     defaultVariants: {

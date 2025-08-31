@@ -75,29 +75,79 @@ const Chat = () => {
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      if (!apiKey || apiKey === 'your-openai-api-key-here') {
+        throw new Error('OpenAI API key not configured');
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. You are warm, empathetic, and insightful. Always respond in a supportive, non-judgmental way. Keep responses concise but meaningful, around 2-3 sentences. Focus on emotional support and gentle guidance.`
+            },
+            ...messages.map(msg => ({
+              role: msg.sender === 'user' ? 'user' : 'assistant',
+              content: msg.content
+            })),
+            {
+              role: 'user',
+              content: content
+            }
+          ],
+          max_tokens: 150,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
+      const aiContent = data.choices[0]?.message?.content || "I'm here to support you. Could you tell me more about what's on your mind?";
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: generateAIResponse(content),
+        content: aiContent,
         sender: 'ai',
         timestamp: new Date(),
         type: 'text'
       };
+      
       setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Fallback response for when API is not configured
+      const fallbackResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm here to support you on your journey. What would you like to explore together today?",
+        sender: 'ai',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, fallbackResponse]);
+      
+      if (error instanceof Error && error.message.includes('API key')) {
+        toast({
+          title: "AI Features Limited",
+          description: "OpenAI API key not configured. Using fallback responses.",
+          variant: "default"
+        });
+      }
+    } finally {
       setIsLoading(false);
-    }, 1500);
-  };
-
-  const generateAIResponse = (userMessage: string): string => {
-    const responses = [
-      "I understand how you're feeling. It's completely natural to experience these emotions. Would you like to explore what might be contributing to these feelings?",
-      "That's a wonderful insight! Personal growth often comes from moments of self-reflection like this. How do you think you can build on this awareness?",
-      "Thank you for sharing that with me. It takes courage to be vulnerable. What would feel most supportive for you right now?",
-      "I hear you, and your feelings are valid. Sometimes taking a step back and breathing can help us see things more clearly. What brings you peace?",
-      "That sounds like a significant step in your journey. How does it feel to acknowledge this about yourself?"
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
+    }
   };
 
   const handleVoiceToggle = () => {
@@ -107,9 +157,9 @@ const Chat = () => {
         title: "Voice recording stopped",
         description: "Processing your message...",
       });
-      // Simulate voice processing
+      // For now, simulate voice processing with text
       setTimeout(() => {
-        sendMessage("This is a voice message that was converted to text", 'voice');
+        sendMessage("Voice message processed", 'voice');
       }, 1000);
     } else {
       setIsRecording(true);

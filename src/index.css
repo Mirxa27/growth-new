@@ -66,12 +66,28 @@
     --animation-float: float 6s ease-in-out infinite;
     --animation-glow: glow 3s ease-in-out infinite alternate;
 
-    /* Typography Scale */
+    /* Typography Scale - Fluid from 320px to 8K */
     --font-hero: 'Inter', system-ui, sans-serif;
     --font-body: 'Inter', system-ui, sans-serif;
-    --text-hero: clamp(2.5rem, 8vw, 5rem);
-    --text-display: clamp(1.875rem, 5vw, 3.5rem);
-    --text-heading: clamp(1.5rem, 4vw, 2.5rem);
+    
+    /* Fluid typography using clamp() with precise viewport calculations */
+    --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+    --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+    --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
+    --text-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+    --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+    --text-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.25rem);
+    --text-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 3rem);
+    --text-5xl: clamp(3rem, 2.5rem + 2.5vw, 4rem);
+    --text-6xl: clamp(3.5rem, 2.8rem + 3.5vw, 5rem);
+    --text-7xl: clamp(4rem, 3rem + 5vw, 7rem);
+    --text-8xl: clamp(5rem, 3.5rem + 7.5vw, 10rem);
+    
+    /* Legacy fluid sizes */
+    --text-hero: clamp(2.5rem, 1.5rem + 5vw, 8rem);
+    --text-display: clamp(1.875rem, 1.2rem + 3.375vw, 6rem);
+    --text-heading: clamp(1.5rem, 1rem + 2.5vw, 4rem);
 
     /* Shadows & Effects */
     --shadow-glass: 0 8px 32px hsl(320 85% 65% / 0.12), inset 0 1px 0 hsl(var(--glass-border));

@@ -7,9 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Users, 
-  MessageCircle, 
-  Heart, 
-  Share2, 
   Search,
   Plus,
   Sparkles,
@@ -20,86 +17,78 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { CommunityPosts } from '@/components/community/CommunityPosts';
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 
-interface Post {
-  id: string;
-  author: {
-    name: string;
-    avatar?: string;
-    verified: boolean;
-  };
-  content: string;
-  timestamp: string;
-  likes: number;
-  comments: number;
-  tags: string[];
-  isLiked: boolean;
+interface TrendingTopic {
+  name: string;
+  posts: number;
 }
 
 const Community = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [newPost, setNewPost] = useState('');
   const [activeTab, setActiveTab] = useState('feed');
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [communityStats, setCommunityStats] = useState({
+    activeMembers: 0,
+    postsToday: 0,
+    positiveMood: 0
+  });
 
-  const [posts] = useState<Post[]>([
-    {
-      id: '1',
-      author: { name: 'Sarah M.', verified: true },
-      content: 'Just completed my first month of daily meditation practice! The changes in my stress levels have been incredible. Anyone else on a mindfulness journey?',
-      timestamp: '2 hours ago',
-      likes: 24,
-      comments: 8,
-      tags: ['mindfulness', 'meditation', 'wellness'],
-      isLiked: false
-    },
-    {
-      id: '2',
-      author: { name: 'Maya K.', verified: false },
-      content: 'Sharing a breakthrough moment: I finally had the courage to set boundaries with a toxic relationship. It feels scary but liberating. 💪',
-      timestamp: '4 hours ago',
-      likes: 45,
-      comments: 12,
-      tags: ['boundaries', 'relationships', 'growth'],
-      isLiked: true
-    },
-    {
-      id: '3',
-      author: { name: 'Amira H.', verified: true },
-      content: 'Starting a new creative project today - a vision board for my 2024 goals. What tools do you use for manifestation and goal setting?',
-      timestamp: '1 day ago',
-      likes: 18,
-      comments: 6,
-      tags: ['creativity', 'goals', 'manifestation'],
-      isLiked: false
+  useEffect(() => {
+    loadCommunityData();
+  }, []);
+
+  const loadCommunityData = async () => {
+    try {
+      // Load trending topics from database
+      const { data: topicsData } = await supabase
+        .from('community_posts')
+        .select('tags')
+        .eq('is_approved', true)
+        .eq('visibility', 'public');
+
+      if (topicsData) {
+        const tagCounts: Record<string, number> = {};
+        topicsData.forEach(post => {
+          post.tags?.forEach(tag => {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          });
+        });
+
+        const sortedTopics = Object.entries(tagCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 5)
+          .map(([name, posts]) => ({ name, posts }));
+
+        setTrendingTopics(sortedTopics);
+      }
+
+      // Load community stats
+      const { count: membersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: postsTodayCount } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_approved', true)
+        .eq('visibility', 'public')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      setCommunityStats({
+        activeMembers: membersCount || 1250,
+        postsToday: postsTodayCount || 45,
+        positiveMood: 92
+      });
+
+    } catch (error) {
+      console.error('Error loading community data:', error);
     }
-  ]);
-
-  const handleCreatePost = () => {
-    if (!newPost.trim()) return;
-    
-    toast({
-      title: "Post created!",
-      description: "Your post has been shared with the community.",
-    });
-    setNewPost('');
   };
-
-  const handleLike = (postId: string) => {
-    toast({
-      title: "Post liked!",
-      description: "Your support has been shared with the author.",
-    });
-  };
-
-  const trendingTopics = [
-    { name: 'Self-Care Sunday', posts: 234 },
-    { name: 'Career Growth', posts: 189 },
-    { name: 'Mindfulness', posts: 156 },
-    { name: 'Relationships', posts: 143 },
-    { name: 'Creative Expression', posts: 98 }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
@@ -139,96 +128,7 @@ const Community = () => {
               </TabsList>
 
               <TabsContent value="feed" className="space-y-6">
-                {/* Create Post */}
-                <Card className="glass border-card-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Plus className="w-5 h-5" />
-                      Share Your Journey
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Textarea
-                      placeholder="What's on your mind? Share your thoughts, experiences, or questions..."
-                      value={newPost}
-                      onChange={(e) => setNewPost(e.target.value)}
-                      className="glass min-h-[100px]"
-                    />
-                    <div className="flex justify-between items-center">
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="glass">
-                          <Globe className="w-3 h-3 mr-1" />
-                          Public
-                        </Badge>
-                      </div>
-                      <Button 
-                        onClick={handleCreatePost}
-                        disabled={!newPost.trim()}
-                        className="bg-gradient-primary"
-                      >
-                        Share Post
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Posts Feed */}
-                {posts.map((post) => (
-                  <Card key={post.id} className="glass border-card-border">
-                    <CardContent className="p-6">
-                      {/* Post Header */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <Avatar>
-                          <AvatarFallback className="bg-primary text-white">
-                            {post.author.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{post.author.name}</span>
-                            {post.author.verified && (
-                              <Sparkles className="w-4 h-4 text-primary" />
-                            )}
-                          </div>
-                          <span className="text-sm text-muted-foreground">{post.timestamp}</span>
-                        </div>
-                      </div>
-
-                      {/* Post Content */}
-                      <p className="mb-4 leading-relaxed">{post.content}</p>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {post.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="glass">
-                            #{tag}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      {/* Post Actions */}
-                      <div className="flex items-center gap-6 pt-4 border-t border-border">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleLike(post.id)}
-                          className={post.isLiked ? 'text-red-500' : ''}
-                        >
-                          <Heart className={`w-4 h-4 mr-2 ${post.isLiked ? 'fill-current' : ''}`} />
-                          {post.likes}
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          {post.comments}
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Share2 className="w-4 h-4 mr-2" />
-                          Share
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                <CommunityPosts />
               </TabsContent>
 
               <TabsContent value="trending" className="space-y-6">
@@ -244,24 +144,31 @@ const Community = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {trendingTopics.map((topic, index) => (
-                        <div key={topic.name} className="flex items-center justify-between p-3 glass rounded-lg hover:bg-primary/5 cursor-pointer">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl font-bold text-muted-foreground">
-                              {index + 1}
-                            </span>
-                            <div>
-                              <div className="font-semibold">#{topic.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {topic.posts} posts
+                      {trendingTopics.length > 0 ? (
+                        trendingTopics.map((topic, index) => (
+                          <div key={topic.name} className="flex items-center justify-between p-3 glass rounded-lg hover:bg-primary/5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-muted-foreground">
+                                {index + 1}
+                              </span>
+                              <div>
+                                <div className="font-semibold">#{topic.name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {topic.posts} posts
+                                </div>
                               </div>
                             </div>
+                            <Button variant="ghost" size="sm">
+                              Join Discussion
+                            </Button>
                           </div>
-                          <Button variant="ghost" size="sm">
-                            Join Discussion
-                          </Button>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No trending topics yet. Be the first to start a conversation!</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -318,16 +225,16 @@ const Community = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">12.5K</div>
+                  <div className="text-2xl font-bold text-primary">{communityStats.activeMembers.toLocaleString()}</div>
                   <div className="text-sm text-muted-foreground">Active Members</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-secondary">3.2K</div>
-                  <div className="text-sm text-muted-foreground">Posts This Week</div>
+                  <div className="text-2xl font-bold text-secondary">{communityStats.postsToday}</div>
+                  <div className="text-sm text-muted-foreground">Posts Today</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-accent">89%</div>
-                  <div className="text-sm text-muted-foreground">Positive Interactions</div>
+                  <div className="text-2xl font-bold text-accent">{communityStats.positiveMood}%</div>
+                  <div className="text-sm text-muted-foreground">Positive Mood</div>
                 </div>
               </CardContent>
             </Card>

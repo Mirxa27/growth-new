@@ -50,94 +50,102 @@ const Library = () => {
   const [activeTab, setActiveTab] = useState('browse');
   const [loading, setLoading] = useState(true);
 
-  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([
-    {
-      id: '1',
-      title: 'Understanding Your Inner Critic',
-      description: 'Learn to recognize and transform your inner critic into a supportive inner voice.',
-      type: 'article',
-      category: 'Self-Awareness',
-      duration: '8 min read',
-      difficulty: 'beginner',
-      rating: 4.8,
-      isBookmarked: true,
-      isCompleted: false,
-      tags: ['self-talk', 'mindfulness', 'confidence']
-    },
-    {
-      id: '2',
-      title: 'Guided Meditation for Self-Compassion',
-      description: 'A gentle 15-minute meditation to cultivate kindness towards yourself.',
-      type: 'audio',
-      category: 'Mindfulness',
-      duration: '15 min',
-      difficulty: 'beginner',
-      rating: 4.9,
-      isBookmarked: false,
-      isCompleted: true,
-      progress: 100,
-      tags: ['meditation', 'self-compassion', 'healing']
-    },
-    {
-      id: '3',
-      title: 'Setting Healthy Boundaries Workshop',
-      description: 'Interactive workshop on establishing and maintaining healthy boundaries in relationships.',
-      type: 'video',
-      category: 'Relationships',
-      duration: '45 min',
-      difficulty: 'intermediate',
-      rating: 4.7,
-      isBookmarked: true,
-      isCompleted: false,
-      progress: 60,
-      tags: ['boundaries', 'relationships', 'communication']
-    },
-    {
-      id: '4',
-      title: 'Daily Gratitude Practice',
-      description: 'Simple exercises to incorporate gratitude into your daily routine.',
-      type: 'exercise',
-      category: 'Wellness',
-      duration: '5 min daily',
-      difficulty: 'beginner',
-      rating: 4.6,
-      isBookmarked: false,
-      isCompleted: false,
-      tags: ['gratitude', 'daily-practice', 'positivity']
-    },
-    {
-      id: '5',
-      title: 'Overcoming Imposter Syndrome',
-      description: 'Strategies to recognize and overcome imposter syndrome in your career and personal life.',
-      type: 'article',
-      category: 'Career Growth',
-      duration: '12 min read',
-      difficulty: 'intermediate',
-      rating: 4.8,
-      isBookmarked: false,
-      isCompleted: false,
-      tags: ['confidence', 'career', 'self-worth']
-    },
-    {
-      id: '6',
-      title: 'Creative Expression Therapy',
-      description: 'Explore your emotions and thoughts through various creative mediums.',
-      type: 'video',
-      category: 'Creativity',
-      duration: '30 min',
-      difficulty: 'beginner',
-      rating: 4.5,
-      isBookmarked: true,
-      isCompleted: false,
-      tags: ['creativity', 'therapy', 'expression']
-    }
-  ]);
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+    // Simulate loading
+    setLoading(true);
+    setTimeout(() => {
+      const items: LibraryItem[] = [
+        {
+          id: '1',
+          title: 'Mindfulness for Beginners',
+          description: 'Learn the fundamentals of mindfulness meditation with guided sessions designed for newcomers.',
+          type: 'article',
+          category: 'Mindfulness',
+          duration: '15 min',
+          difficulty: 'beginner',
+          rating: 4.8,
+          isBookmarked: false,
+          isCompleted: true,
+          progress: 100,
+          tags: ['meditation', 'mindfulness', 'beginner']
+        },
+        {
+          id: '2',
+          title: 'Advanced Breathing Techniques',
+          description: 'Master advanced breathing techniques used by athletes and performers to enhance focus and performance.',
+          type: 'video',
+          category: 'Breathwork',
+          duration: '25 min',
+          difficulty: 'advanced',
+          rating: 4.9,
+          isBookmarked: true,
+          isCompleted: false,
+          progress: 60,
+          tags: ['breathwork', 'performance', 'advanced']
+        },
+        {
+          id: '3',
+          title: 'Daily Gratitude Practice',
+          description: 'Cultivate gratitude through simple daily exercises that transform your mindset and relationships.',
+          type: 'audio',
+          category: 'Gratitude',
+          duration: '10 min',
+          difficulty: 'beginner',
+          rating: 4.7,
+          isBookmarked: false,
+          isCompleted: false,
+          progress: 0,
+          tags: ['gratitude', 'daily', 'relationships']
+        },
+        {
+          id: '4',
+          title: 'Stress Management Strategies',
+          description: 'Evidence-based strategies to manage stress and build resilience in challenging situations.',
+          type: 'article',
+          category: 'Stress Management',
+          duration: '20 min',
+          difficulty: 'intermediate',
+          rating: 4.6,
+          isBookmarked: true,
+          isCompleted: true,
+          progress: 100,
+          tags: ['stress', 'resilience', 'evidence-based']
+        },
+        {
+          id: '5',
+          title: 'Sleep Meditation Series',
+          description: 'Guided meditations specifically designed to improve sleep quality and establish healthy bedtime routines.',
+          type: 'audio',
+          category: 'Sleep',
+          duration: '30 min',
+          difficulty: 'beginner',
+          rating: 4.9,
+          isBookmarked: false,
+          isCompleted: false,
+          progress: 25,
+          tags: ['sleep', 'meditation', 'bedtime']
+        },
+        {
+          id: '6',
+          title: 'Emotional Intelligence Workshop',
+          description: 'Develop emotional intelligence through practical exercises and real-world applications.',
+          type: 'video',
+          category: 'Emotional Intelligence',
+          duration: '45 min',
+          difficulty: 'intermediate',
+          rating: 4.8,
+          isBookmarked: false,
+          isCompleted: false,
+          progress: 0,
+          tags: ['emotional-intelligence', 'practical', 'workshop']
+        }
+      ];
+      setLibraryItems(items);
+      setLoading(false);
+    }, 1000);
+  }, [user, toast]);
 
   const categories = [
     'all',

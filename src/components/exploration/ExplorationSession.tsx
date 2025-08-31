@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ExplorationQuestion {
   id: string;
@@ -26,58 +28,145 @@ interface ExplorationQuestion {
   options?: string[];
 }
 
+interface Exploration {
+  id: string;
+  title: string;
+  description: string;
+  estimated_duration: number;
+  crystal_reward: number;
+  questions: ExplorationQuestion[];
+}
+
+interface ExplorationResponse {
+  id: string;
+  exploration_id: string;
+  user_id: string;
+  responses: Record<string, string>;
+  completed_at?: string;
+  crystal_reward: number;
+}
+
 const ExplorationSession = () => {
   const { explorationId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  const exploration = {
-    id: explorationId,
-    title: 'Discovering Your Core Values',
-    description: 'A deep dive into understanding what truly matters to you',
-    estimatedDuration: '45 min',
-    crystalReward: 150,
-    questions: [
-      {
-        id: 'values_importance',
-        question: 'Think about a time when you felt most fulfilled and authentic. What values were you honoring in that moment?',
-        type: 'reflection'
-      },
-      {
-        id: 'decision_values',
-        question: 'When making important decisions, which of these considerations matters most to you?',
-        type: 'choice',
-        options: [
-          'Impact on family and loved ones',
-          'Personal growth and learning',
-          'Financial security and stability',
-          'Creative expression and authenticity',
-          'Contributing to something bigger than myself'
-        ]
-      },
-      {
-        id: 'values_conflict',
-        question: 'Describe a situation where your values conflicted with external expectations. How did you navigate this?',
-        type: 'reflection'
-      }
-    ] as ExplorationQuestion[]
-  };
+  const [exploration, setExploration] = useState<Exploration | null>(null);
+  const [responseId, setResponseId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading exploration data
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    loadExploration();
+  }, [explorationId]);
 
-  const handleAnswerChange = (value: string) => {
-    setAnswers({ ...answers, [exploration.questions[currentQuestion].id]: value });
+  const loadExploration = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load exploration from database
+      const { data: explorationData, error: explorationError } = await supabase
+        .from('explorations')
+        .select('*')
+        .eq('id', explorationId)
+        .single();
+
+      if (explorationError) throw explorationError;
+
+      // Load questions for this exploration
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('exploration_questions')
+        .select('*')
+        .eq('exploration_id', explorationId)
+        .order('order_index', { ascending: true });
+
+      if (questionsError) throw questionsError;
+
+      const explorationWithQuestions: Exploration = {
+        ...explorationData,
+        questions: questionsData || []
+      };
+
+      setExploration(explorationWithQuestions);
+
+      // Check if user has an existing response
+      if (user) {
+        const { data: existingResponse } = await supabase
+          .from('exploration_responses')
+          .select('*')
+          .eq('exploration_id', explorationId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (existingResponse) {
+          setResponseId(existingResponse.id);
+          setAnswers(existingResponse.responses || {});
+          
+          // Check if already completed
+          if (existingResponse.completed_at) {
+            setIsComplete(true);
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error loading exploration:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load exploration. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const nextQuestion = () => {
+  const handleAnswerChange = (value: string) => {
+    if (!exploration) return;
+    const questionId = exploration.questions[currentQuestion]?.id;
+    if (questionId) {
+      setAnswers({ ...answers, [questionId]: value });
+    }
+  };
+
+  const saveProgress = async () => {
+    if (!user || !exploration) return;
+
+    try {
+      const responseData = {
+        exploration_id: explorationId,
+        user_id: user.id,
+        responses: answers,
+        crystal_reward: exploration.crystal_reward
+      };
+
+      if (responseId) {
+        await supabase
+          .from('exploration_responses')
+          .update(responseData)
+          .eq('id', responseId);
+      } else {
+        const { data, error } = await supabase
+          .from('exploration_responses')
+          .insert(responseData)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setResponseId(data.id);
+      }
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  const nextQuestion = async () => {
+    if (!exploration) return;
+
+    await saveProgress();
+    
     if (currentQuestion < exploration.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
@@ -85,28 +174,65 @@ const ExplorationSession = () => {
     }
   };
 
-  const prevQuestion = () => {
+  const prevQuestion = async () => {
     if (currentQuestion > 0) {
+      await saveProgress();
       setCurrentQuestion(currentQuestion - 1);
     }
   };
 
-  const completeExploration = () => {
-    setIsComplete(true);
-    toast({
-      title: "Exploration Complete!",
-      description: `You've earned ${exploration.crystalReward} crystals!`,
-    });
-  };
+  const completeExploration = async () => {
+    if (!user || !exploration) return;
 
-  const progress = ((currentQuestion + 1) / exploration.questions.length) * 100;
-  const currentAnswer = answers[exploration.questions[currentQuestion]?.id] || '';
-  const canProceed = currentAnswer.trim().length > 0;
+    try {
+      await saveProgress();
+      
+      // Mark as completed
+      if (responseId) {
+        await supabase
+          .from('exploration_responses')
+          .update({ completed_at: new Date().toISOString() })
+          .eq('id', responseId);
+      }
+
+      // Award crystals to user
+      await supabase.rpc('increment_user_crystals', {
+        user_id: user.id,
+        amount: exploration.crystal_reward
+      });
+
+      setIsComplete(true);
+      toast({
+        title: "Exploration Complete! ✨",
+        description: `You've earned ${exploration.crystal_reward} crystals!`,
+      });
+    } catch (error) {
+      console.error('Error completing exploration:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete exploration. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!exploration) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Exploration not found</h2>
+          <Button onClick={() => navigate('/explorations')} className="bg-gradient-primary">
+            Back to Explorations
+          </Button>
+        </div>
       </div>
     );
   }
@@ -121,7 +247,7 @@ const ExplorationSession = () => {
             </div>
             <h1 className="text-3xl font-bold mb-4">Exploration Complete!</h1>
             <p className="text-muted-foreground mb-6">
-              You've successfully completed "{exploration.title}". Your insights have been saved and you've earned {exploration.crystalReward} crystals!
+              You've successfully completed "{exploration.title}". Your insights have been saved and you've earned {exploration.crystal_reward} crystals!
             </p>
             
             <div className="flex gap-4 justify-center">
@@ -146,7 +272,10 @@ const ExplorationSession = () => {
     );
   }
 
+  const progress = ((currentQuestion + 1) / exploration.questions.length) * 100;
   const currentQuestionData = exploration.questions[currentQuestion];
+  const currentAnswer = answers[currentQuestionData?.id] || '';
+  const canProceed = currentAnswer.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
@@ -166,11 +295,11 @@ const ExplorationSession = () => {
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {exploration.estimatedDuration}
+                {exploration.estimated_duration} min
               </div>
               <div className="flex items-center gap-1">
                 <Sparkles className="w-4 h-4" />
-                {exploration.crystalReward} crystals
+                {exploration.crystal_reward} crystals
               </div>
             </div>
           </div>
