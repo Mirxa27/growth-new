@@ -80,7 +80,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
           user_id: user.id,
           quiz_id: quiz.id,
           status: 'in-progress'
-        } as QuizAttemptInsert)
+        })
         .select('id')
         .single();
       
@@ -106,7 +106,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
 
     quiz.quiz_questions.forEach(q => {
       const userAnswer = answers[q.id];
-      const correctAnswer = q.quiz_question_options.find((opt: any) => opt.is_correct)?.id;
+      const correctAnswer = q.quiz_question_options.find(opt => opt.is_correct)?.id;
       const isCorrect = userAnswer === correctAnswer;
       if (isCorrect) {
         score += q.points || 1;
@@ -142,7 +142,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
             score: finalResults.score,
             completed_at: new Date().toISOString(),
             time_taken_seconds: finalResults.timeTaken
-          } as QuizAttemptUpdate)
+          })
           .eq('id', quizAttemptId);
         if (attemptError) throw attemptError;
 
@@ -209,7 +209,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
               onValueChange={(value) => handleAnswer(currentQuestion.id, value)}
               className="space-y-3"
             >
-              {currentQuestion.quiz_question_options.map((opt: any) => (
+              {currentQuestion.quiz_question_options.map((opt) => (
                 <Label key={opt.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-primary/5">
                   <RadioGroupItem value={opt.id} />
                   <span>{opt.option_text}</span>

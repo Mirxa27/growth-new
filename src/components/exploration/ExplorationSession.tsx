@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Json, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 type Exploration = Tables<'explorations'>;
 type ExplorationSessionRow = Tables<'exploration_sessions'>;
@@ -51,10 +51,11 @@ const ExplorationSession = () => {
         .single();
 
       if (explorationError) throw explorationError;
+      if (!explorationData) throw new Error("Exploration data not found.");
 
       const explorationWithQuestions: Exploration = {
         ...explorationData,
-        questions: Array.isArray(explorationData.questions) ? explorationData.questions as string[] : []
+        questions: Array.isArray(explorationData.questions) ? explorationData.questions as Json : []
       };
 
       setExploration(explorationWithQuestions);
@@ -80,9 +81,9 @@ const ExplorationSession = () => {
     } catch (error) {
       console.error('Error loading exploration:', error);
       toast({
-        title: "Error",
-        description: "Failed to load exploration. Please try again.",
-        variant: "destructive"
+        title: "Error loading exploration",
+        description: "There was a problem loading the exploration. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -98,10 +99,10 @@ const ExplorationSession = () => {
     if (!user || !exploration) return;
 
     try {
-      const responseData: ExplorationSessionInsert = {
+      const responseData: TablesInsert<'exploration_sessions'> = {
         exploration_id: explorationId!,
         user_id: user.id,
-        user_answers: answers,
+        user_answers: answers as Json, // Cast to Json
         crystals_earned: exploration.crystal_reward,
         current_question: currentQuestion,
         status: 'in-progress'
@@ -110,13 +111,13 @@ const ExplorationSession = () => {
       if (responseId) {
         await supabase
           .from('exploration_sessions')
-          .update(responseData as ExplorationSessionUpdate)
+          .update(responseData)
           .eq('id', responseId);
       } else {
         const { data, error } = await supabase
           .from('exploration_sessions')
           .insert(responseData)
-          .select()
+          .select('id')
           .single();
         
         if (error) throw error;
@@ -132,7 +133,7 @@ const ExplorationSession = () => {
 
     await saveProgress();
     
-    if (currentQuestion < exploration.questions.length - 1) {
+    if (currentQuestion < (exploration.questions as string[]).length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       completeExploration();
@@ -155,7 +156,7 @@ const ExplorationSession = () => {
       if (responseId) {
         await supabase
           .from('exploration_sessions')
-          .update({ completed_at: new Date().toISOString(), status: 'completed' } as ExplorationSessionUpdate)
+          .update({ completed_at: new Date().toISOString(), status: 'completed' })
           .eq('id', responseId);
       }
 
@@ -235,8 +236,9 @@ const ExplorationSession = () => {
     );
   }
 
-  const progress = ((currentQuestion + 1) / exploration.questions.length) * 100;
-  const currentQuestionData = exploration.questions[currentQuestion];
+  const questionsArray = exploration.questions as string[]; // Explicitly cast to string array
+  const progress = ((currentQuestion + 1) / questionsArray.length) * 100;
+  const currentQuestionData = questionsArray[currentQuestion];
   const currentAnswer = answers[currentQuestion.toString()] || '';
   const canProceed = currentAnswer.trim().length > 0;
 
@@ -271,7 +273,7 @@ const ExplorationSession = () => {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>Question {currentQuestion + 1} of {exploration.questions.length}</span>
+            <span>Question {currentQuestion + 1} of {questionsArray.length}</span>
             <span>{Math.round(progress)}% Complete</span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -321,7 +323,7 @@ const ExplorationSession = () => {
             </p>
           </div>
 
-          {currentQuestion === exploration.questions.length - 1 ? (
+          {currentQuestion === questionsArray.length - 1 ? (
             <Button
               onClick={completeExploration}
               disabled={!canProceed}

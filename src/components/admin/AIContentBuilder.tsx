@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAuth } from '@/hooks/useAuth'; // Import useAuth
-import { TablesInsert } from '@/integrations/supabase/types';
+import { TablesInsert, Json } from '@/integrations/supabase/types';
 
 interface GeneratedQuestion {
   question_text: string;
@@ -108,7 +108,7 @@ export const AIContentBuilder = () => {
         _ai_provider: assessmentForm.ai_provider, // Use form data for AI provider
         _ai_model: assessmentForm.ai_model,     // Use form data for AI model
         _ai_prompt: assessmentForm.ai_prompt,   // Use form data for AI prompt
-        _questions: generatedContent.questions,
+        _questions: generatedContent.questions as Json, // Cast to Json
         _created_by: user.id // Pass the user's ID
       });
 

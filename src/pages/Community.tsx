@@ -8,11 +8,13 @@ import {
   Sparkles,
   Lock,
   TrendingUp,
-  Heart
+  Heart,
+  MessageSquare // Added MessageSquare import
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommunityPosts } from '@/components/community/CommunityPosts';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 
 interface TrendingTopic {
   name: string;
@@ -36,11 +38,13 @@ const Community = () => {
   const loadCommunityData = async () => {
     try {
       // Load trending topics from database
-      const { data: topicsData } = await supabase
+      const { data: topicsData, error: topicsError } = await supabase
         .from('community_posts')
         .select('tags')
         .eq('is_approved', true)
         .eq('visibility', 'public');
+
+      if (topicsError) throw topicsError;
 
       if (topicsData) {
         const tagCounts: Record<string, number> = {};
@@ -59,16 +63,18 @@ const Community = () => {
       }
 
       // Load community stats
-      const { count: membersCount } = await supabase
+      const { count: membersCount, error: membersError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
+      if (membersError) throw membersError;
 
-      const { count: postsTodayCount } = await supabase
+      const { count: postsTodayCount, error: postsTodayError } = await supabase
         .from('community_posts')
         .select('*', { count: 'exact', head: true })
         .eq('is_approved', true)
         .eq('visibility', 'public')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      if (postsTodayError) throw postsTodayError;
 
       setCommunityStats({
         activeMembers: membersCount || 0,
@@ -233,7 +239,10 @@ const Community = () => {
             {/* Community Guidelines */}
             <Card className="glass border-card-border">
               <CardHeader>
-                <CardTitle className="text-lg">Community Guidelines</CardTitle>
+                <CardTitle className="text-lg">
+                  <Heart className="w-5 h-5 text-primary" />
+                  Community Guidelines
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-start gap-2">

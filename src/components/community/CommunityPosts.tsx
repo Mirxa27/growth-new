@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Badge } = from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -14,6 +14,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 interface CommunityPost {
   id: string;
@@ -68,7 +69,7 @@ export const CommunityPosts = () => {
       if (error) throw error;
 
       // Transform data to match component interface
-      const transformedPosts: CommunityPost[] = (postsData as any[]).map(post => ({
+      const transformedPosts: CommunityPost[] = (postsData || []).map(post => ({
         id: post.id,
         user_id: post.user_id,
         content: post.content,
@@ -102,14 +103,16 @@ export const CommunityPosts = () => {
     setLoading(true);
     try {
       // Insert new post into database
+      const postToInsert: TablesInsert<'community_posts'> = {
+        user_id: user.id,
+        content: newPost.trim(),
+        post_type: selectedType,
+        tags: [] // Could be enhanced to extract tags from content
+      };
+
       const { data: newPostData, error } = await supabase
         .from('community_posts')
-        .insert({
-          user_id: user.id,
-          content: newPost.trim(),
-          post_type: selectedType,
-          tags: [] // Could be enhanced to extract tags from content
-        })
+        .insert([postToInsert]) // Insert expects an array
         .select(`
           id,
           user_id,
@@ -124,6 +127,7 @@ export const CommunityPosts = () => {
         .single();
 
       if (error) throw error;
+      if (!newPostData) throw new Error("Failed to retrieve new post data.");
 
       // Transform and add to local state
       const transformedPost: CommunityPost = {
@@ -136,8 +140,8 @@ export const CommunityPosts = () => {
         created_at: newPostData.created_at,
         tags: newPostData.tags || [],
         user_profile: {
-          display_name: (newPostData as any).profiles?.display_name || user.user_metadata.display_name || 'Anonymous',
-          avatar_url: (newPostData as any).profiles?.avatar_url
+          display_name: newPostData.profiles?.display_name || user.user_metadata.display_name || 'Anonymous',
+          avatar_url: newPostData.profiles?.avatar_url
         }
       };
 
@@ -164,7 +168,7 @@ export const CommunityPosts = () => {
   const likePost = async (postId: string) => {
     try {
       // Increment likes count in database
-      const { error } = await (supabase as any).rpc('increment_post_likes', { post_id: postId });
+      const { error } = await supabase.rpc('increment_post_likes', { post_id: postId });
 
       if (error) throw error;
 
@@ -291,7 +295,7 @@ export const CommunityPosts = () => {
         <Card className="glass-card border-glass">
           <CardContent className="p-4 text-center">
             <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-              <MessageCircle className="w-4 h-4 text-secondary" />
+              <MessageSquare className="w-4 h-4 text-secondary" />
             </div>
             <p className="text-2xl font-bold text-secondary">{posts.length}</p>
             <p className="text-xs text-muted-foreground">Total Posts</p>

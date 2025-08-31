@@ -39,17 +39,17 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
         setLoading(false);
         return;
       }
-      setQuestions(qData as AssessmentQuestion[]);
+      setQuestions(qData || []);
       // Fetch options for each question
       const optionMap: Record<number, AssessmentOption[]> = {};
-      for (const q of qData as AssessmentQuestion[]) {
+      for (const q of qData || []) {
         if (q.question_type === 'multiple_choice') {
           const { data: oData } = await supabase
             .from('assessment_options')
             .select('*')
             .eq('question_id', q.id)
             .order('position', { ascending: true });
-          optionMap[q.id] = (oData as AssessmentOption[]) || [];
+          optionMap[q.id] = oData || [];
         }
       }
       setOptions(optionMap);
@@ -86,7 +86,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
           assessment_id: assessmentId,
           score,
           answers,
-        } as AssessmentResultInsert); // Explicitly type insert
+        })
       if (error) {
         setError(error.message);
         setSubmitting(false);

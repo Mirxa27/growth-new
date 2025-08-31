@@ -192,7 +192,7 @@ const Library = () => {
               category: item.category,
               difficulty: item.difficulty_level
             }
-          } as AnalyticsEvent);
+          } as TablesInsert<'analytics_events'>);
 
         // Update last accessed time
         await supabase

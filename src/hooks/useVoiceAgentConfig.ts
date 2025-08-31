@@ -33,7 +33,7 @@ export const useVoiceAgentConfig = () => {
     fetchConfigs();
   }, [fetchConfigs]);
 
-  const addConfig = async (config: Omit<VoiceAgentConfigInsert, 'id' | 'created_at'>) => {
+  const addConfig = async (config: Omit<TablesInsert<'voice_agent_configs'>, 'id' | 'created_at'>) => {
     const { data, error: addErr } = await supabase
       .from('voice_agent_configs')
       .insert(config)
@@ -42,7 +42,7 @@ export const useVoiceAgentConfig = () => {
     if (data) setConfigs(prev => [data[0], ...prev]);
   };
 
-  const updateConfig = async (id: string, updates: Partial<VoiceAgentConfigUpdate>) => {
+  const updateConfig = async (id: string, updates: TablesUpdate<'voice_agent_configs'>) => {
     const { data, error: updateErr } = await supabase
       .from('voice_agent_configs')
       .update(updates)

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Brain, Target, Sparkles, BookOpen, Users, Heart, TrendingUp, Clock, Play, Lock } from 'lucide-react';
+import { ArrowLeft, Brain, Target, Sparkles, BookOpen, Users, Heart, TrendingUp } from 'lucide-react';
+// import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 // Import our new components
@@ -11,8 +12,6 @@ import AssessmentTaker from '@/components/assessment/AssessmentTaker';
 import { AssessmentResults } from '@/components/assessment/AssessmentResults';
 import QuizBrowser from '@/components/quiz/QuizBrowser';
 import QuizTaker from '@/components/quiz/QuizTaker';
-import { useAuth } from '@/hooks/useAuth';
-import { freeVisitorAssessments, userAssessments } from '@/data/assessments';
 import { Tables } from '@/integrations/supabase/types';
 
 type Assessment = Tables<'assessments'>;
@@ -21,7 +20,6 @@ type Quiz = Tables<'quizzes'>;
 type ViewMode = 'home' | 'assessment-browser' | 'assessment-taking' | 'assessment-results' | 'quiz-browser' | 'quiz-taking';
 
 const MobileAssessmentHub: React.FC = () => {
-  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('home');
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
@@ -70,26 +68,48 @@ const MobileAssessmentHub: React.FC = () => {
     }
   };
 
-  const featuredContent = freeVisitorAssessments.map(assessment => ({
-    type: 'assessment',
-    title: assessment.title,
-    description: assessment.description,
-    category: assessment.type,
-    icon: assessment.type === 'personality' ? Brain :
-          assessment.type === 'mental-health' ? Heart :
-          assessment.type === 'relationships' ? Users :
-          assessment.type === 'career' ? Target :
-          assessment.type === 'skills' ? Sparkles :
-          TrendingUp,
-    color: assessment.type === 'personality' ? 'from-purple-400 to-pink-400' :
-           assessment.type === 'mental-health' ? 'from-green-400 to-teal-400' :
-           assessment.type === 'relationships' ? 'from-pink-400 to-rose-400' :
-           assessment.type === 'career' ? 'from-blue-400 to-indigo-400' :
-           assessment.type === 'skills' ? 'from-orange-400 to-red-400' :
-           'from-purple-400 to-indigo-400',
-    estimatedTime: assessment.estimatedTime,
-    isPublic: assessment.visibility === 'public'
-  }));
+  const featuredContent = [
+    {
+      type: 'assessment',
+      title: 'Personality Discovery',
+      description: 'Uncover your core personality traits and natural tendencies',
+      category: 'personality',
+      icon: Brain,
+      color: 'from-purple-400 to-pink-400',
+      estimatedTime: 15,
+      isPublic: true
+    },
+    {
+      type: 'quiz',
+      title: 'Stress Management Basics',
+      description: 'Test your knowledge of stress management techniques',
+      category: 'wellness',
+      icon: Heart,
+      color: 'from-green-400 to-teal-400',
+      estimatedTime: 10,
+      isPublic: true
+    },
+    {
+      type: 'assessment',
+      title: 'Relationship Style',
+      description: 'Understand your attachment patterns and relationship approach',
+      category: 'relationships',
+      icon: Users,
+      color: 'from-pink-400 to-rose-400',
+      estimatedTime: 12,
+      isPublic: true
+    },
+    {
+      type: 'assessment',
+      title: 'Life Balance Check',
+      description: 'Assess your current life balance across key areas',
+      category: 'lifestyle',
+      icon: TrendingUp,
+      color: 'from-blue-400 to-indigo-400',
+      estimatedTime: 8,
+      isPublic: true
+    }
+  ];
 
   const categories = [
     { id: 'assessments', label: 'Assessments', icon: Brain, count: '20+' },
@@ -117,7 +137,7 @@ const MobileAssessmentHub: React.FC = () => {
         <AssessmentResults
           results={assessmentResults}
           assessmentTitle={selectedAssessment?.title || 'Assessment'}
-          assessmentCategory={selectedAssessment?.type || 'general'} // Changed to selectedAssessment.type
+          assessmentCategory={selectedAssessment?.type || 'general'}
           onRetake={() => {
             setAssessmentResults(null);
             setViewMode('assessment-taking');

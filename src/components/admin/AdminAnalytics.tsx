@@ -16,9 +16,8 @@ import {
 import { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'>;
-type ExplorationSession = Tables<'exploration_sessions'> & {
-  explorations: Tables<'explorations'> | null;
-};
+type Exploration = Tables<'explorations'>;
+type ExplorationSession = Tables<'exploration_sessions'>;
 
 interface AnalyticsData {
   totalUsers: number;
@@ -64,7 +63,7 @@ export const AdminAnalytics = () => {
       if (userError) throw userError;
 
       // Fetch exploration statistics
-      const { data: explorationStats, error: explorationError } = await supabase
+      const { data: explorationSessions, error: explorationError } = await supabase
         .from('exploration_sessions')
         .select(`
           status,
@@ -84,15 +83,15 @@ export const AdminAnalytics = () => {
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
       const activeUsers = userStats?.filter(user => 
-        user.last_login_at && new Date(user.last_login_at) > thirtyDaysAgo
+        user.last_login_at && new Date(user.last_login_at).getTime() > thirtyDaysAgo.getTime()
       ).length || 0;
 
-      const completedExplorations = explorationStats?.filter(session => 
+      const completedExplorations = explorationSessions?.filter(session => 
         session.status === 'completed'
       ).length || 0;
 
       // Calculate popular explorations with real ratings
-      const explorationCounts = (explorationStats || []).reduce((acc, session) => {
+      const explorationCounts = (explorationSessions || []).reduce((acc, session) => {
         if (session.status === 'completed' && session.explorations) {
           const exploration = session.explorations;
           const key = exploration.id;
@@ -107,7 +106,7 @@ export const AdminAnalytics = () => {
           }
           acc[key].completions++;
           // Add rating if available, otherwise use a baseline rating
-          const rating = (session as any).rating || 4.0; // Assuming rating might be on session or a default
+          const rating = 4.0; // Assuming rating might be on session or a default
           acc[key].totalRating += rating;
           acc[key].avgRating = acc[key].totalRating / acc[key].completions;
         }
@@ -119,7 +118,7 @@ export const AdminAnalytics = () => {
         .slice(0, 5);
 
       // Calculate category statistics
-      const categoryStats = (explorationStats || []).reduce((acc, session) => {
+      const categoryStats = (explorationSessions || []).reduce((acc, session) => {
         if (session.explorations) {
           const exploration = session.explorations;
           const category = exploration.category || 'other';
@@ -382,3 +381,5 @@ export const AdminAnalytics = () => {
     </div>
   );
 };
+
+export default AdminAnalytics;

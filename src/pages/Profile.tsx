@@ -42,23 +42,23 @@ const Profile = () => {
     user_id: user?.id || null,
     display_name: user?.user_metadata?.display_name || '',
     email: user?.email || '',
-    phone: '', // Assuming these fields exist in profiles table
-    location: '', // Assuming these fields exist in profiles table
-    bio: '', // Assuming these fields exist in profiles table
+    phone: '', 
+    location: '', 
+    bio: '', 
     avatar_url: user?.user_metadata?.avatar_url || '',
     created_at: user?.created_at || '',
     updated_at: user?.updated_at || '',
-    crystals_count: 0, // Default value
-    level_progress: 0, // Default value
-    login_streak_count: 0, // Default value
-    personality_data: null, // Default value
-    personality_type: null, // Default value
-    role: 'user', // Default value
-    subscription_tier: 'free', // Default value
-    is_admin_backup: false, // Default value
-    last_login_at: user?.last_sign_in_at || null, // Default value
-    growth_areas: null, // Default value
-    is_banned: false, // Default value
+    crystals_count: 0, 
+    level_progress: 0, 
+    login_streak_count: 0, 
+    personality_data: null, 
+    personality_type: null, 
+    role: 'user', 
+    subscription_tier: 'free', 
+    is_admin_backup: false, 
+    last_login_at: user?.last_sign_in_at || null, 
+    growth_areas: null, 
+    is_banned: false, 
   });
 
   const [notifications, setNotifications] = useState({
@@ -93,12 +93,11 @@ const Profile = () => {
       const { error } = await supabase.from('profiles').update({
         display_name: profile.display_name,
         email: profile.email,
-        // Assuming phone, location, bio are part of the profiles table
-        // phone: profile.phone, 
-        // location: profile.location,
+        phone: profile.phone, 
+        location: profile.location,
         bio: profile.bio,
         avatar_url: profile.avatar_url || null,
-      } as ProfileUpdate).eq('user_id', user.id);
+      }).eq('user_id', user.id);
       if (error) throw error;
       setIsEditing(false);
       toast({ title: 'Profile updated!', description: 'Your changes have been saved successfully.' });
@@ -128,7 +127,7 @@ const Profile = () => {
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
       // update profile
-      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl } as ProfileUpdate).eq('user_id', user.id);
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', user.id);
       if (updateError) throw updateError;
       setProfile(p => ({ ...p, avatar_url: publicUrl }));
       toast({ title: 'Photo updated', description: 'Your profile photo has been updated.' });
@@ -165,7 +164,7 @@ const Profile = () => {
   const handleDeleteAccount = async () => {
     if (!window.confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) return;
     try {
-      const { error } = await supabase.functions.invoke('account-management', {
+      const { data, error } = await supabase.functions.invoke('account-management', {
         body: { action: 'delete', confirm: true }
       });
       if (error) throw error;

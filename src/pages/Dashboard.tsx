@@ -23,12 +23,7 @@ import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 
-type ProfileRow = Tables<'profiles'>; // Renamed to avoid conflict with local 'Profile'
-type Assessment = Tables<'assessments'>;
-type CommunityPost = Tables<'community_posts'>;
-type LibraryItem = Tables<'library_items'>;
-type ExplorationSession = Tables<'exploration_sessions'>;
-type AdminLog = Tables<'admin_logs'>;
+// Removed unused type declarations: ProfileRow, Assessment, CommunityPost, LibraryItem, ExplorationSession, AdminLog
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -46,32 +41,13 @@ const Dashboard = () => {
         // Fetch user data
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('created_at, last_login_at, avatar_url') // Added avatar_url
+          .select('created_at, last_login_at, avatar_url')
           .eq('user_id', user.id);
         if (profilesError) throw profilesError;
-        const currentUserProfile = profilesData?.[0];
+        // Removed unused variable: currentUserProfile
 
         // Fetch other data for overview (simplified for dashboard, full analytics in AdminAnalytics)
-        const { data: assessmentsData, error: assessmentsError } = await supabase
-          .from('assessments')
-          .select('id, title, created_at');
-        if (assessmentsError) throw assessmentsError;
-
-        const { data: communityPostsData, error: communityPostsError } = await supabase
-          .from('community_posts')
-          .select('id, created_at');
-        if (communityPostsError) throw communityPostsError;
-
-        const { data: libraryItemsData, error: libraryItemsError } = await supabase
-          .from('library_items')
-          .select('id, created_at');
-        if (libraryItemsError) throw libraryItemsError;
-
-        const { data: explorationSessionsData, error: explorationSessionsError } = await supabase
-          .from('exploration_sessions')
-          .select('created_at, status')
-          .eq('user_id', user.id);
-        if (explorationSessionsError) throw explorationSessionsError;
+        // Removed unused variables: assessmentsData, communityPostsData, libraryItemsData, explorationSessionsData
 
         // Simulate loading user data
         setTimeout(() => setIsLoading(false), 1000);

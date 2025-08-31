@@ -41,7 +41,7 @@ export const VoiceAgentTrainer: React.FC = () => {
     if (!config) return;
     try {
       setSaving(true);
-      const { error } = await supabase.from('voice_agent_configs').update({ instructions } as VoiceConfigUpdate).eq('id', config.id);
+      const { error } = await supabase.from('voice_agent_configs').update({ instructions }).eq('id', config.id);
       if (error) throw error;
       toast({ title: "Success", description: "Instructions updated successfully." });
     } catch (e: any) {

@@ -24,9 +24,12 @@ import {
   AlertCircle,
   Target,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  Wand2,
+  Sparkles
 } from 'lucide-react';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { AIContentBuilder } from './AIContentBuilder';
 
 interface Assessment {
   id: number;
@@ -82,6 +85,7 @@ export const AssessmentManager: React.FC = () => {
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isAICreatorOpen, setIsAICreatorOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   
   // Form state
@@ -391,9 +395,13 @@ export const AssessmentManager: React.FC = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
+              <Button onClick={() => setIsAICreatorOpen(true)} className="bg-gradient-primary hover:bg-gradient-primary/90">
+                <Wand2 className="w-4 h-4 mr-2" />
+                AI Generator
+              </Button>
               <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-gradient-primary">
                 <Plus className="w-4 h-4 mr-2" />
-                Create Assessment
+                Create Manual
               </Button>
             </div>
           </div>
@@ -822,6 +830,29 @@ export const AssessmentManager: React.FC = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Content Builder Dialog */}
+      <Dialog open={isAICreatorOpen} onOpenChange={setIsAICreatorOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto glass-strong">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              AI Assessment Generator
+            </DialogTitle>
+            <DialogDescription>
+              Generate assessments, quizzes, and personality tests using AI
+            </DialogDescription>
+          </DialogHeader>
+          
+          <AIContentBuilder onAssessmentCreated={fetchAssessments} />
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAICreatorOpen(false)}>
               Close
             </Button>
           </DialogFooter>

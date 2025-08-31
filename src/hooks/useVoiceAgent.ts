@@ -7,6 +7,7 @@ import {
   ClientTokenResponse 
 } from '@/types/voice';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client'; // Import supabase client
 
 // Use the standard WebRTC approach with OpenAI Realtime API
 export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => {
@@ -27,16 +28,22 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
   // Generate client token from Supabase
   const generateClientToken = useCallback(async (): Promise<string> => {
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('User not authenticated for voice token generation.');
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice-token`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sb-access-token')}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate client token');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate client token');
       }
 
       const data: ClientTokenResponse = await response.json();

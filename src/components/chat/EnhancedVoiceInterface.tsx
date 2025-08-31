@@ -195,6 +195,14 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     };
   }, []);
 
+  const startVoiceChat = async () => {
+    await connectToOpenAI();
+  };
+
+  const endVoiceChat = () => {
+    disconnect();
+  };
+
   return (
     <ErrorBoundary>
       <div className={cn("space-y-6", className)}>
@@ -315,7 +323,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
               {/* Status & Instructions */}
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <Badge variant={isConnected ? "default" : "secondary"}>
+                  <Badge variant={isConnected ? "default" : "secondary"} className="glass">
                     {isConnected ? "Connected" : "Disconnected"}
                   </Badge>
                   {isRecording && <Badge variant="outline">Recording</Badge>}
