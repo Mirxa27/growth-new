@@ -49,6 +49,13 @@ type AdminSection =
   | 'ai-providers'
   | 'moderation';
 
+interface RecentActivityItem {
+  id: string;
+  type: 'user' | 'assessment' | 'community' | 'library';
+  message: string;
+  timestamp: string;
+}
+
 const AdminDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
 
@@ -136,12 +143,7 @@ const AdminDashboard: React.FC = () => {
     activeUsersToday: number;
     completionsThisMonth: number;
     growthPercentage: number;
-    recentActivity: Array<{
-      id: string;
-      type: 'user' | 'assessment' | 'community' | 'library';
-      message: string;
-      timestamp: string;
-    }>;
+    recentActivity: RecentActivityItem[];
   }>({
     totalUsers: 0,
     totalAssessments: 0,
@@ -211,7 +213,7 @@ const AdminDashboard: React.FC = () => {
         : newUsersThisWeek > 0 ? 100 : 0;
 
       // Generate recent activity
-      const recentActivity = [];
+      const recentActivity: RecentActivityItem[] = [];
       
       // Recent user registrations
       users
@@ -311,55 +313,15 @@ const AdminDashboard: React.FC = () => {
       <div className="space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Users className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Total Users</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Users className="h-8 w-8 text-blue-600" /><div><p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Users</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Target className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalAssessments}</p>
-                  <p className="text-xs text-muted-foreground">Assessments</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Target className="h-8 w-8 text-green-600" /><div><p className="text-2xl font-bold">{overviewData.totalAssessments}</p><p className="text-xs text-muted-foreground">Assessments</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="h-8 w-8 text-purple-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p>
-                  <p className="text-xs text-muted-foreground">Community Posts</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><MessageSquare className="h-8 w-8 text-purple-600" /><div><p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p><p className="text-xs text-muted-foreground">Community Posts</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-8 w-8 text-orange-600" />
-                <div>
-                  <p className="text-2xl font-bold">
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><TrendingUp className="h-8 w-8 text-orange-600" /><div><p className="text-2xl font-bold">
                     {overviewData.growthPercentage > 0 ? '+' : ''}{overviewData.growthPercentage}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">Growth This Week</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  </p><p className="text-xs text-muted-foreground">Growth This Week</p></div></div></CardContent></Card>
         </div>
 
         {/* Additional Metrics */}

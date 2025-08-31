@@ -102,7 +102,7 @@ const Library = () => {
   };
 
   // Get unique categories from library items
-  const categories = ['all', ...Array.from(new Set(libraryItems.map(item => item.category)))];
+  const categories = ['all', ...Array.from(new Set(libraryItems.map(item => item.category).filter((c): c is string => c !== null)))];
 
   const filteredItems = libraryItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

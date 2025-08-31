@@ -107,7 +107,7 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
             
           case 'response.audio_transcript.delta':
             if (data.delta?.text) {
-              setState(prev => ({ ...prev, transcript: data.delta.text }));
+              setState(prev => ({ ...prev, transcript: data.delta?.text || '' }));
             }
             break;
             
@@ -150,10 +150,10 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
 
     } catch (error) {
       console.error('Error connecting to voice session:', error);
-      setState(prev => ({ ...prev, error: error.message }));
+      setState(prev => ({ ...prev, error: (error as Error).message }));
       toast({
         title: "Connection Error",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -238,7 +238,7 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
       console.error('Error starting recording:', error);
       toast({
         title: "Recording Error",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     }

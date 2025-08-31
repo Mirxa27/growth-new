@@ -17,6 +17,7 @@ import {
   Activity,
   TrendingUp
 } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
 // Import admin components
 import { UserManagement } from '@/components/admin/UserManagement';
@@ -47,6 +48,13 @@ type AdminSection =
   | 'settings'
   | 'ai-providers'
   | 'moderation';
+
+interface RecentActivityItem {
+  id: string;
+  type: 'user' | 'assessment' | 'community' | 'library';
+  message: string;
+  timestamp: string;
+}
 
 const AdminDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
@@ -135,12 +143,7 @@ const AdminDashboard: React.FC = () => {
     activeUsersToday: number;
     completionsThisMonth: number;
     growthPercentage: number;
-    recentActivity: Array<{
-      id: string;
-      type: 'user' | 'assessment' | 'community' | 'library';
-      message: string;
-      timestamp: string;
-    }>;
+    recentActivity: RecentActivityItem[];
   }>({
     totalUsers: 0,
     totalAssessments: 0,
@@ -179,11 +182,11 @@ const AdminDashboard: React.FC = () => {
         supabase.from('exploration_sessions').select('created_at, status').limit(1000),
       ]);
 
-      const users: { created_at: string; last_login_at: string | null }[] = usersResponse.data || [];
-      const assessments: { id: number; title: string; created_at: string }[] = assessmentsResponse.data || [];
-      const communityPosts: { id: string; created_at: string }[] = communityResponse.data || [];
-      const libraryItems: { id: string; created_at: string | null }[] = libraryResponse.data || [];
-      const explorationSessions: { created_at: string; status: string }[] = explorationSessionsResponse.data || [];
+      const users: Tables<'profiles'>[] = usersResponse.data || [];
+      const assessments: Tables<'assessments'>[] = assessmentsResponse.data || [];
+      const communityPosts: Tables<'community_posts'>[] = communityResponse.data || [];
+      const libraryItems: Tables<'library_items'>[] = libraryResponse.data || [];
+      const explorationSessions: Tables<'exploration_sessions'>[] = explorationSessionsResponse.data || [];
 
       // Calculate metrics
       const now = new Date();
@@ -191,18 +194,18 @@ const AdminDashboard: React.FC = () => {
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const newUsersThisWeek = users.filter(u => new Date(u.created_at) > weekAgo).length;
+      const newUsersThisWeek = users.filter(u => new Date(u.created_at || '').getTime() > weekAgo.getTime()).length;
       const newUsersLastWeek = users.filter(u => {
-        const created = new Date(u.created_at);
-        return created > new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000) && created <= weekAgo;
+        const created = new Date(u.created_at || '');
+        return created.getTime() > new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000).getTime() && created.getTime() <= weekAgo.getTime();
       }).length;
 
       const activeUsersToday = users.filter(u => 
-        u.last_login_at && new Date(u.last_login_at) > dayAgo
+        u.last_login_at && new Date(u.last_login_at).getTime() > dayAgo.getTime()
       ).length;
 
       const completionsThisMonth = explorationSessions.filter(s => 
-        s.status === 'completed' && new Date(s.created_at) > monthAgo
+        s.status === 'completed' && new Date(s.created_at).getTime() > monthAgo.getTime()
       ).length;
 
       const growthPercentage = newUsersLastWeek > 0 
@@ -210,24 +213,24 @@ const AdminDashboard: React.FC = () => {
         : newUsersThisWeek > 0 ? 100 : 0;
 
       // Generate recent activity
-      const recentActivity = [];
+      const recentActivity: RecentActivityItem[] = [];
       
       // Recent user registrations
       users
-        .filter(u => new Date(u.created_at) > dayAgo)
+        .filter(u => new Date(u.created_at || '').getTime() > dayAgo.getTime())
         .slice(0, 3)
         .forEach((user, index) => {
           recentActivity.push({
             id: `user-${index}`,
             type: 'user' as const,
             message: 'New user joined the platform',
-            timestamp: user.created_at
+            timestamp: user.created_at || new Date().toISOString()
           });
         });
 
       // Recent assessments
       assessments
-        .filter(a => new Date(a.created_at) > dayAgo)
+        .filter(a => new Date(a.created_at).getTime() > dayAgo.getTime())
         .slice(0, 2)
         .forEach((assessment, index) => {
           recentActivity.push({
@@ -240,7 +243,7 @@ const AdminDashboard: React.FC = () => {
 
       // Recent community posts
       communityPosts
-        .filter(p => new Date(p.created_at) > dayAgo)
+        .filter(p => new Date(p.created_at).getTime() > dayAgo.getTime())
         .slice(0, 2)
         .forEach((post, index) => {
           recentActivity.push({
@@ -310,55 +313,15 @@ const AdminDashboard: React.FC = () => {
       <div className="space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Users className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Total Users</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Users className="h-8 w-8 text-blue-600" /><div><p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Users</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Target className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalAssessments}</p>
-                  <p className="text-xs text-muted-foreground">Assessments</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Target className="h-8 w-8 text-green-600" /><div><p className="text-2xl font-bold">{overviewData.totalAssessments}</p><p className="text-xs text-muted-foreground">Assessments</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="h-8 w-8 text-purple-600" />
-                <div>
-                  <p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p>
-                  <p className="text-xs text-muted-foreground">Community Posts</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><MessageSquare className="h-8 w-8 text-purple-600" /><div><p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p><p className="text-xs text-muted-foreground">Community Posts</p></div></div></CardContent></Card>
           
-          <Card className="glass-strong">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-8 w-8 text-orange-600" />
-                <div>
-                  <p className="text-2xl font-bold">
+          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><TrendingUp className="h-8 w-8 text-orange-600" /><div><p className="text-2xl font-bold">
                     {overviewData.growthPercentage > 0 ? '+' : ''}{overviewData.growthPercentage}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">Growth This Week</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  </p><p className="text-xs text-muted-foreground">Growth This Week</p></div></div></CardContent></Card>
         </div>
 
         {/* Additional Metrics */}
