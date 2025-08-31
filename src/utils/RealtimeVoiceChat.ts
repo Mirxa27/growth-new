@@ -365,4 +365,27 @@ export class RealtimeVoiceChat {
   getCurrentTranscript(): string {
     return this.currentTranscript;
   }
+
+  startRecording(): void {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Not connected to voice chat');
+    }
+    
+    // Reset any existing audio buffer
+    this.ws.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+    
+    console.log('Started recording');
+  }
+
+  stopRecording(): void {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Not connected to voice chat');
+    }
+    
+    // Commit the audio buffer and request response
+    this.ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+    this.ws.send(JSON.stringify({ type: 'response.create' }));
+    
+    console.log('Stopped recording');
+  }
 }

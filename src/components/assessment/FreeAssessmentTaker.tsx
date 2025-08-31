@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,7 +8,6 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -119,7 +118,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
 
     // Generate insights based on scores
     results.insights = generateInsights(results.scores, assessment.type);
-    results.recommendations = generateRecommendations(results.scores, assessment.type);
+    results.recommendations = generateRecommendations(assessment.type);
 
     return results;
   };
@@ -274,7 +273,6 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
     switch (type) {
       case 'personality':
         const highestTrait = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-        const lowestTrait = Object.keys(scores).reduce((a, b) => scores[a] < scores[b] ? a : b);
         insights.push(`Your strongest personality trait is ${highestTrait} (${scores[highestTrait]} points)`);
         insights.push(`Your personality suggests ${scores.extroversion > 15 ? 'you thrive in social situations' : 'you prefer meaningful one-on-one interactions'}`);
         insights.push(`You show ${scores.conscientiousness > 15 ? 'high levels of organization and planning' : 'a more spontaneous and flexible approach'}`);
@@ -321,7 +319,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
     return insights;
   };
 
-  const generateRecommendations = (scores: any, type: string) => {
+  const generateRecommendations = (type: string) => {
     const recommendations = [];
     
     switch (type) {

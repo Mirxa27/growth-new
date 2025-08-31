@@ -16,7 +16,6 @@ import {
   User,
   Brain
 } from 'lucide-react';
-import { TablesInsert } from '@/integrations/supabase/types';
 
 interface VoiceSession {
   session_id: string;
@@ -32,7 +31,17 @@ interface TranscriptEntry {
   timestamp: Date;
 }
 
-type VoiceSessionInsert = TablesInsert<'voice_sessions'>;
+interface RealtimeEvent {
+  type: string;
+  transcript?: string;
+  delta?: {
+    text?: string;
+    audio?: string;
+  };
+  error?: {
+    message: string;
+  };
+}
 
 const RealtimeVoiceAgent: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -195,7 +204,7 @@ const RealtimeVoiceAgent: React.FC = () => {
     });
   };
 
-  const handleRealtimeMessage = (message: RealtimeEvent) => { // Explicitly type message
+  const handleRealtimeMessage = (message: RealtimeEvent) => {
     console.log('Received Realtime message:', message);
 
     switch (message.type) {
@@ -206,13 +215,13 @@ const RealtimeVoiceAgent: React.FC = () => {
         break;
 
       case 'response.audio_transcript.delta':
-        if (message.delta?.text) { // Access text property
+        if (message.delta?.text) {
           updateAssistantTranscript(message.delta.text);
         }
         break;
 
       case 'response.audio.delta':
-        if (isSpeakerEnabled && message.delta?.audio) { // Access audio property
+        if (isSpeakerEnabled && message.delta?.audio) {
           playAudioDelta(message.delta.audio);
         }
         break;

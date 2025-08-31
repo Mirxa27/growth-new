@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 
 type ProfileRow = Tables<'profiles'>;
 

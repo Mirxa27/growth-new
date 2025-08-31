@@ -31,7 +31,6 @@ type LibraryItem = Tables<'library_items'> & {
   progress?: number;
 };
 type UserLibraryProgress = Tables<'user_library_progress'>;
-type AnalyticsEvent = TablesInsert<'analytics_events'>;
 
 const Library = () => {
   const { toast } = useToast();

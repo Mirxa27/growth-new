@@ -38,12 +38,13 @@ interface GeneratedContent {
   title: string;
   description: string;
   questions: GeneratedQuestion[];
-  // Optional metadata returned by AI generator
-  type?: string;
-  visibility?: 'public' | 'private';
 }
 
-export const AIContentBuilder = () => {
+interface AIAssessmentBuilderProps {
+  onAssessmentCreated?: () => void;
+}
+
+export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessmentCreated }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [topic, setTopic] = useState('');
@@ -99,17 +100,17 @@ export const AIContentBuilder = () => {
     setIsSaving(true);
 
     try {
-      const { error } = await (supabase as any).rpc('create_assessment_with_questions', {
+      const { error } = await supabase.rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
         _description: generatedContent.description,
-        _type: (generatedContent as any).type || type || 'quiz',
-        _visibility: (generatedContent as any).visibility || visibility || 'private',
+        _type: type,
+        _visibility: visibility,
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
-        _ai_prompt: assessmentForm.ai_prompt || topic,
-        _questions: generatedContent.questions || [],
+        _ai_prompt: assessmentForm.ai_prompt,
+        _questions: generatedContent.questions as unknown as Json,
         _created_by: user.id
-      } as any);
+      });
 
       if (error) throw error;
 
@@ -131,6 +132,7 @@ export const AIContentBuilder = () => {
       toast({ title: "Assessment saved successfully!" });
       setGeneratedContent(null);
       setTopic('');
+      onAssessmentCreated?.();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ title: "Save failed", description: errorMessage, variant: "destructive" });

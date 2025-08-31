@@ -17,12 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Json, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Json, Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Exploration = Tables<'explorations'>;
-type ExplorationSessionRow = Tables<'exploration_sessions'>;
-type ExplorationSessionInsert = TablesInsert<'exploration_sessions'>;
-type ExplorationSessionUpdate = TablesUpdate<'exploration_sessions'>;
 
 const ExplorationSession = () => {
   const { explorationId } = useParams();
@@ -102,7 +99,7 @@ const ExplorationSession = () => {
       const responseData: TablesInsert<'exploration_sessions'> = {
         exploration_id: explorationId!,
         user_id: user.id,
-        user_answers: answers as Json, // Cast to Json
+        user_answers: answers as Json,
         crystals_earned: exploration.crystal_reward,
         current_question: currentQuestion,
         status: 'in-progress'
@@ -116,7 +113,7 @@ const ExplorationSession = () => {
       } else {
         const { data, error } = await supabase
           .from('exploration_sessions')
-          .insert(responseData)
+          .insert([responseData])
           .select('id')
           .single();
         
@@ -133,7 +130,7 @@ const ExplorationSession = () => {
 
     await saveProgress();
     
-    if (currentQuestion < (exploration.questions as string[]).length - 1) {
+    if (currentQuestion < (exploration.questions as any[]).length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       completeExploration();

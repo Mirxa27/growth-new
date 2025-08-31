@@ -82,7 +82,7 @@ export const AdminAnalytics = () => {
         session.status === 'completed'
       ).length || 0;
 
-      const explorationCounts = (explorationSessions || []).reduce((acc: Record<string, any>, session: any) => {
+      const explorationCounts = (explorationSessions || []).reduce((acc, session: any) => {
         if (session.status === 'completed' && session.explorations) {
           const exploration = session.explorations;
           const key = exploration.id;
@@ -107,7 +107,7 @@ export const AdminAnalytics = () => {
         .sort((a: any, b: any) => b.completions - a.completions)
         .slice(0, 5);
 
-      const categoryStats = (explorationSessions || []).reduce((acc: Record<string, any>, session: any) => {
+      const categoryStats = (explorationSessions || []).reduce((acc, session: any) => {
         if (session.explorations) {
           const exploration = session.explorations;
           const category = exploration.category || 'other';

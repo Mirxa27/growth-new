@@ -5,6 +5,7 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
+type Assessment = Tables<'assessments'>;
 type AssessmentQuestion = Tables<'assessment_questions'>;
 type AssessmentOption = Tables<'assessment_options'>;
 type AssessmentResultInsert = TablesInsert<'assessment_results'>;
@@ -17,6 +18,7 @@ interface AssessmentTakerProps {
 }
 
 const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: AssessmentTakerProps) => {
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [options, setOptions] = useState<Record<number, AssessmentOption[]>>({});
   const [answers, setAnswers] = useState<{ [key: number]: number | string }>({});
@@ -27,8 +29,21 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    const fetchQuestions = async () => {
+    const fetchAssessmentData = async () => {
       setLoading(true);
+      const { data: aData, error: aError } = await supabase
+        .from('assessments')
+        .select('*')
+        .eq('id', assessmentId)
+        .single();
+      
+      if (aError) {
+        setError(aError.message);
+        setLoading(false);
+        return;
+      }
+      setAssessment(aData);
+
       const { data: qData, error: qError } = await supabase
         .from('assessment_questions')
         .select('*')
@@ -55,7 +70,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
       setOptions(optionMap);
       setLoading(false);
     };
-    fetchQuestions();
+    fetchAssessmentData();
   }, [assessmentId]);
 
   const handleAnswer = (questionId: number, value: number | string) => {
@@ -78,15 +93,17 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
       }
     }
     // Store result for signed-in users
-    if (userId) {
+    if (userId && assessment) {
       const { error } = await supabase
         .from('assessment_results')
         .insert({
           user_id: userId,
-          assessment_type: 'assessment',
-          results: { score, total_questions: questions.length, percentage: Math.round((score / questions.length) * 100) },
+          assessment_id: assessmentId,
+          score,
           answers,
-        })
+          assessment_type: assessment.type,
+          results: { finalScore: score }
+        } as AssessmentResultInsert)
       if (error) {
         setError(error.message);
         setSubmitting(false);
@@ -135,12 +152,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
               {options[q.id]?.map(opt => (
                 <label
                   key={opt.id}
-                  className={cn(
-                    "flex items-center gap-3 p-4 rounded-xl transition-all duration-300 cursor-pointer border-2",
-                    answers[q.id] === opt.id
-                      ? "glass-card-selected bg-white/20 border-primary/50 shadow-lg shadow-primary/20 scale-[1.02]"
-                      : "glass-card hover:bg-white/10 hover:border-white/20 border-transparent hover:scale-[1.01]"
-                  )}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                   onKeyDown={(e) => {
                     if (e.key === ' ' || e.key === 'Enter') {
                       e.preventDefault();
@@ -151,23 +163,14 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
                   role="radio"
                   aria-checked={answers[q.id] === opt.id}
                 >
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                    answers[q.id] === opt.id
-                      ? "border-primary bg-primary"
-                      : "border-white/40 bg-white/10"
-                  )}>
-                    <div className={cn(
-                      "w-2 h-2 rounded-full transition-all duration-300",
-                      answers[q.id] === opt.id ? "bg-white" : "bg-transparent"
-                    )} />
-                  </div>
-                  <span className={cn(
-                    "transition-all duration-300",
-                    answers[q.id] === opt.id ? "text-white font-medium" : "text-white/80"
-                  )}>
-                    {opt.option_text}
-                  </span>
+                  <input
+                    type="radio"
+                    name={`q_${q.id}`}
+                    value={opt.id}
+                    checked={answers[q.id] === opt.id}
+                    onChange={() => handleAnswer(q.id, opt.id)}
+                  />
+                  {opt.option_text}
                 </label>
               ))}
             </div>

@@ -16,11 +16,9 @@ import {
   Eye
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Database } from '@/integrations/supabase/types';
+import type {} from '@/integrations/supabase/types';
 
-type CommunityPost = Database['public']['Tables']['community_posts']['Row'] & {
-  profiles: { display_name: string | null } | null;
-};
+type CommunityPost = any;
 
 export const CommunityPostsManager: React.FC = () => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);

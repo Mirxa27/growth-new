@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -16,7 +15,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Quiz = Tables<'quizzes'> & {
   quiz_questions: Array<{
@@ -30,8 +29,6 @@ type Quiz = Tables<'quizzes'> & {
     }>;
   }>;
 };
-type QuizAttemptInsert = TablesInsert<'quiz_attempts'>;
-type QuizAttemptUpdate = TablesUpdate<'quiz_attempts'>;
 type QuizAnswerInsert = TablesInsert<'quiz_answers'>;
 
 interface QuizTakerProps {
@@ -211,21 +208,8 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
               className="space-y-3"
             >
               {currentQuestion.quiz_question_options.map((opt) => (
-                <Label key={opt.id} className={cn(
-                  "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-300",
-                  "bg-white/5 backdrop-blur-sm border-white/20",
-                  "hover:bg-white/10 hover:border-white/30 hover:shadow-lg",
-                  "has-[:checked]:bg-gradient-to-r has-[:checked]:from-primary/20 has-[:checked]:to-secondary/20",
-                  "has-[:checked]:border-primary has-[:checked]:shadow-xl has-[:checked]:scale-[1.02]",
-                  "has-[:checked]:text-white has-[:checked]:font-medium"
-                )}>
-                  <RadioGroupItem value={opt.id} className="peer sr-only" />
-                  <span className={cn(
-                    "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
-                    "border-white/30",
-                    "peer-checked:border-primary peer-checked:bg-primary",
-                    "peer-checked:after:content-[''] peer-checked:after:w-2 peer-checked:after:h-2 peer-checked:after:rounded-full peer-checked:after:bg-white"
-                  )} />
+                <Label key={opt.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-primary/5">
+                  <RadioGroupItem value={opt.id} />
                   <span>{opt.option_text}</span>
                 </Label>
               ))}

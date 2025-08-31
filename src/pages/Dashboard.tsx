@@ -21,9 +21,6 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
-
-// Removed unused type declarations: ProfileRow, Assessment, CommunityPost, LibraryItem, ExplorationSession, AdminLog
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -39,15 +36,11 @@ const Dashboard = () => {
 
       try {
         // Fetch user data
-        const { data: profilesData, error: profilesError } = await supabase
+        const { error: profilesError } = await supabase
           .from('profiles')
           .select('created_at, last_login_at, avatar_url')
           .eq('user_id', user.id);
         if (profilesError) throw profilesError;
-        // Removed unused variable: currentUserProfile
-
-        // Fetch other data for overview (simplified for dashboard, full analytics in AdminAnalytics)
-        // Removed unused variables: assessmentsData, communityPostsData, libraryItemsData, explorationSessionsData
 
         // Simulate loading user data
         setTimeout(() => setIsLoading(false), 1000);

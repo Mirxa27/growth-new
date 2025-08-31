@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   RotateCcw, 
   Share2, 
@@ -34,13 +33,6 @@ export const FreeAssessmentResults: React.FC<FreeAssessmentResultsProps> = ({
     if (percentage >= 80) return 'text-green-600';
     if (percentage >= 60) return 'text-yellow-600';
     return 'text-red-600';
-  };
-
-  const getScoreBadge = (score: number, maxScore: number = 25) => {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 80) return 'success';
-    if (percentage >= 60) return 'warning';
-    return 'destructive';
   };
 
   const formatTime = (seconds: number) => {

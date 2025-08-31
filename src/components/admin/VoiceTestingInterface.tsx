@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Mic, Play, Square, MessageSquare, AlertCircle } from 'lucide-react';
+import { Mic, Square, MessageSquare, AlertCircle } from 'lucide-react';
 import { RealtimeVoiceChat } from '@/utils/RealtimeVoiceChat';
 import { toast } from 'sonner';
 
