@@ -1,7 +1,5 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,19 +8,16 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Get authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       throw new Error('No authorization header')
     }
 
-    // Create Supabase client without explicit Database typing
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -33,7 +28,6 @@ serve(async (req) => {
       }
     )
 
-    // Verify user is authenticated
     const {
       data: { user },
       error: userError,
@@ -43,7 +37,6 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    // Generate client token for OpenAI Realtime API
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {

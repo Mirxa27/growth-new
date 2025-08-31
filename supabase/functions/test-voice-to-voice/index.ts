@@ -1,8 +1,5 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +19,6 @@ async function testOpenAIVoice(config: VoiceTestConfig): Promise<any> {
   const { api_key, voice, test_text, endpoint_url } = config;
   const baseUrl = endpoint_url || 'https://api.openai.com/v1';
 
-  // Test text-to-speech
   const ttsResponse = await fetch(`${baseUrl}/audio/speech`, {
     method: 'POST',
     headers: {
@@ -48,7 +44,7 @@ async function testOpenAIVoice(config: VoiceTestConfig): Promise<any> {
     success: true,
     audio_data: base64Audio,
     format: 'mp3',
-    duration_estimate: Math.ceil(test_text.length / 10), // rough estimate
+    duration_estimate: Math.ceil(test_text.length / 10),
     voice_used: voice,
     model_used: 'tts-1'
   };
@@ -93,20 +89,12 @@ async function testElevenLabsVoice(config: VoiceTestConfig): Promise<any> {
 }
 
 async function testGoogleVoice(_config: VoiceTestConfig): Promise<any> {
-  // For Google Cloud Text-to-Speech, we'd need OAuth setup
-  // This is a placeholder implementation
   return {
     success: false,
     error: 'Google Cloud TTS requires OAuth setup. Please use service account credentials.',
     suggestion: 'Consider using OpenAI or ElevenLabs for quick testing.'
   };
 }
-
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
-const supabaseClient = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

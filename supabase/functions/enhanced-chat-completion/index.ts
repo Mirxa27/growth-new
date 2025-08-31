@@ -1,8 +1,5 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,10 +21,9 @@ interface ChatRequest {
     personality_type?: string;
     emotional_state?: any;
     memory?: any;
-  } & Partial<ExplorationContext>; // Extend context with optional ExplorationContext properties
+  } & Partial<ExplorationContext>;
 }
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -41,11 +37,6 @@ Deno.serve(async (req) => {
   try {
     const { message, conversationId, context }: ChatRequest = await req.json();
 
-    const authHeader = req.headers.get('Authorization')!;
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Get user profile for personalization
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -57,10 +48,8 @@ Deno.serve(async (req) => {
     let systemPrompt = '';
     let responseContent = '';
 
-    // Handle different conversation contexts
     if (context?.isExploration) {
       if (context.phase === 'facilitation') {
-        // Phase 1: Neutral facilitation
         systemPrompt = context.facilitatorPrompt || `You are NewMe, a compassionate AI facilitator guiding a user through a therapeutic exploration. Your role is to:
 - Acknowledge their answer with empathy
 - Ask the next question clearly
@@ -73,7 +62,6 @@ Deno.serve(async (req) => {
 Let me ask you the next question to continue our exploration together.`;
 
       } else if (context.phase === 'analysis') {
-        // Phase 2: Higher Self analysis
         systemPrompt = context.higherSelfPrompt || `You are the user's Higher Self - their wisest, most compassionate inner voice. Analyze their exploration answers and provide deep insights structured as:
 
 1. Core Pattern: The main theme you see in their responses
@@ -108,7 +96,6 @@ Be profound yet practical, compassionate yet empowering. This is their sacred sp
         responseContent = openaiData.choices?.[0]?.message?.content || 'I apologize, but I encountered an issue generating your analysis. Please try again.';
       }
     } else {
-      // Regular conversation
       systemPrompt = `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth.
 
 Your personality:
@@ -156,13 +143,11 @@ Keep responses conversational, authentic, and focused on the user's growth journ
       responseContent = openaiData.choices?.[0]?.message?.content || 'I apologize, but I encountered an issue. Please try again.';
     }
 
-    // Save conversation to database if conversationId provided
     if (conversationId) {
       const userResponse = await supabase.auth.getUser();
       const userData = userResponse.data.user;
 
       if (userData?.id) {
-        // Save AI response
         await supabase.from('messages').insert({
             conversation_id: conversationId,
             user_id: userData.id,
@@ -170,12 +155,11 @@ Keep responses conversational, authentic, and focused on the user's growth journ
             content: responseContent,
           });
 
-        // Update conversation activity
         await supabase
           .from('conversations')
           .update({ 
             last_activity: new Date().toISOString(),
-            total_messages: 1, // This would need to be incremented properly
+            total_messages: 1,
           })
           .eq('id', conversationId);
       }

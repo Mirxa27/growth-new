@@ -20,11 +20,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Database, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Challenge = Tables<'content_challenges'>;
 type ChallengeInsert = TablesInsert<'content_challenges'>;
-type ChallengeUpdate = TablesUpdate<'content_challenges'>;
 
 export const ContentChallengeManager: React.FC = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -75,7 +74,7 @@ export const ContentChallengeManager: React.FC = () => {
     try {
       const { error } = await supabase
         .from('content_challenges')
-        .upsert(formData as ChallengeInsert);
+        .upsert([formData as ChallengeInsert]);
       if (error) throw error;
       toast({ title: "Success", description: `Challenge ${editingChallenge ? 'updated' : 'created'}` });
       setIsDialogOpen(false);
@@ -112,7 +111,7 @@ export const ContentChallengeManager: React.FC = () => {
     try {
       const { error } = await supabase
         .from('content_challenges')
-        .update({ is_active: !isActive } as ChallengeUpdate)
+        .update({ is_active: !isActive })
         .eq('id', id);
       if (error) throw error;
       toast({ title: "Success", description: "Challenge status updated" });

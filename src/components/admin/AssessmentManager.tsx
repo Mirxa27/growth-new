@@ -24,24 +24,22 @@ import {
   AlertCircle,
   Target,
   PlusCircle,
-  MinusCircle,
-  Wand2,
-  Sparkles
+  MinusCircle
 } from 'lucide-react';
-import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { AIContentBuilder } from './AIContentBuilder';
+import { Json } from '@/integrations/supabase/types';
 
 interface Assessment {
   id: number;
   title: string;
-  description: string | null;
+  description: string;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
   question_count: number;
   completion_count: number;
-  ai_provider?: string | null;
-  ai_model?: string | null;
-  ai_prompt?: string | null;
+  ai_provider?: string;
+  ai_model?: string;
+  ai_prompt?: string;
   created_at: string;
   updated_at: string;
 }
@@ -65,12 +63,12 @@ interface Option {
 
 interface AssessmentForm {
   title: string;
-  description: string | null;
+  description: string;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
-  ai_provider: string | null;
-  ai_model: string | null;
-  ai_prompt: string | null;
+  ai_provider: string;
+  ai_model: string;
+  ai_prompt: string;
   questions: Question[];
 }
 
@@ -82,21 +80,18 @@ export const AssessmentManager: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<string>('all');
   
-  // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isAICreatorOpen, setIsAICreatorOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   
-  // Form state
   const [assessmentForm, setAssessmentForm] = useState<AssessmentForm>({
     title: '',
-    description: null,
+    description: '',
     type: 'quiz',
     visibility: 'private',
-    ai_provider: null,
-    ai_model: null,
-    ai_prompt: null,
+    ai_provider: 'openai',
+    ai_model: 'gpt-4o-mini',
+    ai_prompt: '',
     questions: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,14 +111,14 @@ export const AssessmentManager: React.FC = () => {
 
       if (error) throw error;
 
-      const assessmentsWithCounts: Assessment[] = (data || []).map((assessment) => ({
+      const assessmentsWithCounts = data?.map((assessment: any) => ({
         ...assessment,
-        question_count: (assessment.assessment_questions as unknown as { count: number }[])?.[0]?.count || 0,
-        completion_count: Math.floor(Math.random() * 100) // TODO: Get real completion count
-      }));
+        question_count: assessment.assessment_questions?.[0]?.count || 0,
+        completion_count: Math.floor(Math.random() * 100)
+      })) || [];
 
-      setAssessments(assessmentsWithCounts);
-      setFilteredAssessments(assessmentsWithCounts);
+      setAssessments(assessmentsWithCounts as Assessment[]);
+      setFilteredAssessments(assessmentsWithCounts as Assessment[]);
     } catch (error) {
       console.error('Error fetching assessments:', error);
       toast({
@@ -146,7 +141,7 @@ export const AssessmentManager: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter(a => 
         a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        a.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -164,12 +159,12 @@ export const AssessmentManager: React.FC = () => {
   const resetForm = () => {
     setAssessmentForm({
       title: '',
-      description: null,
+      description: '',
       type: 'quiz',
       visibility: 'private',
-      ai_provider: null,
-      ai_model: null,
-      ai_prompt: null,
+      ai_provider: 'openai',
+      ai_model: 'gpt-4o-mini',
+      ai_prompt: '',
       questions: []
     });
   };
@@ -277,8 +272,8 @@ export const AssessmentManager: React.FC = () => {
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
         _ai_prompt: assessmentForm.ai_prompt,
-        _questions: assessmentForm.questions,
-        _created_by: null // This RPC function doesn't have _created_by, setting to null or removing if not needed
+        _questions: assessmentForm.questions as unknown as Json,
+        _created_by: null
       });
 
       if (error) throw error;
@@ -302,12 +297,11 @@ export const AssessmentManager: React.FC = () => {
       description: assessment.description,
       type: assessment.type,
       visibility: assessment.visibility,
-      ai_provider: assessment.ai_provider || null,
-      ai_model: assessment.ai_model || null,
-      ai_prompt: assessment.ai_prompt || null,
-      questions: [] // TODO: Load questions from database
+      ai_provider: assessment.ai_provider || 'openai',
+      ai_model: assessment.ai_model || 'gpt-4o-mini',
+      ai_prompt: assessment.ai_prompt || '',
+      questions: []
     });
-    // setIsEditDialogOpen(true);
   };
 
   const handleView = async (assessment: Assessment) => {
@@ -338,7 +332,7 @@ export const AssessmentManager: React.FC = () => {
     try {
       const { error } = await supabase
         .from('assessments')
-        .insert({
+        .insert([{
           title: `${assessment.title} (Copy)`,
           description: assessment.description,
           type: assessment.type,
@@ -346,7 +340,7 @@ export const AssessmentManager: React.FC = () => {
           ai_provider: assessment.ai_provider,
           ai_model: assessment.ai_model,
           ai_prompt: assessment.ai_prompt
-        } as TablesInsert<'assessments'>); // Explicitly type insert
+        }]);
 
       if (error) throw error;
 
@@ -377,7 +371,6 @@ export const AssessmentManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card className="glass-strong">
         <CardHeader>
           <div className="flex justify-between items-start">
@@ -395,13 +388,9 @@ export const AssessmentManager: React.FC = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
-              <Button onClick={() => setIsAICreatorOpen(true)} className="bg-gradient-primary hover:bg-gradient-primary/90">
-                <Wand2 className="w-4 h-4 mr-2" />
-                AI Generator
-              </Button>
               <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-gradient-primary">
                 <Plus className="w-4 h-4 mr-2" />
-                Create Manual
+                Create Assessment
               </Button>
             </div>
           </div>
@@ -442,7 +431,6 @@ export const AssessmentManager: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Assessments Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredAssessments.map((assessment) => (
           <Card key={assessment.id} className="glass-strong hover:glass-glow transition-all">
@@ -543,7 +531,6 @@ export const AssessmentManager: React.FC = () => {
         </Card>
       )}
 
-      {/* Create Assessment Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto glass-strong">
           <DialogHeader>
@@ -591,7 +578,7 @@ export const AssessmentManager: React.FC = () => {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  value={assessmentForm.description || ''}
+                  value={assessmentForm.description}
                   onChange={(e) => setAssessmentForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe what this assessment measures..."
                   rows={3}
@@ -718,7 +705,7 @@ export const AssessmentManager: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>AI Provider</Label>
-                  <Select value={assessmentForm.ai_provider || ''} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_provider: value }))}>
+                  <Select value={assessmentForm.ai_provider} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_provider: value }))}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -731,7 +718,7 @@ export const AssessmentManager: React.FC = () => {
                 </div>
                 <div>
                   <Label>AI Model</Label>
-                  <Select value={assessmentForm.ai_model || ''} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_model: value }))}>
+                  <Select value={assessmentForm.ai_model} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_model: value }))}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -748,7 +735,7 @@ export const AssessmentManager: React.FC = () => {
               <div>
                 <Label>AI Prompt</Label>
                 <Textarea
-                  value={assessmentForm.ai_prompt || ''}
+                  value={assessmentForm.ai_prompt}
                   onChange={(e) => setAssessmentForm(prev => ({ ...prev, ai_prompt: e.target.value }))}
                   placeholder="Enter custom prompt for AI generation..."
                   rows={4}
@@ -779,7 +766,6 @@ export const AssessmentManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* View Assessment Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl glass-strong">
           <DialogHeader>
@@ -835,29 +821,7 @@ export const AssessmentManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* AI Content Builder Dialog */}
-      <Dialog open={isAICreatorOpen} onOpenChange={setIsAICreatorOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto glass-strong">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              AI Assessment Generator
-            </DialogTitle>
-            <DialogDescription>
-              Generate assessments, quizzes, and personality tests using AI
-            </DialogDescription>
-          </DialogHeader>
-          
-          <AIContentBuilder onAssessmentCreated={fetchAssessments} />
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAICreatorOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AIContentBuilder onAssessmentCreated={fetchAssessments} />
     </div>
   );
 };

@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Database, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 export type VoiceAgentConfig = Tables<'voice_agent_configs'>;
-type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
-type VoiceAgentConfigUpdate = TablesUpdate<'voice_agent_configs'>;
 
 export const useVoiceAgentConfig = () => {
   const [configs, setConfigs] = useState<VoiceAgentConfig[]>([]);
@@ -36,7 +34,7 @@ export const useVoiceAgentConfig = () => {
   const addConfig = async (config: Omit<TablesInsert<'voice_agent_configs'>, 'id' | 'created_at'>) => {
     const { data, error: addErr } = await supabase
       .from('voice_agent_configs')
-      .insert(config)
+      .insert([config])
       .select();
     if (addErr) throw addErr;
     if (data) setConfigs(prev => [data[0], ...prev]);

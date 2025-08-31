@@ -82,7 +82,7 @@ export const Features = () => {
               <Button 
                 variant="hero" 
                 size="lg"
-                onClick={() => navigate("/mobile-assessment-hub")}
+                onClick={() => navigate("/mobile-assessment")}
                 className="transform hover:scale-105 transition-all duration-300"
               >
                 Start Free Discovery Session

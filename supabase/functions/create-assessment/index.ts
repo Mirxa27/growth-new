@@ -1,6 +1,4 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,14 +19,12 @@ interface CreateAssessmentPayload {
   targetAudience?: string;
 }
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -41,7 +37,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Verify authentication and admin access
     const auth = req.headers.get('Authorization');
     if (!auth) {
       return new Response(
@@ -60,7 +55,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -76,7 +70,6 @@ Deno.serve(async (req: Request) => {
 
     const payload: CreateAssessmentPayload = await req.json();
 
-    // Validate required fields
     if (!payload.topic || !payload.type || !payload.provider || !payload.model) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: topic, type, provider, model' }),
@@ -84,7 +77,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Build AI prompt based on content type
     const questionCount = payload.questionCount || 10;
     const difficulty = payload.difficulty || 'intermediate';
     const category = payload.category || 'general';
@@ -226,7 +218,6 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
         break;
     }
 
-    // Call AI service based on provider
     let generatedContent;
     
     if (payload.provider === 'openai') {
@@ -264,7 +255,6 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
       throw new Error(`Provider ${payload.provider} not yet implemented`);
     }
 
-    // Save the generated content to database
     const { data: assessmentId, error: saveError } = await supabase
       .rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
@@ -285,7 +275,6 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
       throw new Error(`Failed to save assessment: ${saveError.message}`);
     }
 
-    // Log the generation for admin tracking
     await supabase
       .from('admin_logs')
       .insert({

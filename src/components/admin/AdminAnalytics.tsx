@@ -13,11 +13,6 @@ import {
   Brain,
   Award
 } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
-
-type Profile = Tables<'profiles'>;
-type Exploration = Tables<'explorations'>;
-type ExplorationSession = Tables<'exploration_sessions'>;
 
 interface AnalyticsData {
   totalUsers: number;
@@ -55,14 +50,12 @@ export const AdminAnalytics = () => {
     try {
       setLoading(true);
 
-      // Fetch user statistics
       const { data: userStats, error: userError } = await supabase
         .from('profiles')
         .select('created_at, last_login_at');
 
       if (userError) throw userError;
 
-      // Fetch exploration statistics
       const { data: explorationSessions, error: explorationError } = await supabase
         .from('exploration_sessions')
         .select(`
@@ -77,21 +70,19 @@ export const AdminAnalytics = () => {
 
       if (explorationError) throw explorationError;
 
-      // Process the data
       const totalUsers = userStats?.length || 0;
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
-      const activeUsers = userStats?.filter(user => 
+      const activeUsers = userStats?.filter((user: any) => 
         user.last_login_at && new Date(user.last_login_at).getTime() > thirtyDaysAgo.getTime()
       ).length || 0;
 
-      const completedExplorations = explorationSessions?.filter(session => 
+      const completedExplorations = explorationSessions?.filter((session: any) => 
         session.status === 'completed'
       ).length || 0;
 
-      // Calculate popular explorations with real ratings
-      const explorationCounts = (explorationSessions || []).reduce((acc, session) => {
+      const explorationCounts = (explorationSessions || []).reduce((acc, session: any) => {
         if (session.status === 'completed' && session.explorations) {
           const exploration = session.explorations;
           const key = exploration.id;
@@ -105,8 +96,7 @@ export const AdminAnalytics = () => {
             };
           }
           acc[key].completions++;
-          // Add rating if available, otherwise use a baseline rating
-          const rating = 4.0; // Assuming rating might be on session or a default
+          const rating = 4.0;
           acc[key].totalRating += rating;
           acc[key].avgRating = acc[key].totalRating / acc[key].completions;
         }
@@ -117,8 +107,7 @@ export const AdminAnalytics = () => {
         .sort((a: any, b: any) => b.completions - a.completions)
         .slice(0, 5);
 
-      // Calculate category statistics
-      const categoryStats = (explorationSessions || []).reduce((acc, session) => {
+      const categoryStats = (explorationSessions || []).reduce((acc, session: any) => {
         if (session.explorations) {
           const exploration = session.explorations;
           const category = exploration.category || 'other';
@@ -143,20 +132,17 @@ export const AdminAnalytics = () => {
         avgCompletion: stat.count > 0 ? (stat.completed / stat.count) * 100 : 0
       }));
 
-      // Generate real user growth data from database
       const userGrowthData = Array.from({ length: 7 }, (_, i) => {
         const date = new Date(now.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
         const dayStart = new Date(date.setHours(0, 0, 0, 0)).toISOString();
         const dayEnd = new Date(date.setHours(23, 59, 59, 999)).toISOString();
         
-        // Count users created on this day
-        const newUsers = userStats?.filter(user => {
+        const newUsers = userStats?.filter((user: any) => {
           if (!user.created_at) return false;
           const userDate = new Date(user.created_at);
           return userDate >= new Date(dayStart) && userDate <= new Date(dayEnd);
         }).length || 0;
         
-        // Estimate active users based on recent activity (this could be enhanced with activity tracking)
         const activeUsers = Math.max(newUsers, Math.floor(totalUsers * 0.1));
         
         return {
@@ -170,7 +156,7 @@ export const AdminAnalytics = () => {
         totalUsers,
         activeUsers,
         completedExplorations,
-        totalCrystalsEarned: completedExplorations * 150, // Base calculation - could be enhanced with actual crystal tracking
+        totalCrystalsEarned: completedExplorations * 150,
         popularExplorations: popularExplorations as any,
         userGrowthData,
         explorationStats: explorationStatsByCategory

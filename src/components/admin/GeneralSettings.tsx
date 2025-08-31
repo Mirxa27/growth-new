@@ -8,13 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, Settings, AlertCircle } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
-import { TablesInsert } from '@/integrations/supabase/types';
 
 interface SettingsMap {
   [key: string]: any;
 }
-
-type PlatformSettingInsert = TablesInsert<'platform_settings'>;
 
 export const GeneralSettings: React.FC = () => {
   const [settings, setSettings] = useState<SettingsMap>({});
@@ -101,7 +98,6 @@ export const GeneralSettings: React.FC = () => {
           <CardDescription>Manage platform-wide settings and configurations.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Maintenance Mode */}
           <Card className="glass">
             <CardHeader>
               <CardTitle className="text-lg">Maintenance Mode</CardTitle>
@@ -135,7 +131,6 @@ export const GeneralSettings: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* New User Settings */}
           <Card className="glass">
             <CardHeader>
               <CardTitle className="text-lg">New User Settings</CardTitle>
@@ -150,7 +145,7 @@ export const GeneralSettings: React.FC = () => {
                 </Label>
                 <Switch
                   id="enable-signups"
-                  checked={settings.enable_signups !== false} // default to true
+                  checked={settings.enable_signups !== false}
                   onCheckedChange={(checked) => handleSettingChange('enable_signups', checked)}
                 />
               </div>
@@ -167,7 +162,6 @@ export const GeneralSettings: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Danger Zone */}
           <Card className="border-red-500/50 glass">
             <CardHeader>
               <CardTitle className="text-lg text-red-500 flex items-center gap-2">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -374,18 +375,97 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
     return recommendations;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (answers.length < questions.length) {
       alert("Please answer all questions before submitting.");
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const results = calculateResults();
-      onComplete(results);
+
+    try {
+      // Build payload expected by the submit-result Edge Function
+      const payload = {
+        assessment_id: assessment.id,
+        answers: answers.map(a => ({
+          question_id: a.questionId,
+          value: a.answer
+        })),
+        time_taken_seconds: Math.floor((new Date().getTime() - startTime.getTime()) / 1000),
+        meta: {
+          source: 'web-free-assessment'
+        }
+      };
+
+      // Prefer using Supabase Functions client; fallback to fetch if unavailable
+      let responseData: any = null;
+      try {
+        // supabase.functions.invoke returns { data, error } in the client library
+        // Use invoke to call the Edge Function named "submit-result"
+        // @ts-ignore - functions might not be typed in all environments
+        const fn = (supabase as any).functions?.invoke
+          ? await (supabase as any).functions.invoke('submit-result', { body: JSON.stringify(payload) })
+          : null;
+
+        if (fn && fn.data) {
+          responseData = typeof fn.data === 'string' ? JSON.parse(fn.data) : fn.data;
+        } else if (fn && fn.error) {
+          throw fn.error;
+        } else {
+          // Fallback: call the direct Supabase Functions URL
+          const SUPABASE_URL = (supabase as any).url || '';
+          const SUPABASE_KEY = (supabase as any).anonKey || '';
+          const resp = await fetch(`${SUPABASE_URL.replace(/\\/$/, '')}/functions/v1/submit-result`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_KEY
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(`Function call failed: ${resp.status} ${text}`);
+          }
+          responseData = await resp.json();
+        }
+      } catch (fnErr) {
+        console.error('Function invocation failed, attempting direct DB insert as fallback:', fnErr);
+        // Fallback: compute locally and save for authenticated users (best-effort)
+        const localResults = calculateResults();
+        if ((supabase as any) && (assessment.visibility !== 'public')) {
+          // Try to persist via recommended insert if user is authenticated (not guaranteed)
+          try {
+            const insertPayload: any = {
+              assessment_id: assessment.id,
+              assessment_results: localResults,
+              score_total: localResults.scores?.totalScore ?? 0
+            };
+            // Only attempt insert if user object available via supabase.auth
+            // @ts-ignore
+            const { data: authUser } = await (supabase as any).auth.getUser();
+            if (authUser?.user?.id) {
+              await (supabase as any).from('assessment_results').insert({
+                ...insertPayload,
+                user_id: authUser.user.id
+              });
+            }
+          } catch (insertErr) {
+            console.warn('Fallback insert failed:', insertErr);
+          }
+        }
+        // Use local results as response
+        responseData = { success: true, generated: localResults, fallback: true };
+      }
+
+      // Normalize and pass to onComplete
+      onComplete(responseData);
+    } catch (error) {
+      console.error('Submission error:', error);
+      alert('Failed to submit assessment. Please try again later.');
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const renderQuestion = () => {

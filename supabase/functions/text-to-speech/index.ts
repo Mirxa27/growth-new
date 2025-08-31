@@ -1,21 +1,11 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6'; // Added createClient import
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -34,7 +24,6 @@ serve(async (req) => {
 
     console.log('Generating speech for text:', text.substring(0, 50) + '...')
 
-    // Generate speech from text using OpenAI TTS
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
@@ -56,13 +45,11 @@ serve(async (req) => {
       throw new Error(`OpenAI TTS API error: ${response.status} ${errorText}`)
     }
 
-    // Convert audio buffer to base64
     const arrayBuffer = await response.arrayBuffer()
     const uint8Array = new Uint8Array(arrayBuffer)
     
-    // Convert to base64 in chunks to avoid memory issues
     let binary = ''
-    const chunkSize = 0x8000 // 32KB chunks
+    const chunkSize = 0x8000
     
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
       const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length))

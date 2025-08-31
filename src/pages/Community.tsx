@@ -8,13 +8,11 @@ import {
   Sparkles,
   Lock,
   TrendingUp,
-  Heart,
-  MessageSquare // Added MessageSquare import
+  Heart
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommunityPosts } from '@/components/community/CommunityPosts';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
 
 interface TrendingTopic {
   name: string;
@@ -37,7 +35,6 @@ const Community = () => {
 
   const loadCommunityData = async () => {
     try {
-      // Load trending topics from database
       const { data: topicsData, error: topicsError } = await supabase
         .from('community_posts')
         .select('tags')
@@ -48,8 +45,8 @@ const Community = () => {
 
       if (topicsData) {
         const tagCounts: Record<string, number> = {};
-        topicsData.forEach(post => {
-          post.tags?.forEach(tag => {
+        topicsData.forEach((post: any) => {
+          post.tags?.forEach((tag: string) => {
             tagCounts[tag] = (tagCounts[tag] || 0) + 1;
           });
         });
@@ -62,7 +59,6 @@ const Community = () => {
         setTrendingTopics(sortedTopics);
       }
 
-      // Load community stats
       const { count: membersCount, error: membersError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
@@ -223,15 +219,15 @@ const Community = () => {
               <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{communityStats.activeMembers.toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">Active Members</div>
+                  <p className="text-sm text-muted-foreground">Active Members</p>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-secondary">{communityStats.postsToday}</div>
-                  <div className="text-sm text-muted-foreground">Posts Today</div>
+                  <p className="text-sm text-muted-foreground">Posts Today</p>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-accent">{communityStats.positiveMood}%</div>
-                  <div className="text-sm text-muted-foreground">Positive Mood</div>
+                  <p className="text-sm text-muted-foreground">Positive Mood</p>
                 </div>
               </CardContent>
             </Card>

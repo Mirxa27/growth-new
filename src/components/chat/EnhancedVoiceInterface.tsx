@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mic, MicOff, Volume2, Loader2, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, Volume2, Loader2, MessageSquare, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { RealtimeVoiceChat } from '@/utils/RealtimeVoiceChat';
@@ -40,7 +40,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   onMessage
 }) => {
   const { toast } = useToast();
-  const [isConnected, ] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -48,31 +48,30 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   const [aiResponse, setAiResponse] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [messages, setMessages] = useState<VoiceChatMessage[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   
   const voiceChatRef = useRef<RealtimeVoiceChat | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>();
 
-  const handleMessage = (data: RealtimeEvent) => { // Explicitly type data
-    // Handle different message types from the WebSocket
+  const handleMessage = (data: RealtimeEvent) => {
     if (data.type === 'response.audio_transcript.delta' && data.delta) {
       const message: VoiceChatMessage = {
         id: Date.now().toString(),
         type: 'assistant',
-        content: data.delta.text || '', // Access text property
+        content: data.delta.text || '',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, message]);
       onMessage?.(message);
-      setAiResponse(data.delta.text || ''); // Access text property
+      setAiResponse(data.delta.text || '');
       setTimeout(() => setAiResponse(''), 5000);
     }
   };
 
   const handleTranscript = (text: string, isFinal: boolean) => {
     setUserTranscript(text);
-    // Clear transcript after a delay only for final transcripts
     if (isFinal) {
       setTimeout(() => setUserTranscript(''), 3000);
     }
@@ -81,13 +80,14 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   const handleSpeakingChange = (speaking: boolean) => {
     setIsSpeaking(speaking);
     if (speaking) {
-      setAiResponse(''); // Clear any previous response when speaking starts
+      setAiResponse('');
     }
   };
 
   const startVoiceChat = async () => {
     try {
       setIsConnecting(true);
+      setConnectionStatus('connecting');
       
       voiceChatRef.current = new RealtimeVoiceChat(
         handleMessage,
@@ -96,6 +96,8 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
       );
 
       await voiceChatRef.current.connect();
+      setIsConnected(true);
+      setConnectionStatus('connected');
       await startAudioMonitoring();
 
       toast({
@@ -106,11 +108,14 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     } catch (error) {
       console.error('Error starting voice chat:', error);
       setIsConnecting(false);
+      setConnectionStatus('disconnected');
       toast({
         title: "Connection Failed",
         description: "Please check your microphone permissions and try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -121,6 +126,8 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     }
     
     stopAudioMonitoring();
+    setIsConnected(false);
+    setConnectionStatus('disconnected');
     setIsRecording(false);
     setUserTranscript('');
     setAiResponse('');
@@ -136,8 +143,10 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
 
     try {
       if (isRecording) {
+        voiceChatRef.current.stopRecording();
         setIsRecording(false);
       } else {
+        voiceChatRef.current.startRecording();
         setIsRecording(true);
       }
     } catch (error) {
@@ -185,7 +194,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     setAudioLevel(0);
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (voiceChatRef.current) {
@@ -195,18 +203,9 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     };
   }, []);
 
-  const startVoiceChat = async () => {
-    await connectToOpenAI();
-  };
-
-  const endVoiceChat = () => {
-    disconnect();
-  };
-
   return (
     <ErrorBoundary>
       <div className={cn("space-y-6", className)}>
-        {/* Main Voice Interface */}
         <Card className="glass-card border-glass">
           <CardHeader className="text-center pb-4">
             <CardTitle className="flex items-center justify-center gap-2">
@@ -223,12 +222,8 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Main Voice Interface */}
             <div className="flex flex-col items-center space-y-4">
-              
-              {/* Connection Status & Main Button */}
               <div className="relative">
-                {/* Glow Rings */}
                 {isConnected && (
                   <>
                     <div className={cn(
@@ -251,7 +246,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                   </>
                 )}
 
-                {/* Main Button */}
                 <Button
                   onClick={isConnected ? toggleRecording : startVoiceChat}
                   disabled={isConnecting}
@@ -302,7 +296,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                   </div>
                 </Button>
 
-                {/* Audio Level Indicator */}
                 {isRecording && (
                   <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
                     <div className="flex space-x-1">
@@ -320,10 +313,9 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Status & Instructions */}
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <Badge variant={isConnected ? "default" : "secondary"} className="glass">
+                  <Badge variant={isConnected ? "default" : "secondary"}>
                     {isConnected ? "Connected" : "Disconnected"}
                   </Badge>
                   {isRecording && <Badge variant="outline">Recording</Badge>}
@@ -356,7 +348,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                 </p>
               </div>
 
-              {/* Disconnect Button */}
               {isConnected && (
                 <Button
                   onClick={endVoiceChat}
@@ -371,7 +362,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
           </CardContent>
         </Card>
 
-        {/* Live Transcripts */}
         {(userTranscript || aiResponse) && (
           <div className="space-y-4">
             {userTranscript && (
@@ -408,7 +398,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
           </div>
         )}
 
-        {/* Conversation History */}
         {messages.length > 0 && (
           <Card className="glass-card border-glass">
             <CardContent className="p-4">

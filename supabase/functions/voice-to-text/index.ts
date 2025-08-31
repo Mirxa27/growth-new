@@ -1,15 +1,11 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6'; // Added createClient import
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Process base64 in chunks to prevent memory issues
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
   const chunks: Uint8Array[] = [];
   let position = 0;
@@ -39,12 +35,6 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
   return result;
 }
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -59,18 +49,15 @@ serve(async (req) => {
 
     console.log('Processing audio transcription request...');
 
-    // Process audio in chunks to prevent memory issues
     const binaryAudio = processBase64Chunks(audio);
     
-    // Prepare form data for OpenAI Whisper
     const formData = new FormData();
     const blob = new Blob([binaryAudio], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
-    formData.append('language', 'en'); // Set to English for better accuracy
+    formData.append('language', 'en');
     formData.append('response_format', 'json');
 
-    // Send to OpenAI Whisper
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {

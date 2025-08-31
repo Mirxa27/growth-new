@@ -1,4 +1,3 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -80,7 +79,6 @@ async function fetchOpenAIModels(apiKey: string, endpointUrl?: string): Promise<
 }
 
 async function fetchElevenLabsData(apiKey: string): Promise<{ models: ElevenLabsModel[]; voices: ElevenLabsVoice[] }> {
-  // Fetch models
   const modelsResponse = await fetch('https://api.elevenlabs.io/v1/models', {
     headers: {
       'xi-api-key': apiKey,
@@ -94,7 +92,6 @@ async function fetchElevenLabsData(apiKey: string): Promise<{ models: ElevenLabs
 
   const modelsData: ElevenLabsModel[] = await modelsResponse.json();
 
-  // Fetch voices
   const voicesResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
     headers: {
       'xi-api-key': apiKey,
@@ -127,7 +124,6 @@ async function fetchElevenLabsData(apiKey: string): Promise<{ models: ElevenLabs
 }
 
 async function fetchGoogleVertexData(_apiKey: string): Promise<{ models: any[]; voices: any[] }> {
-  // Google Vertex AI models (static list as they require OAuth)
   return {
     models: [
       { id: 'gemini-pro', name: 'Gemini Pro', description: 'Advanced text generation', capabilities: ['text', 'chat'] },

@@ -2,28 +2,27 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
   Trash2,
   Edit,
-  Star,
-  EyeOff,
-  Eye,
   Save,
-  X
+  X,
+  BookOpen,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Database } from '@/integrations/supabase/types';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
-type LibraryItem = Database['public']['Tables']['library_items']['Row'];
-type LibraryItemInsert = Database['public']['Tables']['library_items']['Insert'];
+type LibraryItem = Tables<'library_items'>;
+type LibraryItemInsert = TablesInsert<'library_items'>;
 
 export const LibraryManager: React.FC = () => {
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -36,11 +35,18 @@ export const LibraryManager: React.FC = () => {
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('library_items').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('library_items')
+        .select('*')
+        .order('created_at', { ascending: false });
       if (error) throw error;
       setItems(data || []);
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to fetch library items: ${error.message}`, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: `Failed to fetch library items: ${error.message}`,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -52,31 +58,46 @@ export const LibraryManager: React.FC = () => {
 
   const handleOpenDialog = (item: LibraryItem | null = null) => {
     setEditingItem(item);
-    setFormData(item ? { ...item } : { title: '', description: '', content_type: 'article', difficulty_level: 'beginner', is_published: false, is_featured: false, is_premium: false });
+    setFormData(item ? { ...item } : { 
+      title: '', 
+      content_type: 'article', 
+      is_published: false 
+    });
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
     try {
-      const { error } = await supabase.from('library_items').upsert(formData as LibraryItemInsert);
+      const { error } = await supabase.from('library_items').upsert([formData as LibraryItemInsert]);
       if (error) throw error;
-      toast({ title: "Success", description: `Library item ${editingItem ? 'updated' : 'created'}` });
+      toast({ title: "Success", description: `Item ${editingItem ? 'updated' : 'created'}` });
       setIsDialogOpen(false);
       fetchItems();
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to save item: ${error.message}`, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: `Failed to save item: ${error.message}`,
+        variant: "destructive"
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
-      const { error } = await supabase.from('library_items').delete().eq('id', id);
+      const { error } = await supabase
+        .from('library_items')
+        .delete()
+        .eq('id', id);
       if (error) throw error;
-      toast({ title: "Success", description: "Library item deleted" });
+      toast({ title: "Success", description: "Item deleted" });
       fetchItems();
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to delete item: ${error.message}`, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: `Failed to delete item: ${error.message}`,
+        variant: "destructive"
+      });
     }
   };
 
@@ -84,10 +105,14 @@ export const LibraryManager: React.FC = () => {
     try {
       const { error } = await supabase.from('library_items').update({ [field]: !value }).eq('id', id);
       if (error) throw error;
-      toast({ title: "Success", description: `Item status updated` });
+      toast({ title: "Success", description: "Item status updated" });
       fetchItems();
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to update status: ${error.message}`, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: `Failed to update status: ${error.message}`,
+        variant: "destructive"
+      });
     }
   };
 
@@ -98,8 +123,16 @@ export const LibraryManager: React.FC = () => {
   return (
     <div className="space-y-6">
       <Card className="glass-strong">
-        <CardHeader><div className="flex justify-between items-center"><CardTitle>Library Manager</CardTitle><Button onClick={() => handleOpenDialog()}><Plus className="w-4 h-4 mr-2" />Add New Item</Button></div><CardDescription>Manage all content in the resource library.</CardDescription></CardHeader>
-        <CardContent><Input placeholder="Search library items..." className="glass-input" /></CardContent>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Library Manager</CardTitle>
+            <Button onClick={() => handleOpenDialog()}><Plus className="w-4 h-4 mr-2" />Add New Item</Button>
+          </div>
+          <CardDescription>Manage all content in the resource library.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Input placeholder="Search library items..." className="glass-input" />
+        </CardContent>
       </Card>
 
       <div className="space-y-4">
@@ -108,12 +141,12 @@ export const LibraryManager: React.FC = () => {
             <CardContent className="p-4 flex justify-between items-center">
               <div>
                 <h3 className="font-semibold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>
-                <div className="flex gap-2 mt-2"><Badge variant="outline">{item.content_type}</Badge><Badge variant="secondary">{item.category}</Badge><Badge variant="secondary">{item.difficulty_level}</Badge>{item.is_premium && <Badge variant="destructive">Premium</Badge>}</div>
+                <p className="text-sm text-muted-foreground">{item.content_type}</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => handleToggle(item.id, 'is_featured', item.is_featured)}>{item.is_featured ? <Star className="w-4 h-4 text-yellow-500 fill-current" /> : <Star className="w-4 h-4" />}</Button>
-                <Button variant="ghost" size="sm" onClick={() => handleToggle(item.id, 'is_published', item.is_published)}>{item.is_published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleToggle(item.id, 'is_published', item.is_published)}>
+                  {item.is_published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(item)}><Edit className="w-4 h-4" /></Button>
                 <Button variant="destructive" size="sm" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
               </div>
@@ -123,19 +156,41 @@ export const LibraryManager: React.FC = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="glass-strong"><DialogHeader><DialogTitle>{editingItem ? 'Edit' : 'Create'} Library Item</DialogTitle><DialogDescription>Fill in the details for the library content.</DialogDescription></DialogHeader>
+        <DialogContent className="glass-strong">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Edit' : 'Create'} Library Item</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>Title</Label><Input value={formData.title || ''} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="glass-input" /></div>
-            <div className="space-y-2"><Label>Description</Label><Textarea value={formData.description || ''} onChange={e => setFormData(p => ({...p, description: e.target.value}))} className="glass-input" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Content Type</Label><Select value={formData.content_type} onValueChange={(v: any) => setFormData(p => ({...p, content_type: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="article">Article</SelectItem><SelectItem value="audio">Audio</SelectItem><SelectItem value="video">Video</SelectItem><SelectItem value="exercise">Exercise</SelectItem><SelectItem value="meditation">Meditation</SelectItem><SelectItem value="course">Course</SelectItem></SelectContent></Select></div>
-              <div className="space-y-2"><Label>Difficulty</Label><Select value={formData.difficulty_level} onValueChange={(v: any) => setFormData(p => ({...p, difficulty_level: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="beginner">Beginner</SelectItem><SelectItem value="intermediate">Intermediate</SelectItem><SelectItem value="advanced">Advanced</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={formData.title || ''} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="glass-input" />
             </div>
-            <div className="flex items-center space-x-2"><Switch id="is_published" checked={formData.is_published} onCheckedChange={c => setFormData(p => ({...p, is_published: c}))} /><Label htmlFor="is_published">Published</Label></div>
-            <div className="flex items-center space-x-2"><Switch id="is_featured" checked={formData.is_featured} onCheckedChange={c => setFormData(p => ({...p, is_featured: c}))} /><Label htmlFor="is_featured">Featured</Label></div>
-            <div className="flex items-center space-x-2"><Switch id="is_premium" checked={formData.is_premium} onCheckedChange={c => setFormData(p => ({...p, is_premium: c}))} /><Label htmlFor="is_premium">Premium</Label></div>
+            <div className="space-y-2">
+              <Label>Content Type</Label>
+              <Select value={formData.content_type} onValueChange={(v: any) => setFormData(p => ({...p, content_type: v}))}>
+                <SelectTrigger className="glass"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="article">Article</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                  <SelectItem value="audio">Audio</SelectItem>
+                  <SelectItem value="exercise">Exercise</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea value={formData.description || ''} onChange={e => setFormData(p => ({...p, description: e.target.value}))} className="glass-input" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="is_published" checked={formData.is_published} onCheckedChange={c => setFormData(p => ({...p, is_published: c}))} />
+              <Label htmlFor="is_published">Published</Label>
+            </div>
           </div>
-        <DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)}><X className="w-4 h-4 mr-2" />Cancel</Button><Button onClick={handleSave} className="bg-gradient-primary"><Save className="w-4 h-4 mr-2" />Save</Button></DialogFooter></DialogContent>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}><X className="w-4 h-4 mr-2" />Cancel</Button>
+            <Button onClick={handleSave} className="bg-gradient-primary"><Save className="w-4 h-4 mr-2" />Save</Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );

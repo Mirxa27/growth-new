@@ -5,10 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, Mic, AlertCircle } from 'lucide-react';
-import { Tables, TablesUpdate } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 
 type VoiceConfig = Tables<'voice_agent_configs'>;
-type VoiceConfigUpdate = TablesUpdate<'voice_agent_configs'>;
 
 export const VoiceAgentTrainer: React.FC = () => {
   const [config, setConfig] = useState<VoiceConfig | null>(null);

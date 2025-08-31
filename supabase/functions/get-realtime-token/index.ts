@@ -1,6 +1,4 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,14 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -28,7 +24,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Verify authentication
     const auth = req.headers.get('Authorization');
     if (!auth) {
       return new Response(
@@ -55,7 +50,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create realtime session token
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
@@ -119,7 +113,6 @@ Remember: You're speaking with someone who has chosen to invest in their persona
 
     const sessionData = await response.json();
 
-    // Log session creation for monitoring
     await supabase
       .from('voice_sessions')
       .insert({

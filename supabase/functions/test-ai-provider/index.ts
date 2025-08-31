@@ -1,8 +1,6 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// Removed: import { Database } from '../../types'; // This import is not resolvable in Deno Edge Functions
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,7 +47,6 @@ async function testOpenAIProvider(apiKey: string, endpoint?: string): Promise<an
 }
 
 async function testElevenLabsProvider(apiKey: string): Promise<any> {
-  // Test with a simple TTS request
   const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
     method: 'POST',
     headers: {
@@ -112,7 +109,6 @@ async function testAnthropicProvider(apiKey: string): Promise<any> {
   };
 }
 
-// Instantiating Supabase client without explicit Database typing for Deno Edge Function compatibility
 const supabaseClient = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -130,7 +126,6 @@ serve(async (req) => {
       throw new Error('Provider ID is required');
     }
 
-    // Get provider details
     const { data: provider, error } = await supabaseClient
       .from('admin_ai_providers')
       .select('*')
@@ -141,7 +136,6 @@ serve(async (req) => {
       throw new Error('Provider not found');
     }
 
-    // Use the OpenAI API key from Supabase secrets for OpenAI providers
     let apiKey = provider.api_key;
     if (provider.provider_type === 'openai' && !apiKey) {
       apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -176,7 +170,6 @@ serve(async (req) => {
     const endTime = Date.now();
     const responseTime = endTime - startTime;
 
-    // Update provider test results
     await supabaseClient
       .from('admin_ai_providers')
       .update({

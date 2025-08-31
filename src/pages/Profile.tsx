@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesUpdate } from '@/integrations/supabase/types';
 
 type ProfileRow = Tables<'profiles'>;
-type ProfileUpdate = TablesUpdate<'profiles'>;
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -120,13 +119,11 @@ const Profile = () => {
       if (!user) return;
       const file = e.target.files?.[0];
       if (!file) return;
-      // Upload to Supabase storage (bucket: avatars)
       const path = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
-      // update profile
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', user.id);
       if (updateError) throw updateError;
       setProfile(p => ({ ...p, avatar_url: publicUrl }));
@@ -134,7 +131,6 @@ const Profile = () => {
     } catch (e: any) {
       toast({ title: 'Upload failed', description: e.message, variant: 'destructive' });
     } finally {
-      // reset input value so same file can be chosen again
       (e.target as HTMLInputElement).value = '';
     }
   };
@@ -164,7 +160,7 @@ const Profile = () => {
   const handleDeleteAccount = async () => {
     if (!window.confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) return;
     try {
-      const { data, error } = await supabase.functions.invoke('account-management', {
+      const { error } = await supabase.functions.invoke('account-management', {
         body: { action: 'delete', confirm: true }
       });
       if (error) throw error;

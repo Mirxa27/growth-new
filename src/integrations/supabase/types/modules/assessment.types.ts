@@ -228,6 +228,16 @@ export type AssessmentTables = {
       show_correct_answers: boolean;
       created_at: string;
       updated_at: string;
+      quiz_questions: { // Added missing property
+        id: string;
+        question_text: string;
+        points?: number;
+        quiz_question_options: {
+          id: string;
+          option_text: string;
+          is_correct: boolean;
+        }[];
+      }[];
     };
     Insert: {
       id?: string;
