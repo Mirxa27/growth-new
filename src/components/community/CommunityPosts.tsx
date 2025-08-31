@@ -78,8 +78,8 @@ export const CommunityPosts = () => {
         created_at: post.created_at,
         tags: post.tags || [],
         user_profile: {
-          display_name: post.profiles.display_name || 'Anonymous',
-          avatar_url: post.profiles.avatar_url
+          display_name: post.profiles?.display_name || 'Anonymous',
+          avatar_url: post.profiles?.avatar_url
         }
       }));
 
@@ -136,8 +136,8 @@ export const CommunityPosts = () => {
         created_at: newPostData.created_at,
         tags: newPostData.tags || [],
         user_profile: {
-          display_name: (newPostData as any).profiles.display_name || 'Anonymous',
-          avatar_url: (newPostData as any).profiles.avatar_url
+          display_name: (newPostData as any).profiles?.display_name || user.user_metadata.display_name || 'Anonymous',
+          avatar_url: (newPostData as any).profiles?.avatar_url
         }
       };
 
@@ -291,7 +291,7 @@ export const CommunityPosts = () => {
         <Card className="glass-card border-glass">
           <CardContent className="p-4 text-center">
             <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-              <MessageSquare className="w-4 h-4 text-secondary" />
+              <MessageCircle className="w-4 h-4 text-secondary" />
             </div>
             <p className="text-2xl font-bold text-secondary">{posts.length}</p>
             <p className="text-xs text-muted-foreground">Total Posts</p>

@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
 
 interface GeneratedQuestion {
   question_text: string;
@@ -40,6 +41,7 @@ interface GeneratedContent {
 
 export const AIContentBuilder = () => {
   const { toast } = useToast();
+  const { user } = useAuth(); // Use the auth hook
   const [topic, setTopic] = useState('');
   const [type, setType] = useState<'quiz' | 'personality'>('personality');
   const [questionCount, setQuestionCount] = useState(10);
@@ -83,7 +85,7 @@ export const AIContentBuilder = () => {
   };
 
   const saveAssessment = async () => {
-    if (!generatedContent) return;
+    if (!generatedContent || !user) return; // Ensure user is logged in
     setIsSaving(true);
 
     try {
@@ -92,10 +94,11 @@ export const AIContentBuilder = () => {
         _description: generatedContent.description,
         _type: type,
         _visibility: visibility,
-        _ai_provider: 'openai',
-        _ai_model: 'gpt-4o-mini',
-        _ai_prompt: `Generated assessment on the topic: ${topic}`,
-        _questions: JSON.stringify(generatedContent.questions)
+        _ai_provider: assessmentForm.ai_provider, // Use form data for AI provider
+        _ai_model: assessmentForm.ai_model,     // Use form data for AI model
+        _ai_prompt: assessmentForm.ai_prompt,   // Use form data for AI prompt
+        _questions: generatedContent.questions as any,
+        _created_by: user.id // Pass the user's ID
       });
 
       if (error) throw error;

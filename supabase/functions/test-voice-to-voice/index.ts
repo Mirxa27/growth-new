@@ -1,3 +1,4 @@
+/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -73,7 +74,7 @@ async function testElevenLabsVoice(config: VoiceTestConfig): Promise<any> {
   });
 
   if (!response.ok) {
-    throw new Error(`ElevenLabs error: ${response.statusText}`);
+    throw new Error(`ElevenLabs API error: ${response.statusText}`);
   }
 
   const audioBuffer = await response.arrayBuffer();
