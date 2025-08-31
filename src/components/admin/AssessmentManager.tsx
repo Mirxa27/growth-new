@@ -28,18 +28,18 @@ import {
 } from 'lucide-react';
 
 interface Assessment {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
+  created_at: string;
+  updated_at: string;
   question_count: number;
   completion_count: number;
   ai_provider?: string;
   ai_model?: string;
   ai_prompt?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface Question {
@@ -111,7 +111,7 @@ export const AssessmentManager: React.FC = () => {
 
       if (error) throw error;
 
-      const assessmentsWithCounts = data?.map((assessment: any) => ({
+      const assessmentsWithCounts = data?.map((assessment) => ({
         ...assessment,
         question_count: assessment.assessment_questions?.[0]?.count || 0,
         completion_count: Math.floor(Math.random() * 100) // TODO: Get real completion count
@@ -309,7 +309,7 @@ export const AssessmentManager: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this assessment?')) return;
     
     try {

@@ -24,6 +24,9 @@ import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
 import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
 import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigManager';
+import { VoicePlayground } from '@/components/admin/VoicePlayground';
+import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
+import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
 import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
@@ -516,7 +519,18 @@ const AdminDashboard: React.FC = () => {
       case 'content':
         return <ContentChallengeManager />;
       case 'voice':
-        return <VoiceAgentConfigManager />;
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <VoiceAgentConfigManager />
+              <VoicePlayground />
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <VoiceTestingInterface />
+              <VoiceAgentTrainer />
+            </div>
+          </div>
+        );
       case 'ai-content':
         return <AIContentBuilder />;
       case 'settings':

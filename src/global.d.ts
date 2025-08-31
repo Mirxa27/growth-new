@@ -7,3 +7,7 @@ declare namespace Deno {
   ): void;
   function upgradeWebSocket(req: Request): { socket: WebSocket; response: Response };
 }
+
+// Add Deno global types for Supabase Edge Functions
+/// <reference lib="deno.ns" />
+/// <reference lib="deno.unstable" />

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { 
   User, 
@@ -25,6 +25,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -38,6 +39,7 @@ const Profile = () => {
     phone: '',
     location: '',
     bio: '',
+    avatar_url: '',
     joinDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
     personalityType: '',
     crystalsEarned: 0,
@@ -54,16 +56,92 @@ const Profile = () => {
   });
 
   const handleSaveProfile = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      if (!user) return;
+      setIsLoading(true);
+      const { error } = await supabase.from('profiles' as any).update({
+        display_name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        location: profile.location,
+        bio: profile.bio,
+        avatar_url: profile.avatar_url || null,
+      }).eq('id', user.id);
+      if (error) throw error;
       setIsEditing(false);
-      toast({
-        title: "Profile updated!",
-        description: "Your changes have been saved successfully.",
+      toast({ title: 'Profile updated!', description: 'Your changes have been saved successfully.' });
+    } catch (e: any) {
+      toast({ title: 'Update failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fileInputId = 'avatar-upload-input';
+
+  const handleAvatarClick = () => {
+    const el = document.getElementById(fileInputId) as HTMLInputElement | null;
+    el?.click();
+  };
+
+  const handleAvatarSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!user) return;
+      const file = e.target.files?.[0];
+      if (!file) return;
+      // Upload to Supabase storage (bucket: avatars)
+      const path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = pub?.publicUrl;
+      // update profile
+      const { error: updateError } = await supabase.from('profiles' as any).update({ avatar_url: publicUrl }).eq('id', user.id);
+      if (updateError) throw updateError;
+      setProfile(p => ({ ...p, avatar_url: publicUrl }));
+      toast({ title: 'Photo updated', description: 'Your profile photo has been updated.' });
+    } catch (e: any) {
+      toast({ title: 'Upload failed', description: e.message, variant: 'destructive' });
+    } finally {
+      // reset input value so same file can be chosen again
+      (e.target as HTMLInputElement).value = '';
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('account-management', {
+        body: { action: 'export' }
       });
-    }, 1000);
+      if (error) throw error;
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0,10);
+      a.href = url;
+      a.download = `newomen-data-${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Export ready', description: 'Your data export has been downloaded.' });
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) return;
+    try {
+      const { error } = await supabase.functions.invoke('account-management', {
+        body: { action: 'delete', confirm: true }
+      });
+      if (error) throw error;
+      toast({ title: 'Account deleted', description: 'Your account has been removed.' });
+      await signOut();
+    } catch (e: any) {
+      toast({ title: 'Deletion failed', description: e.message, variant: 'destructive' });
+    }
   };
 
   const achievements = [
@@ -100,6 +178,7 @@ const Profile = () => {
                   <div className="flex flex-col items-center">
                     <div className="relative">
                       <Avatar className="w-24 h-24">
+                        {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.name} />}
                         <AvatarFallback className="bg-gradient-primary text-white text-2xl">
                           {profile.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
@@ -107,10 +186,11 @@ const Profile = () => {
                       <Button
                         size="sm"
                         className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
-                        onClick={() => toast({ title: "Feature coming soon!", description: "Photo upload will be available soon." })}
+                        onClick={handleAvatarClick}
                       >
                         <Camera className="w-4 h-4" />
                       </Button>
+                      <input id={fileInputId} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelected} />
                     </div>
                     <Badge className="mt-3 bg-primary/20 text-primary">
                       {profile.personalityType}
@@ -354,20 +434,8 @@ const Profile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button
-                  onClick={() => toast({ title: "Feature coming soon!", description: "Export functionality will be available soon." })}
-                  variant="outline"
-                  className="w-full glass"
-                >
-                  Export My Data
-                </Button>
-                <Button
-                  onClick={() => toast({ title: "Feature coming soon!", description: "Account deletion will be available soon." })}
-                  variant="outline"
-                  className="w-full text-destructive hover:bg-destructive/10"
-                >
-                  Delete Account
-                </Button>
+                <Button onClick={handleExportData} variant="outline" className="w-full glass">Export My Data</Button>
+                <Button onClick={handleDeleteAccount} variant="outline" className="w-full text-destructive hover:bg-destructive/10">Delete Account</Button>
               </CardContent>
             </Card>
           </TabsContent>

@@ -41,15 +41,7 @@ const Auth = () => {
     const { name, email, password } = Object.fromEntries(new FormData(event.currentTarget));
 
     try {
-      const { error } = await signUp({
-        email: email as string,
-        password: password as string,
-        options: {
-          data: {
-            full_name: name as string,
-          }
-        }
-      });
+      const { error } = await signUp(email as string, password as string);
       if (error) throw error;
       toast({ title: "Success", description: "Account created. Please check your email to verify." });
     } catch (error: any) {

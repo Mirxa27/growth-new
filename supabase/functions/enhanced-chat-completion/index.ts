@@ -1,4 +1,3 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -11,14 +10,9 @@ interface ChatRequest {
   message: string;
   conversationId?: string;
   context?: {
-    isExploration?: boolean;
-    explorationId?: string;
-    sessionId?: string;
-    phase?: 'facilitation' | 'analysis';
-    facilitatorPrompt?: string;
-    higherSelfPrompt?: string;
-    userAnswers?: string[];
-    analysisStructure?: any;
+    personality_type?: string;
+    emotional_state?: any;
+    memory?: any;
   };
 }
 

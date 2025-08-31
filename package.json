@@ -20,7 +20,7 @@
     "@types/react": "^18.3.24",
     "@types/react-dom": "latest",
     "@types/validator": "latest",
-    "@vitejs/plugin-react": "latest",
+    "@vitejs/plugin-react": "^4.3.1",
     "comment-json": "latest",
     "env-cmd": "latest",
     "eslint": "latest",
@@ -30,7 +30,7 @@
     "rollup": "latest",
     "typescript": "^5.0.0",
     "typescript-eslint": "latest",
-    "vite": "latest",
+    "vite": "^5.3.1",
     "vite-plugin-static-copy": "latest",
     "vite-tsconfig-paths": "latest",
     "vitest": "^3.2.4"
