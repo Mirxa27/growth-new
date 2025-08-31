@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Sparkles } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -61,7 +61,7 @@ export const Navigation = () => {
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+              <img src="/symbol.svg" alt="Newomen Logo" className="w-6 h-6" />
             </div>
             <span className="text-xl font-bold text-hero bg-gradient-primary bg-clip-text text-transparent">
               Newomen

@@ -12,7 +12,6 @@ import {
   BookOpen, 
   Users, 
   Trophy,
-  Sparkles,
   Target,
   Calendar,
   TrendingUp
@@ -89,7 +88,7 @@ const Dashboard = () => {
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-7 h-7" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Welcome back!</h1>

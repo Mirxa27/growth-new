@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
+import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface Assessment {
   id: number;
@@ -43,7 +44,11 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
     fetchAssessments();
   }, [filterPublic]);
 
-  if (loading) return <div className="glass-card p-4 text-center">Loading assessments...</div>;
+  if (loading) return (
+    <div className="glass-card p-4 flex items-center justify-center min-h-[200px]">
+      <LoadingSpinner size="lg" />
+    </div>
+  );
   if (error) return <div className="glass-card p-4 text-red-500">Error: {error}</div>;
   if (!assessments.length) return <div className="glass-card p-4 text-center">No assessments available.</div>;
 

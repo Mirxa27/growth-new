@@ -61,6 +61,7 @@
     "@radix-ui/react-tooltip": "latest",
     "@supabase/supabase-js": "latest",
     "@tanstack/react-query": "latest",
+    "@types/react-router-dom": "^5.3.3",
     "class-variance-authority": "latest",
     "clsx": "^2.1.1",
     "cmdk": "latest",

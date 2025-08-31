@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { 
   Search, 
   TrendingUp,
@@ -97,7 +98,11 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
     }
   };
 
-  if (loading) return <div className="text-center p-8">Loading quizzes...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[300px]">
+      <LoadingSpinner size="lg" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
+import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface Question {
   id: number;
@@ -92,7 +93,11 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
     }
   };
 
-  if (loading) return <div className="glass-card p-4">Loading...</div>;
+  if (loading) return (
+    <div className="glass-card p-4 flex items-center justify-center min-h-[200px]">
+      <LoadingSpinner size="lg" />
+    </div>
+  );
   if (error) return <div className="glass-card p-4 text-red-500">Error: {error}</div>;
   if (submitted) return <div className="glass-card p-4">Assessment submitted! Thank you.</div>;
 

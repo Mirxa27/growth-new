@@ -14,11 +14,10 @@ export const LoadingSpinner = ({ className, size = "md" }: LoadingSpinnerProps) 
 
   return (
     <div className={cn("flex items-center justify-center", className)}>
-      <div
-        className={cn(
-          "animate-spin rounded-full border-2 border-primary/20 border-t-primary",
-          sizeClasses[size]
-        )}
+      <img
+        src="/loader.svg"
+        alt="Loading..."
+        className={cn("animate-spin", sizeClasses[size])}
       />
     </div>
   )
