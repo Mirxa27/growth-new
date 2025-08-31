@@ -29,8 +29,8 @@
     "typescript": "^5.0.0",
     "typescript-eslint": "latest",
     "vite": "latest",
-    "vite-plugin-static-copy": "^1.2.15",
-    "vite-tsconfig-paths": "^1.2.8"
+    "vite-plugin-static-copy": "latest",
+    "vite-tsconfig-paths": "latest"
   },
   "dependencies": {
     "@kombai/react-error-boundary": "latest",
