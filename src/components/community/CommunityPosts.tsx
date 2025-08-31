@@ -1,22 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MessageSquare, 
-  Plus, 
   Heart, 
   Share2, 
-  Edit,
-  Trash2,
+  Send,
   Users,
-  TrendingUp,
-  Eye,
-  Send
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -63,7 +58,7 @@ export const CommunityPosts = () => {
           comments_count,
           tags,
           created_at,
-          profiles!inner(display_name, avatar_url)
+          profiles (display_name, avatar_url)
         `)
         .eq('is_approved', true)
         .eq('visibility', 'public')
@@ -73,7 +68,7 @@ export const CommunityPosts = () => {
       if (error) throw error;
 
       // Transform data to match component interface
-      const transformedPosts: CommunityPost[] = postsData.map(post => ({
+      const transformedPosts: CommunityPost[] = (postsData as any[]).map(post => ({
         id: post.id,
         user_id: post.user_id,
         content: post.content,
@@ -124,7 +119,7 @@ export const CommunityPosts = () => {
           comments_count,
           tags,
           created_at,
-          profiles!inner(display_name, avatar_url)
+          profiles (display_name, avatar_url)
         `)
         .single();
 
@@ -141,8 +136,8 @@ export const CommunityPosts = () => {
         created_at: newPostData.created_at,
         tags: newPostData.tags || [],
         user_profile: {
-          display_name: newPostData.profiles.display_name || 'Anonymous',
-          avatar_url: newPostData.profiles.avatar_url
+          display_name: (newPostData as any).profiles.display_name || 'Anonymous',
+          avatar_url: (newPostData as any).profiles.avatar_url
         }
       };
 
@@ -169,7 +164,7 @@ export const CommunityPosts = () => {
   const likePost = async (postId: string) => {
     try {
       // Increment likes count in database
-      const { error } = await supabase.rpc('increment_post_likes', { post_id: postId });
+      const { error } = await (supabase as any).rpc('increment_post_likes', { post_id: postId });
 
       if (error) throw error;
 

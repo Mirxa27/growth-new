@@ -1,3 +1,4 @@
+/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
 
 const corsHeaders = {
@@ -262,7 +263,7 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
     }
 
     // Save the generated content to database
-    const { data: assessmentId, error: saveError } = await supabase
+    const { data: assessmentId, error: saveError } = await (supabase as any)
       .rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
         _description: generatedContent.description,
@@ -284,7 +285,7 @@ ${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''
 
     // Log the generation for admin tracking
     await supabase
-      .from('admin_logs')
+      .from('admin_logs' as any)
       .insert({
         admin_id: user.id,
         action: 'AI_CONTENT_GENERATED',

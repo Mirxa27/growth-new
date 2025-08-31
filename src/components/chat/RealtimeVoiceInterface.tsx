@@ -12,7 +12,6 @@ import {
   Heart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
 interface RealtimeVoiceInterfaceProps {
   onMessage?: (message: any) => void;
@@ -40,8 +39,6 @@ export const RealtimeVoiceInterface = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [userTranscript, setUserTranscript] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-
-  const { toast } = useToast();
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -96,10 +93,6 @@ export const RealtimeVoiceInterface = ({
         
         startRecording();
         
-        toast({
-          title: "Connected! 🎙️",
-          description: "Voice conversation is ready. Start speaking!",
-        });
       };
       
       ws.onmessage = (event) => {
@@ -116,11 +109,6 @@ export const RealtimeVoiceInterface = ({
         setConnectionStatus('disconnected');
         setIsConnected(false);
         setIsConnecting(false);
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to voice service. Please try again.",
-          variant: "destructive"
-        });
       };
       
       ws.onclose = () => {
@@ -138,13 +126,8 @@ export const RealtimeVoiceInterface = ({
       console.error('Failed to connect to OpenAI:', error);
       setConnectionStatus('disconnected');
       setIsConnecting(false);
-      toast({
-        title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Could not establish voice connection. Please check your settings.",
-        variant: "destructive"
-      });
     }
-  }, [connectionStatus, isConnected, toast]);
+  }, [connectionStatus, isConnected]);
 
   // Handle realtime events from OpenAI
   const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
@@ -188,16 +171,11 @@ export const RealtimeVoiceInterface = ({
         
       case 'error':
         console.error('OpenAI Realtime API error:', event.error);
-        toast({
-          title: "Voice Error",
-          description: event.error?.message || "An error occurred during voice processing.",
-          variant: "destructive"
-        });
         break;
     }
 
     onMessage?.(event);
-  }, [onMessage, toast]);
+  }, [onMessage]);
 
   // Audio playback
   const playQueuedAudio = useCallback(async () => {
@@ -282,13 +260,8 @@ export const RealtimeVoiceInterface = ({
       
     } catch (error) {
       console.error('Failed to start recording:', error);
-      toast({
-        title: "Microphone Error",
-        description: "Could not access microphone. Please check your permissions.",
-        variant: "destructive"
-      });
     }
-  }, [isConnected, toast]);
+  }, [isConnected]);
 
   // Initialize audio context
   const initializeAudioContext = useCallback(async () => {
@@ -318,11 +291,7 @@ export const RealtimeVoiceInterface = ({
     setIsSpeaking(false);
     setUserTranscript('');
     
-    toast({
-      title: "Disconnected",
-      description: "Voice conversation ended.",
-    });
-  }, [toast]);
+  }, []);
 
   // Initialize on mount
   useEffect(() => {

@@ -1,25 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Users, 
   Search,
-  Plus,
   Sparkles,
-  Globe,
   Lock,
-  TrendingUp
+  TrendingUp,
+  Heart
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { CommunityPosts } from '@/components/community/CommunityPosts';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
 
 interface TrendingTopic {
   name: string;
@@ -27,8 +21,6 @@ interface TrendingTopic {
 }
 
 const Community = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('feed');
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);

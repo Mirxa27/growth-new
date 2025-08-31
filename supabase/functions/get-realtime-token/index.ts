@@ -1,3 +1,4 @@
+/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
 
 const corsHeaders = {
@@ -118,7 +119,7 @@ Remember: You're speaking with someone who has chosen to invest in their persona
 
     // Log session creation for monitoring
     await supabase
-      .from('voice_sessions')
+      .from('voice_sessions' as any)
       .insert({
         user_id: user.id,
         session_id: sessionData.id,

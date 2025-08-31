@@ -13,7 +13,6 @@ import {
   Users, 
   Trophy,
   Sparkles,
-  ArrowRight,
   Target,
   Calendar,
   TrendingUp

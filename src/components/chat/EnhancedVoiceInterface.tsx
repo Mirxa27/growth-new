@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mic, MicOff, Volume2, VolumeX, Loader2, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, Volume2, Loader2, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { RealtimeVoiceChat } from '@/utils/RealtimeVoiceChat';
@@ -14,7 +14,6 @@ interface VoiceChatMessage {
   timestamp: Date;
   audioUrl?: string;
 }
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 interface EnhancedVoiceInterfaceProps {
@@ -70,21 +69,6 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
     if (speaking) {
       setAiResponse(''); // Clear any previous response when AI starts speaking
     }
-  };
-
-  const handleConnectionChange = (connected: boolean) => {
-    setIsConnected(connected);
-    setIsConnecting(false);
-  };
-
-  const handleError = (error: Error) => {
-    console.error('Voice chat error:', error);
-    toast({
-      title: "Voice Chat Error",
-      description: error.message,
-      variant: "destructive"
-    });
-    setIsConnecting(false);
   };
 
   const startVoiceChat = async () => {

@@ -106,7 +106,7 @@ Return ONLY valid JSON in this exact format:
   "crystal_reward": ${Math.max(50, duration * 2)}
 }`;
 
-      const { data, error } = await supabase.functions.invoke('enhanced-chat-completion', {
+      const { data, error } = await (supabase.functions as any).invoke('enhanced-chat-completion', {
         body: {
           messages: [
             {

@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { 
   User, 
@@ -16,17 +15,12 @@ import {
   Bell, 
   Shield, 
   Trophy,
-  Calendar,
   Edit,
   Save,
   Camera,
   Mail,
   Phone,
-  MapPin,
-  Sparkles,
-  Target,
-  Heart,
-  Brain
+  MapPin
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

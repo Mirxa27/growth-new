@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +64,7 @@ export const CommunitySearch = () => {
         .or(`requester_id.eq.${currentUserId},requested_id.eq.${currentUserId}`);
 
       if (error) throw error;
-      setConnections((data || []).map(conn => ({
+      setConnections((data as any[] || []).map(conn => ({
         ...conn,
         status: conn.status as 'pending' | 'accepted'
       })));

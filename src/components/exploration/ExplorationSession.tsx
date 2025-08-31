@@ -3,17 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Compass, 
   ArrowLeft, 
   ArrowRight, 
   CheckCircle,
-  Brain,
-  Heart,
-  Sparkles,
   Clock,
+  Sparkles,
   Target
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -21,20 +18,13 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-interface ExplorationQuestion {
-  id: string;
-  question: string;
-  type: 'reflection' | 'choice' | 'scale';
-  options?: string[];
-}
-
 interface Exploration {
   id: string;
   title: string;
   description: string;
   estimated_duration: number;
   crystal_reward: number;
-  questions: ExplorationQuestion[];
+  questions: string[];
 }
 
 interface ExplorationResponse {
@@ -66,7 +56,6 @@ const ExplorationSession = () => {
     try {
       setIsLoading(true);
       
-      // Load exploration from database
       const { data: explorationData, error: explorationError } = await supabase
         .from('explorations')
         .select('*')
@@ -75,26 +64,16 @@ const ExplorationSession = () => {
 
       if (explorationError) throw explorationError;
 
-      // Load questions for this exploration
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('exploration_questions')
-        .select('*')
-        .eq('exploration_id', explorationId)
-        .order('order_index', { ascending: true });
-
-      if (questionsError) throw questionsError;
-
       const explorationWithQuestions: Exploration = {
         ...explorationData,
-        questions: questionsData || []
+        questions: Array.isArray(explorationData.questions) ? explorationData.questions as string[] : []
       };
 
       setExploration(explorationWithQuestions);
 
-      // Check if user has an existing response
       if (user) {
         const { data: existingResponse } = await supabase
-          .from('exploration_responses')
+          .from('exploration_responses' as any)
           .select('*')
           .eq('exploration_id', explorationId)
           .eq('user_id', user.id)
@@ -104,7 +83,6 @@ const ExplorationSession = () => {
           setResponseId(existingResponse.id);
           setAnswers(existingResponse.responses || {});
           
-          // Check if already completed
           if (existingResponse.completed_at) {
             setIsComplete(true);
           }
@@ -124,11 +102,8 @@ const ExplorationSession = () => {
   };
 
   const handleAnswerChange = (value: string) => {
-    if (!exploration) return;
-    const questionId = exploration.questions[currentQuestion]?.id;
-    if (questionId) {
-      setAnswers({ ...answers, [questionId]: value });
-    }
+    const questionId = currentQuestion.toString();
+    setAnswers({ ...answers, [questionId]: value });
   };
 
   const saveProgress = async () => {
@@ -144,12 +119,12 @@ const ExplorationSession = () => {
 
       if (responseId) {
         await supabase
-          .from('exploration_responses')
+          .from('exploration_responses' as any)
           .update(responseData)
           .eq('id', responseId);
       } else {
         const { data, error } = await supabase
-          .from('exploration_responses')
+          .from('exploration_responses' as any)
           .insert(responseData)
           .select()
           .single();
@@ -187,16 +162,14 @@ const ExplorationSession = () => {
     try {
       await saveProgress();
       
-      // Mark as completed
       if (responseId) {
         await supabase
-          .from('exploration_responses')
+          .from('exploration_responses' as any)
           .update({ completed_at: new Date().toISOString() })
           .eq('id', responseId);
       }
 
-      // Award crystals to user
-      await supabase.rpc('increment_user_crystals', {
+      await (supabase as any).rpc('increment_user_crystals', {
         user_id: user.id,
         amount: exploration.crystal_reward
       });
@@ -274,7 +247,7 @@ const ExplorationSession = () => {
 
   const progress = ((currentQuestion + 1) / exploration.questions.length) * 100;
   const currentQuestionData = exploration.questions[currentQuestion];
-  const currentAnswer = answers[currentQuestionData?.id] || '';
+  const currentAnswer = answers[currentQuestion.toString()] || '';
   const canProceed = currentAnswer.trim().length > 0;
 
   return (
@@ -324,34 +297,15 @@ const ExplorationSession = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <h2 className="text-lg font-medium leading-relaxed">
-              {currentQuestionData?.question}
+              {currentQuestionData}
             </h2>
 
-            {currentQuestionData?.type === 'reflection' && (
-              <Textarea
-                placeholder="Take your time to reflect and share your thoughts..."
-                value={currentAnswer}
-                onChange={(e) => handleAnswerChange(e.target.value)}
-                className="glass min-h-[150px]"
-              />
-            )}
-
-            {currentQuestionData?.type === 'choice' && currentQuestionData.options && (
-              <div className="space-y-3">
-                {currentQuestionData.options.map((option, index) => (
-                  <Button
-                    key={index}
-                    variant={currentAnswer === option ? "default" : "outline"}
-                    className={`w-full text-left justify-start p-4 h-auto ${
-                      currentAnswer === option ? "bg-gradient-primary" : "glass"
-                    }`}
-                    onClick={() => handleAnswerChange(option)}
-                  >
-                    {option}
-                  </Button>
-                ))}
-              </div>
-            )}
+            <Textarea
+              placeholder="Take your time to reflect and share your thoughts..."
+              value={currentAnswer}
+              onChange={(e) => handleAnswerChange(e.target.value)}
+              className="glass min-h-[150px]"
+            />
 
             <div className="text-sm text-muted-foreground">
               💡 Take your time to reflect deeply. There are no right or wrong answers.

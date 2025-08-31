@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -9,17 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   BookOpen, 
   Search, 
-  Filter,
   Play,
   Clock,
   Star,
   Bookmark,
   Download,
-  Heart,
-  Brain,
-  Sparkles,
   Target,
-  Users,
   Headphones,
   FileText,
   Video
@@ -43,7 +37,6 @@ interface LibraryItem {
 }
 
 const Library = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -145,7 +138,7 @@ const Library = () => {
       setLibraryItems(items);
       setLoading(false);
     }, 1000);
-  }, [user, toast]);
+  }, [toast]);
 
   const categories = [
     'all',
