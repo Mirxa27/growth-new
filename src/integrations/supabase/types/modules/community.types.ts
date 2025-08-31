@@ -1,5 +1,4 @@
-import { Json } from '../../types'; // Adjusted path
-
+// No Json import needed here, it's defined in the root types.ts
 export type CommunityTables = {
   community_posts: {
     Row: {

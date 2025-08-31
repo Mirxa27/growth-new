@@ -1,4 +1,3 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // Simple in-memory rate limiting for demonstration

@@ -1,3 +1,4 @@
+/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -6,6 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface ExplorationContext {
+  isExploration: boolean;
+  phase: 'facilitation' | 'analysis';
+  facilitatorPrompt?: string;
+  higherSelfPrompt?: string;
+  userAnswers?: string[];
+}
+
 interface ChatRequest {
   message: string;
   conversationId?: string;
@@ -13,7 +22,7 @@ interface ChatRequest {
     personality_type?: string;
     emotional_state?: any;
     memory?: any;
-  };
+  } & Partial<ExplorationContext>; // Extend context with optional ExplorationContext properties
 }
 
 serve(async (req) => {

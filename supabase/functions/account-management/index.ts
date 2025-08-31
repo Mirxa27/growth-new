@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       if (!confirm) {
         return new Response(JSON.stringify({ error: 'Confirmation required' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
       await deleteAccount(user.id)

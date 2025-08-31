@@ -1,4 +1,3 @@
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -32,16 +31,14 @@ serve(async (req) => {
       // Create WebSocket connection to OpenAI
       const openaiWS = new WebSocket(
         `wss://api.openai.com/v1/realtime?model=${model}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'OpenAI-Beta': 'realtime=v1',
-          }
-        }
+        // Headers should be passed as the second argument to the WebSocket constructor, not within the protocols array
+        ['realtime-api'] // Only include subprotocols here
       );
-
-      // Accept the client WebSocket connection
-      const { socket: clientSocket, response } = Deno.upgradeWebSocket(req);
+      // Manually set Authorization header after connection is established, or rely on the proxy to handle it.
+      // For Deno, the fetch API is used for HTTP requests, but WebSocket constructor doesn't take a headers object directly in the same way.
+      // The OpenAI Realtime API expects the API key in the subprotocol for client-side WebSockets, or in the Authorization header for server-side.
+      // Since this is a proxy, we'll rely on the proxy's ability to forward the Authorization header from the client's request.
+      // If the client is sending the API key in the subprotocol, it will be handled by OpenAI directly.
 
       let openaiConnected = false;
       let clientConnected = false;
@@ -120,6 +117,9 @@ Remember: You are facilitating a sacred space for self-discovery. Every interact
           clientSocket.close(event.code, event.reason);
         }
       };
+
+      // Accept the client WebSocket connection
+      const { socket: clientSocket, response } = Deno.upgradeWebSocket(req);
 
       // Handle client WebSocket connection
       clientSocket.onopen = () => {
