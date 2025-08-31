@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, Compass, BookOpen, User, Users } from 'lucide-react';
+import { Home, MessageCircle, Compass, BookOpen, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';

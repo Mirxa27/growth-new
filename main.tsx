@@ -1,4 +1,4 @@
-import React, { StrictMode } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import Example from './src/App.preview'
 import KombaiWrapper from './KombaiWrapper'

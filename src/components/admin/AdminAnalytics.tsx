@@ -11,7 +11,7 @@ import {
   TrendingUp, 
   Star, 
   Brain,
-  Timer,
+  
   Award
 } from 'lucide-react';
 
@@ -146,7 +146,7 @@ export const AdminAnalytics = () => {
         const dayEnd = new Date(date.setHours(23, 59, 59, 999)).toISOString();
         
         // Count users created on this day
-        const newUsers = userData?.filter(user => {
+        const newUsers = userStats?.filter(user => {
           if (!user.created_at) return false;
           const userDate = new Date(user.created_at);
           return userDate >= new Date(dayStart) && userDate <= new Date(dayEnd);
