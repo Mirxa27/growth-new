@@ -403,176 +403,60 @@ const AdminDashboard: React.FC = () => {
                 className="h-20 flex flex-col space-y-2 glass"
                 onClick={() => setActiveSection('voice')}
               >
-                <Mic className="h-6 w-6" />
-                <span>Configure Voice</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col space-y-2 glass"
-                onClick={() => setActiveSection('ai-content')}
-              >
-                <Sparkles className="h-6 w-6" />
-                <span>Content Builder</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col space-y-2 glass"
-                onClick={() => setActiveSection('community')}
-              >
-                <MessageSquare className="h-6 w-6" />
-                <span>Community</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <Mic className<dyad-problem-report summary="2 problems">
+<problem file="supabase/functions/submit-result/index.ts" line="1" column="30" code="2307">Cannot find module 'https://esm.sh/@supabase/supabase-js@2.39.6' or its corresponding type declarations.</problem>
+<problem file="supabase/functions/realtime-voice-session/index.ts" line="2" column="23" code="2307">Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.</problem>
+</dyad-problem-report><think>**Addressing TypeScript Errors**
 
-        {/* Recent Activity */}
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Live activity feed from across the platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {overviewData.recentActivity.length > 0 ? (
-                overviewData.recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-3 p-2 rounded-lg glass">
-                    <div className="flex-shrink-0">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-sm">{activity.message}</span>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <span className="text-xs text-muted-foreground">
-                        {formatTimeAgo(activity.timestamp)}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No recent activity to display</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
+I'm currently focused on the `TS 2307` error surfacing in my Supabase Edge Functions. The compiler seems to be having trouble locating specific modules. I suspect this stems from the build process or the configuration of my TypeScript environment. Right now, I'm examining my import statements and project structure closely. I also need to ensure that the dependencies are correctly installed and accessible during the build.
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'overview':
-        return renderOverview();
-      case 'analytics':
-        return <AdminAnalytics />;
-      case 'users':
-        return <UserManagement />;
-      case 'assessments':
-        return <AssessmentManager />;
-      case 'library':
-        return <LibraryManager />;
-      case 'community':
-        return <CommunityPostsManager />;
-      case 'content':
-        return <ContentChallengeManager />;
-      case 'voice':
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VoiceAgentConfigManager />
-              <VoicePlayground />
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VoiceTestingInterface />
-              <VoiceAgentTrainer />
-            </div>
-          </div>
-        );
-      case 'ai-content':
-        return <AIContentBuilder />;
-      case 'settings':
-        return <GeneralSettings />;
-      case 'ai-providers':
-        return <AIProviderSettings />;
-      case 'moderation':
-        return <ContentModerationSettings />;
-      default:
-        return renderOverview();
-    }
-  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-      <div className="flex">
-        {/* Sidebar Navigation */}
-        <div className="w-72 glass-strong h-screen overflow-y-auto border-r border-glass">
-          <div className="p-6 border-b border-glass">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => window.location.href = '/'}
-                className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity"
-              >
-                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8" />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold">Newomen.me</h1>
-                <p className="text-sm text-muted-foreground">Admin Dashboard</p>
-              </div>
-            </div>
-          </div>
+**Fixing Module Resolution**
 
-          <nav className="p-4">
-            <div className="space-y-2">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
-                      activeSection === item.id
-                        ? 'glass-strong border border-primary/20 text-primary'
-                        : 'glass hover:glass-strong text-foreground hover:text-primary'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {item.description}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
-        </div>
+I've zeroed in on the module resolution issue within the Supabase Edge Functions. It appears the root cause is the Vite-based build setup clashing with Deno-specific imports. The `TS 2307` error is a dead giveaway. I've decided to refine the approach. Instead of a blanket exclusion, I'm examining a more surgical method. I'm focusing on modifying the `tsconfig.app.json` file to explicitly exclude the `supabase/functions` directory from the main application's type checking. This should prevent the transpiler from stumbling over the Deno imports. I'll then review the provided function files for any other potential issues.
 
-        {/* Main Content */}
-        <div className="flex-1 h-screen overflow-y-auto">
-          <div className="p-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-foreground">
-                {navigationItems.find(item => item.id === activeSection)?.label || 'Overview'}
-              </h2>
-              <p className="text-muted-foreground mt-2">
-                {navigationItems.find(item => item.id === activeSection)?.description}
-              </p>
-            </div>
 
-            {renderContent()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+**Refining Exclusion Strategy**
 
-export default AdminDashboard;
+I'm now implementing the `tsconfig.app.json` modification. This will explicitly exclude the `supabase/functions` directory from the main TypeScript build process. This prevents the TypeScript compiler within the Vite/Node.js environment from attempting to interpret Deno-specific imports, which are the root cause of the `TS 2307` errors. I've re-examined the function files, and the primary issue indeed lies in module resolution. No other immediate problems are apparent. I am now confident that this exclusion is the most direct and effective solution.
+
+
+**Resolving Import Conflicts**
+
+I'm now fully focused on updating the `tsconfig.app.json` file. The goal is to exclude the `supabase/functions` directory from the primary TypeScript build. This prevents the Node.js-based compiler from attempting to resolve Deno imports, which are the root cause of the `TS 2307` errors. I've confirmed this is the only necessary adjustment, given the function files are correctly formatted for a Deno environment. I'm confident in the solution now.
+
+
+**Excluding Deno Functions**
+
+The React app's TypeScript compiler is encountering errors because it's attempting to process Deno-specific code from your Supabase functions. The solution is to update `tsconfig.app.json` to exclude the `supabase/functions` directory from the primary application's TypeScript build process, as shown below.
+
+```json
+{
+  "extends":  "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "jsx": "react-jsx"
+  },
+  "include": ["src"],
+  "exclude": ["supabase/functions"]
+}
+```
+
+</think>Of course. I can fix these TypeScript errors for you.
+
+The problem is that your application's TypeScript compiler is trying to process the code for your Supabase Edge Functions. Since these functions are designed to run in a Deno environment, they use URL imports (`https://...`) which the Vite/Node.js build process doesn't understand.
+
+The solution is to tell the application's TypeScript configuration to ignore the `supabase/functions` directory. I will update your `tsconfig.app.json` to do just that.
+
+<dyad-write path="tsconfig.app.json" description="Excluding Supabase functions from the TypeScript build.">
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "jsx": "react-jsx"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "supabase/functions"]
+}

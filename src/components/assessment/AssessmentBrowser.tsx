@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
+import { getPublicAssessments } from '@/data/assessments';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { Tables } from '@/integrations/supabase/types';
@@ -19,23 +20,53 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
   useEffect(() => {
     const fetchAssessments = async () => {
       setLoading(true);
-      let query = supabase
-        .from('assessments')
-        .select('id, title, description, type')
-        .order('created_at', { ascending: false });
-      
-      if (filterPublic) {
-        query = query.eq('visibility', 'public');
-      }
+      try {
+        let query = supabase
+          .from('assessments')
+          .select('id, title, description, type')
+          .order('created_at', { ascending: false });
 
-      const { data, error } = await query;
+        if (filterPublic) {
+          query = query.eq('visibility', 'public');
+        }
 
-      if (error) {
-        setError(error.message);
-      } else {
-        setAssessments(data || []);
+        const { data, error } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && data.length) {
+          setAssessments(data);
+        } else if (filterPublic) {
+          // Fallback to local seeded public assessments when DB has none or call returns empty
+          const local = getPublicAssessments().map(a => ({
+            id: a.id,
+            title: a.title,
+            description: a.description,
+            type: a.type
+          })) as unknown as Assessment[];
+          setAssessments(local);
+        } else {
+          setAssessments(data || []);
+        }
+      } catch (err: any) {
+        console.warn('Failed to fetch assessments from supabase, falling back to local data.', err?.message || err);
+        if (filterPublic) {
+          const local = getPublicAssessments().map(a => ({
+            id: a.id,
+            title: a.title,
+            description: a.description,
+            type: a.type
+          })) as unknown as Assessment[];
+          setAssessments(local);
+          setError(null);
+        } else {
+          setError((err && err.message) || String(err));
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchAssessments();
   }, [filterPublic]);

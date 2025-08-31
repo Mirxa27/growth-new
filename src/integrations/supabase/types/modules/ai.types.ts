@@ -64,6 +64,10 @@ export type AiTables = {
       provider_type: string | null
       system_prompt: string | null
       updated_at: string | null
+      model: string | null
+      max_tokens: number | null
+      temperature: number | null
+      timeout: number | null
     }
     Insert: {
       api_key?: string | null
@@ -79,6 +83,10 @@ export type AiTables = {
       provider_type?: string | null
       system_prompt?: string | null
       updated_at?: string | null
+      model?: string | null
+      max_tokens?: number | null
+      temperature?: number | null
+      timeout?: number | null
     }
     Update: {
       api_key?: string | null
@@ -94,6 +102,10 @@ export type AiTables = {
       provider_type?: string | null
       system_prompt?: string | null
       updated_at?: string | null
+      model?: string | null
+      max_tokens?: number | null
+      temperature?: number | null
+      timeout?: number | null
     }
     Relationships: []
   }
