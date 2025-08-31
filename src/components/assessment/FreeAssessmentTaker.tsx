@@ -268,15 +268,16 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
   };
 
   const generateInsights = (scores: any, type: string) => {
-    const insights = [];
+    const insights: string[] = [];
     
     switch (type) {
-      case 'personality':
+      case 'personality': {
         const highestTrait = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-        insights.push(`Your strongest personality trait is ${highestTrait} (${scores[highestTrait]} points)`);
+        insights.push(`Your strongest personality trait is ${String(highestTrait)} (${scores[String(highestTrait)]} points)`);
         insights.push(`Your personality suggests ${scores.extroversion > 15 ? 'you thrive in social situations' : 'you prefer meaningful one-on-one interactions'}`);
         insights.push(`You show ${scores.conscientiousness > 15 ? 'high levels of organization and planning' : 'a more spontaneous and flexible approach'}`);
         break;
+      }
       
       case 'mental-health':
         insights.push(`Your mental health score indicates ${scores.level} levels of distress`);
@@ -290,26 +291,29 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
         insights.push(scores.category === 'low' ? 'Your stress management techniques appear effective' : 'You may benefit from additional stress-reduction strategies');
         break;
       
-      case 'career':
+      case 'career': {
         const topCareer = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
         insights.push(`Your strongest career interest is ${topCareer} (${scores[topCareer]} points)`);
         insights.push(`This suggests careers in ${topCareer} fields may be particularly fulfilling for you`);
         insights.push(`Consider exploring roles that leverage your ${topCareer} strengths`);
         break;
+      }
       
-      case 'relationships':
+      case 'relationships': {
         const strongestAspect = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
         insights.push(`Your strongest relationship aspect is ${strongestAspect} (${scores[strongestAspect]} points)`);
         insights.push(`This indicates ${strongestAspect} plays a key role in your relationships`);
         insights.push(`Focus on maintaining strong ${strongestAspect} while working on areas needing improvement`);
         break;
+      }
       
-      case 'skills':
+      case 'skills': {
         const topSkill = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
         insights.push(`Your strongest skill is ${topSkill} (${scores[topSkill]} points)`);
         insights.push(`This skill could be valuable in both professional and personal contexts`);
         insights.push(`Consider how you can further develop and apply your ${topSkill} abilities`);
         break;
+      }
       
       default:
         insights.push('Thank you for completing this assessment');
@@ -320,7 +324,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
   };
 
   const generateRecommendations = (type: string) => {
-    const recommendations = [];
+    const recommendations: string[] = [];
     
     switch (type) {
       case 'personality':

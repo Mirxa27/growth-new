@@ -1,28 +1,3 @@
-/** submit-result Edge Function
- *
- * Validates incoming assessment results, computes server-side scores, optionally
- * enriches results using OpenAI, persists to `assessment_results` table,
- * and returns structured results (summary, insights, recommendations).
- *
- * Required env:
- * - SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE_KEY
- * - (optional) OPENAI_API_KEY
- *
- * Security:
- * - Allows anonymous submissions for public assessments (RLS/migrations already configured).
- * - If client provides Authorization: Bearer <token>, we attempt to resolve the user via Supabase auth.
- *
- * Notes:
- * - This function intentionally performs server-side scoring to avoid trusting client input.
- * - The scoring logic supports:
- *    - multiple_choice (checks assessment_options.is_correct)
- *    - scale (numeric)
- *    - free_text (kept as raw answers, optionally used with AI)
- * - If OPENAI_API_KEY is set, we'll call OpenAI to generate a JSON payload with summary, insights, recommendations.
- */
-
-/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.6";
 
 const corsHeaders = {
@@ -133,7 +108,6 @@ Deno.serve(async (req: Request) => {
 
     // Compute scores
     let totalScore = 0;
-    const scoresByCategory: Record<string, number> = {};
     const perQuestionResults: any[] = [];
 
     for (const ans of answers) {

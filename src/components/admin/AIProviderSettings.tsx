@@ -10,7 +10,6 @@ import {
   Edit,
   Save,
   X,
-  Database,
   TestTube2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';

@@ -123,6 +123,8 @@ export type AssessmentTables = {
       results: Json
       updated_at: string
       user_id: string | null
+      score: number | null
+      assessment_id: number
     }
     Insert: {
       answers: Json
@@ -133,6 +135,8 @@ export type AssessmentTables = {
       results: Json
       updated_at?: string
       user_id?: string | null
+      score?: number | null
+      assessment_id: number
     }
     Update: {
       answers?: Json
@@ -143,6 +147,8 @@ export type AssessmentTables = {
       results?: Json
       updated_at?: string
       user_id?: string | null
+      score?: number | null
+      assessment_id?: number
     }
     Relationships: []
   }
