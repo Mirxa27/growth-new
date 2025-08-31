@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@dyad-sh/react-vite-component-tagger": "^0.8.0",
     "@eslint/js": "^9.21.0",
     "@types/node": "^24.3.0",
     "@types/react": "^18.3.24",
