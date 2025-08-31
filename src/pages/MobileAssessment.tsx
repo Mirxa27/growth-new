@@ -484,8 +484,8 @@ const MobileAssessment = () => {
               <CardContent className="p-8">
                 <h2 className="text-2xl font-bold mb-4">Ready to Begin Your Journey?</h2>
                 <p className="text-muted-foreground mb-6">
-                  Join Newomen to unlock personalized explorations, connect with your AI companion, 
-                  and start your transformation journey today.
+                  Join Newomen to unlock personalized explorations, start guided sessions, 
+                  and begin your transformation journey today.
                 </p>
                 <div className="flex gap-4 justify-center">
                   <Button 

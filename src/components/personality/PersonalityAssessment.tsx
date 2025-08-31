@@ -38,7 +38,7 @@ const personalityQuestions = [
     question: 'What communication style feels most natural to you?',
     options: [
       { value: 'direct', label: 'Direct and straightforward communication' },
-      { value: 'empathetic', label: 'Warm and emotionally aware communication' },
+      { value: 'empathetic', label: 'Warm and socially aware communication' },
       { value: 'thoughtful', label: 'Careful and considered communication' }
     ]
   }

@@ -49,7 +49,7 @@ const Chat = () => {
     // Initialize with welcome message
     const welcomeMessage: Message = {
       id: '1',
-      content: `Hello! I'm NewMe, your AI companion. I'm here to support your personal growth journey. How are you feeling today?`,
+      content: `Hello! I'm NewMe, your growth guide. I'm here to support your personal journey. How are you feeling today?`,
       sender: 'ai',
       timestamp: new Date(),
       type: 'text'
@@ -89,7 +89,7 @@ const Chat = () => {
           messages: [
             {
               role: 'system',
-              content: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. You are warm, empathetic, and insightful. Always respond in a supportive, non-judgmental way. Keep responses concise but meaningful, around 2-3 sentences. Focus on emotional support and gentle guidance.`
+              content: `You are NewMe, a supportive growth guide dedicated to helping women on their journey of self-discovery and personal growth. Be warm, considerate, and insightful. Always respond in a supportive, non-judgmental way. Keep responses concise but meaningful, around 2-3 sentences. Focus on encouragement and gentle guidance.`
             },
             ...messages.map(msg => ({
               role: msg.sender === 'user' ? 'user' : 'assistant',
@@ -106,7 +106,7 @@ const Chat = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get AI response');
+        throw new Error('Failed to get response');
       }
 
       const data = await response.json();
@@ -137,8 +137,8 @@ const Chat = () => {
       
       if (error instanceof Error && error.message.includes('API key')) {
         toast({
-          title: "AI Features Limited",
-          description: "OpenAI API key not configured. Using fallback responses.",
+          title: "Limited Features",
+          description: "API key not configured. Using fallback responses.",
           variant: "default"
         });
       }
@@ -186,11 +186,11 @@ const Chat = () => {
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  NewMe AI Companion
+                  NewMe Growth Guide
                   <Badge className="bg-green-500/10 text-green-500">Online</Badge>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Your personal growth companion
+                  Your personal growth guide
                 </p>
               </div>
             </div>
@@ -372,11 +372,11 @@ const Chat = () => {
           </CardContent>
         </Card>
 
-        {/* AI Capabilities */}
+        {/* Capabilities */}
         <div className="grid md:grid-cols-3 gap-4 mt-6">
           <Card className="glass border-card-border p-4 text-center">
             <Heart className="w-8 h-8 text-primary mx-auto mb-2" />
-            <h4 className="font-semibold text-sm">Emotional Support</h4>
+            <h4 className="font-semibold text-sm">Supportive Conversations</h4>
             <p className="text-xs text-muted-foreground">Empathetic conversations</p>
           </Card>
           

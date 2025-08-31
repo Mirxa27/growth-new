@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,142 +11,132 @@ import {
   Edit,
   Star,
   EyeOff,
-  Eye
+  Eye,
+  Save,
+  X
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Database } from '@/integrations/supabase/types';
 
-interface LibraryItem {
-  id: string;
-  title: string;
-  description: string;
-  content_type: 'article' | 'audio' | 'video';
-  difficulty_level: 'beginner' | 'intermediate' | 'advanced';
-  category: string;
-  tags: string[];
-  is_premium: boolean;
-  is_featured: boolean;
-  is_published: boolean;
-  author: string;
-}
+type LibraryItem = Database['public']['Tables']['library_items']['Row'];
+type LibraryItemInsert = Database['public']['Tables']['library_items']['Insert'];
 
 export const LibraryManager: React.FC = () => {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<LibraryItem | null>(null);
+  const [formData, setFormData] = useState<Partial<LibraryItemInsert>>({});
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('library_items' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from('library_items').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      setItems((data as any) || []);
-    } catch (error) {
-      console.error('Error fetching library items:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch library items",
-        variant: "destructive"
-      });
+      setItems(data || []);
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to fetch library items: ${error.message}`, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const handleOpenDialog = (item: LibraryItem | null = null) => {
+    setEditingItem(item);
+    setFormData(item ? { ...item } : { title: '', description: '', content_type: 'article', difficulty_level: 'beginner', is_published: false, is_featured: false, is_premium: false });
+    setIsDialogOpen(true);
   };
 
-  const handleCreate = async () => {
-    // This would open a form/modal to create a new item
-    toast({ title: "Create new item clicked" });
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('library_items' as any)
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('library_items').upsert(formData as LibraryItemInsert);
       if (error) throw error;
-
-      setItems(items.filter(item => item.id !== id));
-      toast({ title: "Success", description: "Library item deleted" });
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      toast({ title: "Error", description: "Failed to delete item", variant: "destructive" });
+      toast({ title: "Success", description: `Library item ${editingItem ? 'updated' : 'created'}` });
+      setIsDialogOpen(false);
+      fetchItems();
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to save item: ${error.message}`, variant: "destructive" });
     }
   };
 
-  const handleToggleFeature = async (id: string, is_featured: boolean) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) return;
     try {
-      const { error } = await supabase
-        .from('library_items' as any)
-        .update({ is_featured: !is_featured })
-        .eq('id', id);
-
+      const { error } = await supabase.from('library_items').delete().eq('id', id);
       if (error) throw error;
+      toast({ title: "Success", description: "Library item deleted" });
+      fetchItems();
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to delete item: ${error.message}`, variant: "destructive" });
+    }
+  };
 
-      setItems(items.map(item => item.id === id ? { ...item, is_featured: !is_featured } : item));
-      toast({ title: "Success", description: `Item ${!is_featured ? 'featured' : 'unfeatured'}` });
-    } catch (error) {
-      console.error('Error updating feature status:', error);
-      toast({ title: "Error", description: "Failed to update feature status", variant: "destructive" });
+  const handleToggle = async (id: string, field: 'is_published' | 'is_featured' | 'is_premium', value: boolean) => {
+    try {
+      const { error } = await supabase.from('library_items').update({ [field]: !value }).eq('id', id);
+      if (error) throw error;
+      toast({ title: "Success", description: `Item status updated` });
+      fetchItems();
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to update status: ${error.message}`, variant: "destructive" });
     }
   };
 
   if (loading) {
-    return <div className="text-center p-8">Loading library items...</div>;
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
   }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Library Manager</CardTitle>
-            <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" />Add New Item</Button>
-          </div>
-          <CardDescription>Manage all content in the resource library.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Input placeholder="Search library items..." />
-        </CardContent>
+      <Card className="glass-strong">
+        <CardHeader><div className="flex justify-between items-center"><CardTitle>Library Manager</CardTitle><Button onClick={() => handleOpenDialog()}><Plus className="w-4 h-4 mr-2" />Add New Item</Button></div><CardDescription>Manage all content in the resource library.</CardDescription></CardHeader>
+        <CardContent><Input placeholder="Search library items..." className="glass-input" /></CardContent>
       </Card>
 
       <div className="space-y-4">
         {items.map(item => (
-          <Card key={item.id}>
+          <Card key={item.id} className="glass-strong">
             <CardContent className="p-4 flex justify-between items-center">
               <div>
                 <h3 className="font-semibold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-                <div className="flex gap-2 mt-2">
-                  <Badge variant="outline">{item.content_type}</Badge>
-                  <Badge variant="secondary">{item.category}</Badge>
-                  <Badge variant="secondary">{item.difficulty_level}</Badge>
-                  {item.is_premium && <Badge variant="destructive">Premium</Badge>}
-                </div>
+                <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>
+                <div className="flex gap-2 mt-2"><Badge variant="outline">{item.content_type}</Badge><Badge variant="secondary">{item.category}</Badge><Badge variant="secondary">{item.difficulty_level}</Badge>{item.is_premium && <Badge variant="destructive">Premium</Badge>}</div>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => handleToggleFeature(item.id, item.is_featured)}>
-                  {item.is_featured ? <Star className="w-4 h-4 text-yellow-500 fill-current" /> : <Star className="w-4 h-4" />}
-                </Button>
-                <Button variant="ghost" size="sm">
-                  {item.is_published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </Button>
-                <Button variant="ghost" size="sm"><Edit className="w-4 h-4" /></Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(item.id)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleToggle(item.id, 'is_featured', item.is_featured)}>{item.is_featured ? <Star className="w-4 h-4 text-yellow-500 fill-current" /> : <Star className="w-4 h-4" />}</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleToggle(item.id, 'is_published', item.is_published)}>{item.is_published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(item)}><Edit className="w-4 h-4" /></Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="glass-strong"><DialogHeader><DialogTitle>{editingItem ? 'Edit' : 'Create'} Library Item</DialogTitle><DialogDescription>Fill in the details for the library content.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2"><Label>Title</Label><Input value={formData.title || ''} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="glass-input" /></div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={formData.description || ''} onChange={e => setFormData(p => ({...p, description: e.target.value}))} className="glass-input" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Content Type</Label><Select value={formData.content_type} onValueChange={(v: any) => setFormData(p => ({...p, content_type: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="article">Article</SelectItem><SelectItem value="audio">Audio</SelectItem><SelectItem value="video">Video</SelectItem><SelectItem value="exercise">Exercise</SelectItem><SelectItem value="meditation">Meditation</SelectItem><SelectItem value="course">Course</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Difficulty</Label><Select value={formData.difficulty_level} onValueChange={(v: any) => setFormData(p => ({...p, difficulty_level: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="beginner">Beginner</SelectItem><SelectItem value="intermediate">Intermediate</SelectItem><SelectItem value="advanced">Advanced</SelectItem></SelectContent></Select></div>
+            </div>
+            <div className="flex items-center space-x-2"><Switch id="is_published" checked={formData.is_published} onCheckedChange={c => setFormData(p => ({...p, is_published: c}))} /><Label htmlFor="is_published">Published</Label></div>
+            <div className="flex items-center space-x-2"><Switch id="is_featured" checked={formData.is_featured} onCheckedChange={c => setFormData(p => ({...p, is_featured: c}))} /><Label htmlFor="is_featured">Featured</Label></div>
+            <div className="flex items-center space-x-2"><Switch id="is_premium" checked={formData.is_premium} onCheckedChange={c => setFormData(p => ({...p, is_premium: c}))} /><Label htmlFor="is_premium">Premium</Label></div>
+          </div>
+        <DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)}><X className="w-4 h-4 mr-2" />Cancel</Button><Button onClick={handleSave} className="bg-gradient-primary"><Save className="w-4 h-4 mr-2" />Save</Button></DialogFooter></DialogContent>
+      </Dialog>
     </div>
   );
 };

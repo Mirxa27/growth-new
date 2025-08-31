@@ -104,7 +104,7 @@ class AudioQueue {
 
     try {
       const wavData = this.createWavFromPCM(audioData);
-      const audioBuffer = await this.audioContext.decodeAudioData(wavData.buffer);
+      const audioBuffer = await this.audioContext.decodeAudioData(wavData.buffer as ArrayBuffer);
       
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
@@ -113,8 +113,7 @@ class AudioQueue {
       source.onended = () => this.playNext();
       source.start(0);
     } catch (error) {
-      console.error('Error playing audio:', error);
-      this.playNext(); // Continue with next segment even if current fails
+      throw new Error(`Audio playback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -166,6 +165,11 @@ class AudioQueue {
   }
 }
 
+interface RealtimeMessage {
+  type: string;
+  [key: string]: any;
+}
+
 export class RealtimeVoiceChat {
   private ws: WebSocket | null = null;
   private audioRecorder: AudioRecorder | null = null;
@@ -175,15 +179,13 @@ export class RealtimeVoiceChat {
   private currentTranscript = '';
 
   constructor(
-    private onMessage: (message: any) => void,
+    private onMessage: (message: RealtimeMessage) => void,
     private onTranscript: (transcript: string, isFinal: boolean) => void,
     private onSpeakingChange: (speaking: boolean) => void
   ) {}
 
   async connect(): Promise<void> {
     try {
-      console.log('Connecting to realtime voice chat...');
-      
       // Initialize audio context
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
@@ -193,7 +195,6 @@ export class RealtimeVoiceChat {
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        console.log('Connected to realtime voice chat');
         this.isConnected = true;
         this.startAudioRecording();
       };
@@ -201,26 +202,23 @@ export class RealtimeVoiceChat {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('Received event:', data.type);
           this.handleMessage(data);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          throw new Error(`WebSocket message parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        throw new Error(`WebSocket error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       };
 
-      this.ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+      this.ws.onclose = () => {
         this.isConnected = false;
         this.cleanup();
       };
 
     } catch (error) {
-      console.error('Error connecting to realtime voice chat:', error);
-      throw error;
+      throw new Error(`Voice service connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -237,21 +235,23 @@ export class RealtimeVoiceChat {
       });
 
       await this.audioRecorder.start();
-      console.log('Audio recording started');
     } catch (error) {
-      console.error('Error starting audio recording:', error);
-      throw error;
+      throw new Error(`Recording start failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private async handleMessage(data: any) {
+  private async handleMessage(data: RealtimeMessage) {
     switch (data.type) {
       case 'session.created':
         console.log('Session created successfully');
         break;
 
       case 'session.updated':
-        console.log('Session updated successfully');
+        console.log('Session updated:', data);
+        break;
+
+      case 'conversation.item.completed':
+        console.log('Conversation item completed:', data);
         break;
 
       case 'input_audio_buffer.speech_started':
@@ -273,14 +273,9 @@ export class RealtimeVoiceChat {
         break;
 
       case 'response.audio.delta':
-        if (data.delta && this.audioQueue) {
-          // Convert base64 to Uint8Array
-          const binaryString = atob(data.delta);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          await this.audioQueue.addToQueue(bytes);
+        if (data.delta) {
+          const audioData = new Uint8Array(data.delta);
+          await this.audioQueue.addToQueue(audioData);
         }
         break;
 

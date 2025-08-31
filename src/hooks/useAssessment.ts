@@ -1,10 +1,5 @@
 import { useState, useCallback } from 'react';
 
-interface Answer {
-  questionId: string;
-  answer: string;
-}
-
 export const useAssessment = (totalQuestions: number) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});

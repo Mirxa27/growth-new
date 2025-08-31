@@ -81,7 +81,7 @@ const RealtimeVoiceAgent: React.FC = () => {
 
       toast({
         title: "Voice Assistant Connected",
-        description: "You can now start speaking with your AI companion.",
+        description: "You can now start your voice session.",
       });
 
     } catch (error: any) {
@@ -125,7 +125,7 @@ const RealtimeVoiceAgent: React.FC = () => {
           type: 'session.update',
           session: {
             model: sessionData.model,
-            instructions: "You are NewMe, a supportive AI companion for women's personal growth. Be warm, encouraging, and insightful.",
+            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
@@ -357,7 +357,7 @@ const RealtimeVoiceAgent: React.FC = () => {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Your personal AI companion for voice conversations
+            Your personal guide for voice conversations
           </CardDescription>
         </CardHeader>
         <CardContent>

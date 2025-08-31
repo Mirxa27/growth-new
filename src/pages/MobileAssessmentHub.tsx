@@ -255,7 +255,7 @@ const MobileAssessmentHub: React.FC = () => {
             return (
               <Card
                 key={category.id}
-                className="glass hover:glass-glow transition-all duration-300 cursor-pointer group"
+                className="glass-strong hover:glass-glow transition-all duration-300 cursor-pointer group"
                 onClick={() => {
                   if (category.id === 'assessments') setViewMode('assessment-browser');
                   if (category.id === 'quizzes') setViewMode('quiz-browser');
@@ -286,7 +286,7 @@ const MobileAssessmentHub: React.FC = () => {
                   key={index}
                   className="h-full"
                 >
-                  <Card className="h-full glass hover:glass-glow transition-all duration-300 cursor-pointer group">
+                  <Card className="h-full glass-strong hover:glass-glow transition-all duration-300 cursor-pointer group">
                     <div className={`h-2 bg-gradient-to-r ${content.color}`}></div>
                     <CardHeader className="space-y-3">
                       <div className="flex items-center justify-between">
@@ -338,7 +338,7 @@ const MobileAssessmentHub: React.FC = () => {
 
         {/* Benefits Section */}
         <div className="text-center space-y-4">
-          <Card className="glass border-primary/20">
+          <Card className="glass-strong">
             <CardContent className="p-6 space-y-4">
               <h3 className="text-xl font-semibold">Why Start Your Journey Here?</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

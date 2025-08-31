@@ -1,34 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { cn } from '@/lib/utils';
 
-interface Question {
+interface AssessmentQuestion {
   id: number;
   question_text: string;
-  question_type: string;
+  question_type: 'multiple_choice' | 'free_text';
   position: number;
+  assessment_id: number;
 }
-interface Option {
+
+interface AssessmentOption {
   id: number;
+  question_id: number;
   option_text: string;
   is_correct: boolean;
   position: number;
 }
 
-const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessmentId: number; userId?: string; onComplete?: (results: any) => void; onBack?: () => void }) => {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [options, setOptions] = useState<{ [key: number]: Option[] }>({});
+interface AssessmentTakerProps {
+  assessmentId: number;
+  userId?: string;
+  onComplete?: (results: any) => void;
+  onBack?: () => void;
+}
+
+const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: AssessmentTakerProps) => {
+  const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
+  const [options, setOptions] = useState<Record<number, AssessmentOption[]>>({});
   const [answers, setAnswers] = useState<{ [key: number]: number | string }>({});
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const fetchQuestions = async () => {
       setLoading(true);
       const { data: qData, error: qError } = await supabase
-        .from('assessment_questions' as any)
+        .from('assessment_questions')
         .select('*')
         .eq('assessment_id', assessmentId)
         .order('position', { ascending: true });
@@ -37,17 +50,17 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
         setLoading(false);
         return;
       }
-      setQuestions(qData as any);
+      setQuestions(qData as AssessmentQuestion[]);
       // Fetch options for each question
-      const optionMap: { [key: number]: Option[] } = {};
-      for (const q of qData as any[]) {
+      const optionMap: Record<number, AssessmentOption[]> = {};
+      for (const q of qData as AssessmentQuestion[]) {
         if (q.question_type === 'multiple_choice') {
           const { data: oData } = await supabase
-            .from('assessment_options' as any)
+            .from('assessment_options')
             .select('*')
             .eq('question_id', q.id)
             .order('position', { ascending: true });
-          optionMap[q.id] = (oData as any) || [];
+          optionMap[q.id] = (oData as AssessmentOption[]) || [];
         }
       }
       setOptions(optionMap);
@@ -60,7 +73,12 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (submitting) return;
+    
+    setSubmitting(true);
+    setError(null);
     // Calculate score for multiple choice
     let score = 0;
     for (const q of questions) {
@@ -73,7 +91,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
     // Store result for signed-in users
     if (userId) {
       const { error } = await supabase
-        .from('assessment_results' as any)
+        .from('assessment_results')
         .insert({
           user_id: userId,
           assessment_id: assessmentId,
@@ -82,12 +100,13 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
         } as any);
       if (error) {
         setError(error.message);
+        setSubmitting(false);
         return;
       }
     }
     
     if (onComplete) {
-      onComplete({ score, answers });
+      onComplete({ score, answers, assessment_id: assessmentId, user_id: userId });
     } else {
       setSubmitted(true);
     }
@@ -102,18 +121,42 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
   if (submitted) return <div className="glass-card p-4">Assessment submitted! Thank you.</div>;
 
   return (
-    <form className="glass-card p-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+    <form
+      ref={formRef}
+      className="glass-card p-4"
+      onSubmit={handleSubmit}
+      role="form"
+      aria-label="Assessment Questions"
+    >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-heading mb-2">Take Assessment</h2>
         {onBack && <Button type="button" variant="ghost" onClick={onBack}>Back</Button>}
       </div>
       {questions.map(q => (
         <div key={q.id} className="mb-4">
-          <div className="mb-1 font-semibold">{q.position}. {q.question_text}</div>
+          <div
+            className="mb-1 font-semibold"
+            role="heading"
+            aria-level={2}
+          >
+            {q.position}. {q.question_text}
+          </div>
           {q.question_type === 'multiple_choice' && (
             <div className="flex flex-col gap-2">
               {options[q.id]?.map(opt => (
-                <label key={opt.id} className="flex items-center gap-2">
+                <label
+                  key={opt.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAnswer(q.id, opt.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="radio"
+                  aria-checked={answers[q.id] === opt.id}
+                >
                   <input
                     type="radio"
                     name={`q_${q.id}`}
@@ -128,7 +171,8 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
           )}
           {q.question_type === 'free_text' && (
             <textarea
-              className="glass-input w-full mt-1"
+              className="glass-input w-full mt-1 min-h-[80px] p-3"
+              aria-label={`Answer for question ${q.position}`}
               rows={2}
               value={answers[q.id] as string || ''}
               onChange={e => handleAnswer(q.id, e.target.value)}
@@ -137,7 +181,23 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
           )}
         </div>
       ))}
-      <button type="submit" className="glass-btn interactive mt-2">Submit</button>
+      <button
+        type="submit"
+        className={cn(
+          "glass-btn interactive mt-4 w-full sm:w-auto min-h-[44px] px-6 py-2",
+          submitting && "opacity-50 cursor-not-allowed"
+        )}
+        disabled={submitting}
+      >
+        {submitting ? (
+          <>
+            <LoadingSpinner size="sm" />
+            Submitting...
+          </>
+        ) : (
+          "Submit Assessment"
+        )}
+      </button>
     </form>
   );
 };

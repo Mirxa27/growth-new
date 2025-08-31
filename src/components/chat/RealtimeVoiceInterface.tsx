@@ -78,7 +78,7 @@ export const RealtimeVoiceInterface = ({
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. Speak warmly and empathetically.`,
+            instructions: `You are NewMe, a supportive growth guide dedicated to helping women on their journey of self-discovery and personal growth. Speak warmly and with care.`,
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
@@ -396,7 +396,8 @@ export const RealtimeVoiceInterface = ({
           </div>
         </div>
 
-        {/* Feature Highlights */}
+        {/* Feature Highlights */
+        }
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
@@ -410,16 +411,16 @@ export const RealtimeVoiceInterface = ({
             <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto">
               <Heart className="w-4 h-4 text-secondary" />
             </div>
-            <p className="text-sm font-medium">Empathetic</p>
-            <p className="text-xs text-muted-foreground">Understands emotions</p>
+            <p className="text-sm font-medium">Supportive</p>
+            <p className="text-xs text-muted-foreground">Sensitive to tone</p>
           </div>
           
           <div className="text-center space-y-2">
             <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto">
               <Sparkles className="w-4 h-4 text-accent" />
             </div>
-            <p className="text-sm font-medium">Intelligent</p>
-            <p className="text-xs text-muted-foreground">Contextual awareness</p>
+            <p className="text-sm font-medium">Contextual</p>
+            <p className="text-xs text-muted-foreground">Remembers context</p>
           </div>
         </div>
       </CardContent>

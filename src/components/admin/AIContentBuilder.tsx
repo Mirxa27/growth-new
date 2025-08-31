@@ -99,8 +99,8 @@ export const AIContentBuilder = () => {
           <Wand2 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold gradient-text">AI Content Builder</h2>
-          <p className="text-muted-foreground">Generate assessments, explorations, and courses with AI</p>
+          <h2 className="text-2xl font-bold gradient-text">Content Builder</h2>
+          <p className="text-muted-foreground">Generate assessments, explorations, and courses</p>
         </div>
       </div>
       
@@ -124,7 +124,7 @@ export const AIContentBuilder = () => {
           <Card className="glass-card border-glass">
             <CardHeader>
               <CardTitle>1. Define Assessment</CardTitle>
-              <CardDescription>Set the parameters for the AI to generate content.</CardDescription>
+              <CardDescription>Set the parameters to generate content.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>

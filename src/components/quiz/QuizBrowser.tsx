@@ -106,7 +106,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
 
   return (
     <div className="space-y-6">
-      <Card className="glass-card border-glass">
+      <Card className="glass-strong">
         <CardHeader>
           <CardTitle>Browse Quizzes</CardTitle>
         </CardHeader>
@@ -118,7 +118,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
                 placeholder="Search quizzes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 glass"
+                className="pl-10 glass-input"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto">
@@ -140,7 +140,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredQuizzes.map((quiz) => (
-          <Card key={quiz.id} className="glass-card border-glass flex flex-col">
+          <Card key={quiz.id} className="glass-strong flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">

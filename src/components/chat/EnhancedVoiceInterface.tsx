@@ -67,7 +67,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   const handleSpeakingChange = (speaking: boolean) => {
     setIsSpeaking(speaking);
     if (speaking) {
-      setAiResponse(''); // Clear any previous response when AI starts speaking
+      setAiResponse(''); // Clear any previous response when speaking starts
     }
   };
 
@@ -290,7 +290,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                     {isConnected ? "Connected" : "Disconnected"}
                   </Badge>
                   {isRecording && <Badge variant="outline">Recording</Badge>}
-                  {isSpeaking && <Badge variant="outline">AI Speaking</Badge>}
+                  {isSpeaking && <Badge variant="outline">Speaking</Badge>}
                 </div>
                 
                 <p className={cn(
@@ -313,7 +313,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
                   {isConnected
                     ? isRecording
                       ? "Speak clearly and tap again when you're done"
-                      : "Real-time voice conversation with your AI companion"
+                      : "Real-time voice conversation with NewMe"
                     : "Connect your microphone to begin"
                   }
                 </p>

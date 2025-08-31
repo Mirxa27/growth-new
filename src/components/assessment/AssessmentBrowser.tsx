@@ -45,15 +45,15 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
   }, [filterPublic]);
 
   if (loading) return (
-    <div className="glass-card p-4 flex items-center justify-center min-h-[200px]">
+    <div className="glass-strong p-4 flex items-center justify-center min-h-[200px]">
       <LoadingSpinner size="lg" />
     </div>
   );
-  if (error) return <div className="glass-card p-4 text-red-500">Error: {error}</div>;
-  if (!assessments.length) return <div className="glass-card p-4 text-center">No assessments available.</div>;
+  if (error) return <div className="glass-strong p-4 text-red-500">Error: {error}</div>;
+  if (!assessments.length) return <div className="glass-strong p-4 text-center">No assessments available.</div>;
 
   return (
-    <div className="glass-card p-4">
+    <div className="glass-strong p-4">
       <h2 className="text-heading mb-4 text-center">Available Assessments</h2>
       <ul className="flex flex-col gap-4">
         {assessments.map(a => (

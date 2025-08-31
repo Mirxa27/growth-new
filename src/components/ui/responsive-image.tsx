@@ -1,51 +1,77 @@
-import { cn } from '@/lib/utils';
+import { ImgHTMLAttributes } from 'react';
+import { cn } from "@/lib/utils";
 
-interface ResponsiveImageProps {
+interface ResponsiveImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
   className?: string;
-  width?: number;
-  height?: number;
-  loading?: 'lazy' | 'eager';
-  priority?: boolean;
-  quality?: number;
   sizes?: string;
+  loadingType?: "lazy" | "eager";
+  webpSrcSet?: string;
+  fallbackSrcSet?: string;
 }
 
 export const ResponsiveImage = ({
   src,
   alt,
   className,
-  width,
-  height,
-  loading = 'lazy',
-  priority = false,
-  quality = 75,
-  sizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw',
+  sizes = "100vw",
+  loadingType = "lazy",
+  webpSrcSet,
+  fallbackSrcSet,
+  ...props
 }: ResponsiveImageProps) => {
-  if (!src) {
+  // Convert non-SVG images to WebP format and generate responsive srcsets
+  const isWebP = src.endsWith('.webp');
+  const isSVG = src.endsWith('.svg');
+  
+  if (isSVG) {
     return (
-      <div
-        className={cn(
-          'bg-muted animate-pulse',
-          className
-        )}
-        style={{ width, height }}
+      <img
+        src={src}
+        alt={alt}
+        className={cn("w-full h-auto", className)}
+        loading={loadingType}
+        {...props}
       />
     );
   }
 
+  const generateSrcSet = (path: string, format: string) => {
+    const widths = [320, 640, 768, 1024, 1280, 1536, 1920];
+    return widths
+      .map((width) => {
+        const quality = width <= 768 ? 80 : 90; // Lower quality for mobile
+        return `${path}?w=${width}&q=${quality}&fmt=${format} ${width}w`;
+      })
+      .join(', ');
+  };
+
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      width={width}
-      height={height}
-      loading={loading}
-      decoding={priority ? 'sync' : 'async'}
-      sizes={sizes}
-      srcSet={`${src}?w=640&q=${quality} 640w, ${src}?w=750&q=${quality} 750w, ${src}?w=828&q=${quality} 828w, ${src}?w=1080&q=${quality} 1080w, ${src}?w=1200&q=${quality} 1200w, ${src}?w=1920&q=${quality} 1920w, ${src}?w=2048&q=${quality} 2048w, ${src}?w=3840&q=${quality} 3840w`}
-    />
+    <picture>
+      {webpSrcSet && (
+        <source
+          type="image/webp"
+          srcSet={webpSrcSet}
+          sizes={sizes}
+        />
+      )}
+      {!webpSrcSet && !isWebP && !isSVG && (
+        <source
+          type="image/webp"
+          srcSet={generateSrcSet(src, 'webp')}
+          sizes={sizes}
+        />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={cn("w-full h-auto", className)}
+        loading={loadingType}
+        srcSet={fallbackSrcSet || (!isSVG && !isWebP ? generateSrcSet(src, 'jpg') : undefined)}
+        sizes={sizes}
+        {...props}
+      />
+    </picture>
   );
 };

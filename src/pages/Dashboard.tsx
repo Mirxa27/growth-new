@@ -14,7 +14,8 @@ import {
   Trophy,
   Target,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Sparkles
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -42,7 +43,7 @@ const Dashboard = () => {
   const quickActions = [
     {
       title: 'Start Chat Session',
-      description: 'Connect with your AI companion',
+      description: 'Start a guided conversation',
       icon: MessageCircle,
       color: 'text-primary',
       action: () => navigate('/chat')
@@ -87,9 +88,12 @@ const Dashboard = () => {
           {/* Welcome Section */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
-                <img src="/symbol.svg" alt="Newomen Logo" className="w-7 h-7" />
-              </div>
+              <button
+                onClick={() => navigate('/')}
+                className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
+              >
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-10 h-10" />
+              </button>
               <div>
                 <h1 className="text-2xl font-bold">Welcome back!</h1>
                 <p className="text-muted-foreground">
@@ -127,7 +131,7 @@ const Dashboard = () => {
           </MobileGrid>
 
           {/* Quick Actions */}
-          <Card className="glass border-card-border mb-8">
+          <Card className="glass-strong mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -143,7 +147,7 @@ const Dashboard = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    className="glass h-auto p-4 flex flex-col items-center gap-2"
+                    className="glass-button h-auto p-4 flex flex-col items-center gap-2"
                     onClick={action.action}
                   >
                     <action.icon className={`w-6 h-6 ${action.color}`} />
@@ -159,7 +163,7 @@ const Dashboard = () => {
 
           {/* Progress Section */}
           <MobileGrid cols={1} className="mb-8">
-            <Card className="glass border-card-border">
+            <Card className="glass-strong">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Brain className="w-5 h-5 text-primary" />
@@ -190,7 +194,7 @@ const Dashboard = () => {
           </MobileGrid>
 
           {/* Achievements */}
-          <Card className="glass border-card-border mb-8">
+          <Card className="glass-strong mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" />
@@ -203,7 +207,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="space-y-3">
                 {achievements.map((achievement, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 glass rounded-lg">
+                  <div key={index} className="flex items-center justify-between p-3 glass-subtle rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                         achievement.completed ? 'bg-primary text-white' : 'bg-muted'
@@ -227,7 +231,7 @@ const Dashboard = () => {
           </Card>
 
           {/* Recent Activity */}
-          <Card className="glass border-card-border">
+          <Card className="glass-strong">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -236,7 +240,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
                   <MessageCircle className="w-5 h-5 text-primary" />
                   <div>
                     <div className="font-medium text-sm">Completed chat session</div>
@@ -244,7 +248,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
                   <Brain className="w-5 h-5 text-secondary" />
                   <div>
                     <div className="font-medium text-sm">Finished personality assessment</div>
@@ -252,7 +256,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 p-3 glass rounded-lg">
+                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
                   <Users className="w-5 h-5 text-accent" />
                   <div>
                     <div className="font-medium text-sm">Joined community discussion</div>

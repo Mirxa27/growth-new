@@ -9,14 +9,14 @@ export const Features = () => {
   const features = [
     {
       icon: Brain,
-      title: "Emotionally Intelligent AI",
-      description: "NewMe understands emotions and adapts responses for culturally sensitive, empathetic conversations.",
+      title: "Insightful Guidance",
+      description: "Thoughtful prompts and reflections that meet you where you are.",
       color: "text-primary"
     },
     {
       icon: MessageCircle,
       title: "Voice & Text Support",
-      description: "Seamless communication through advanced speech-to-speech technology and text conversations.",
+      description: "Speak or type — choose the way that fits you best.",
       color: "text-secondary"
     },
     {
@@ -34,7 +34,7 @@ export const Features = () => {
     {
       icon: Globe,
       title: "Arabic & English Support",
-      description: "Fully localized experience with RTL support, culturally adapted content, and bilingual AI assistance.",
+      description: "Fully localized with RTL, culturally tuned content, and bilingual assistance.",
       color: "text-primary"
     },
     {
@@ -52,7 +52,7 @@ export const Features = () => {
         <div className="text-center mb-16">
           <h2 className="text-display font-bold mb-4">Empowering Features</h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Discover how NewMe combines cutting-edge AI technology with culturally sensitive design to support your personal growth journey
+            Discover how NewMe blends modern tools and culturally sensitive design to support your personal growth journey
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export const Features = () => {
           <div className="glass rounded-3xl p-12 bg-gradient-primary/5">
             <h3 className="text-heading font-bold mb-4">Ready to Transform Your Journey?</h3>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join thousands of women who have discovered their authentic selves with NewMe's AI-powered guidance
+              Join thousands of women who discover their hidden selves, unlock talents, and grow with NewMe’s guided pathways
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 

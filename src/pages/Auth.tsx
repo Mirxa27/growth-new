@@ -32,18 +32,56 @@ const Auth = () => {
         const { error } = await signIn(email, password);
         if (!error) {
           navigate(from, { replace: true });
+        } else {
+          toast({
+            title: "Sign in failed",
+            description: error.message || "Invalid email or password",
+            variant: "destructive",
+          });
         }
       } else {
-        const { error } = await signUp(email, password);
+        if (!name.trim()) {
+          toast({
+            title: "Validation error",
+            description: "Please enter your full name",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        if (password.length < 6) {
+          toast({
+            title: "Validation error",
+            description: "Password must be at least 6 characters",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const { error } = await signUp(email, password, { data: { full_name: name } });
         if (!error) {
           toast({
             title: "Account created!",
             description: "Please check your email to verify your account.",
           });
+          setTimeout(() => setIsLogin(true), 3000);
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: error.message || "Unable to create account",
+            variant: "destructive",
+          });
         }
       }
     } catch (error) {
       console.error('Auth error:', error);
+      toast({
+        title: "Authentication error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -54,9 +92,12 @@ const Auth = () => {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <img src="/symbol.svg" alt="Newomen Logo" className="w-10 h-10" />
-          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 hover:opacity-80 transition-opacity"
+          >
+            <img src="/symbol.svg" alt="Newomen Logo" className="w-14 h-14" />
+          </button>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Welcome to Newomen
           </h1>
@@ -66,7 +107,7 @@ const Auth = () => {
         </div>
 
         {/* Auth Form */}
-        <Card className="glass border-card-border">
+        <Card className="glass-strong">
           <CardHeader>
             <CardTitle className="text-2xl text-center">
               {isLogin ? 'Sign In' : 'Create Account'}
@@ -92,7 +133,7 @@ const Auth = () => {
                       placeholder="Enter your full name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="pl-10 glass"
+                      className="pl-10 glass-input"
                       required={!isLogin}
                     />
                   </div>
@@ -109,7 +150,7 @@ const Auth = () => {
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 glass"
+                    className="pl-10 glass-input"
                     required
                   />
                 </div>
@@ -125,7 +166,7 @@ const Auth = () => {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 glass"
+                    className="pl-10 glass-input"
                     required
                   />
                 </div>
@@ -171,12 +212,6 @@ const Auth = () => {
               </Button>
             </div>
 
-            {/* Demo Account Info */}
-            <div className="p-4 glass rounded-lg bg-primary/5">
-              <p className="text-xs text-muted-foreground text-center">
-                Demo: Use any email and password to explore the platform
-              </p>
-            </div>
           </CardContent>
         </Card>
 

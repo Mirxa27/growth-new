@@ -16,7 +16,7 @@ const Sparkles = ({ className }: { className?: string }) => (
 
 export const FounderSection = () => {
   return (
-    <section className="py-20 px-6">
+    <section id="founder" className="py-20 px-6">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -101,7 +101,7 @@ export const FounderSection = () => {
             <div className="glass rounded-2xl p-6 bg-gradient-primary/5">
               <h4 className="font-semibold text-lg mb-3 text-primary">Our Mission</h4>
               <p className="text-muted-foreground leading-relaxed">
-                Creating a safe, culturally sensitive space where women from all backgrounds can explore their authentic selves, connect with others, and access AI-powered tools for personal growth and empowerment.
+                Creating a safe, culturally sensitive space where women from all backgrounds can explore their authentic selves, connect with others, and access practical tools for personal growth and empowerment.
               </p>
             </div>
           </div>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   Settings, 
@@ -14,7 +14,6 @@ import {
   Sparkles,
   BookOpen,
   Target,
-  Globe,
   Activity,
   TrendingUp
 } from 'lucide-react';
@@ -100,9 +99,9 @@ const AdminDashboard: React.FC = () => {
     },
     { 
       id: 'ai-content' as AdminSection, 
-      label: 'AI Content', 
+      label: 'Content Builder', 
       icon: Sparkles,
-      description: 'AI-powered content generation'
+      description: 'Smart content generation'
     },
     { 
       id: 'settings' as AdminSection, 
@@ -112,9 +111,9 @@ const AdminDashboard: React.FC = () => {
     },
     { 
       id: 'ai-providers' as AdminSection, 
-      label: 'AI Providers', 
+      label: 'Providers', 
       icon: Database,
-      description: 'AI provider configurations'
+      description: 'Model provider configurations'
     },
     { 
       id: 'moderation' as AdminSection, 
@@ -124,150 +123,381 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Users className="h-8 w-8 text-blue-600" />
-              <div>
-                <p className="text-2xl font-bold">1,247</p>
-                <p className="text-xs text-muted-foreground">Total Users</p>
+  const [overviewData, setOverviewData] = useState<{
+    totalUsers: number;
+    totalAssessments: number;
+    totalCommunityPosts: number;
+    totalLibraryItems: number;
+    newUsersThisWeek: number;
+    activeUsersToday: number;
+    completionsThisMonth: number;
+    growthPercentage: number;
+    recentActivity: Array<{
+      id: string;
+      type: 'user' | 'assessment' | 'community' | 'library';
+      message: string;
+      timestamp: string;
+    }>;
+  }>({
+    totalUsers: 0,
+    totalAssessments: 0,
+    totalCommunityPosts: 0,
+    totalLibraryItems: 0,
+    newUsersThisWeek: 0,
+    activeUsersToday: 0,
+    completionsThisMonth: 0,
+    growthPercentage: 0,
+    recentActivity: []
+  });
+  const [overviewLoading, setOverviewLoading] = useState(true);
+
+  useEffect(() => {
+    if (activeSection === 'overview') {
+      fetchOverviewData();
+    }
+  }, [activeSection]);
+
+  const fetchOverviewData = async () => {
+    try {
+      setOverviewLoading(true);
+
+      // Fetch all data in parallel
+      const [
+        usersResponse,
+        assessmentsResponse,
+        communityResponse,
+        libraryResponse,
+        explorationSessionsResponse,
+      ] = await Promise.all([
+        supabase.from('profiles').select('created_at, last_login_at'),
+        supabase.from('assessments').select('id, title, created_at'),
+        supabase.from('community_posts').select('id, created_at').limit(1000),
+        supabase.from('library_items').select('id, created_at').limit(1000),
+        supabase.from('exploration_sessions').select('created_at, status').limit(1000),
+      ]);
+
+      const users: { created_at: string; last_login_at: string | null }[] = usersResponse.data || [];
+      const assessments: { id: number; title: string; created_at: string }[] = assessmentsResponse.data || [];
+      const communityPosts: { id: string; created_at: string }[] = communityResponse.data || [];
+      const libraryItems: { id: string; created_at: string | null }[] = libraryResponse.data || [];
+      const explorationSessions: { created_at: string; status: string }[] = explorationSessionsResponse.data || [];
+
+      // Calculate metrics
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const newUsersThisWeek = users.filter(u => new Date(u.created_at) > weekAgo).length;
+      const newUsersLastWeek = users.filter(u => {
+        const created = new Date(u.created_at);
+        return created > new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000) && created <= weekAgo;
+      }).length;
+
+      const activeUsersToday = users.filter(u => 
+        u.last_login_at && new Date(u.last_login_at) > dayAgo
+      ).length;
+
+      const completionsThisMonth = explorationSessions.filter(s => 
+        s.status === 'completed' && new Date(s.created_at) > monthAgo
+      ).length;
+
+      const growthPercentage = newUsersLastWeek > 0 
+        ? Math.round(((newUsersThisWeek - newUsersLastWeek) / newUsersLastWeek) * 100)
+        : newUsersThisWeek > 0 ? 100 : 0;
+
+      // Generate recent activity
+      const recentActivity = [];
+      
+      // Recent user registrations
+      users
+        .filter(u => new Date(u.created_at) > dayAgo)
+        .slice(0, 3)
+        .forEach((user, index) => {
+          recentActivity.push({
+            id: `user-${index}`,
+            type: 'user' as const,
+            message: 'New user joined the platform',
+            timestamp: user.created_at
+          });
+        });
+
+      // Recent assessments
+      assessments
+        .filter(a => new Date(a.created_at) > dayAgo)
+        .slice(0, 2)
+        .forEach((assessment, index) => {
+          recentActivity.push({
+            id: `assessment-${index}`,
+            type: 'assessment' as const,
+            message: `New assessment "${assessment.title}" was created`,
+            timestamp: assessment.created_at
+          });
+        });
+
+      // Recent community posts
+      communityPosts
+        .filter(p => new Date(p.created_at) > dayAgo)
+        .slice(0, 2)
+        .forEach((post, index) => {
+          recentActivity.push({
+            id: `community-${index}`,
+            type: 'community' as const,
+            message: 'New community post was published',
+            timestamp: post.created_at
+          });
+        });
+
+      // Sort by timestamp and limit
+      recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      setOverviewData({
+        totalUsers: users.length,
+        totalAssessments: assessments.length,
+        totalCommunityPosts: communityPosts.length,
+        totalLibraryItems: libraryItems.length,
+        newUsersThisWeek,
+        activeUsersToday,
+        completionsThisMonth,
+        growthPercentage,
+        recentActivity: recentActivity.slice(0, 6)
+      });
+
+    } catch (error) {
+      console.error('Error fetching overview data:', error);
+    } finally {
+      setOverviewLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = now.getTime() - time.getTime();
+    
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'user': return <Users className="h-4 w-4" />;
+      case 'assessment': return <Target className="h-4 w-4" />;
+      case 'community': return <MessageSquare className="h-4 w-4" />;
+      case 'library': return <BookOpen className="h-4 w-4" />;
+      default: return <Activity className="h-4 w-4" />;
+    }
+  };
+
+  const renderOverview = () => {
+    if (overviewLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="glass-strong">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Users className="h-8 w-8 text-blue-600" />
+                <div>
+                  <p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Total Users</p>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-strong">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Target className="h-8 w-8 text-green-600" />
+                <div>
+                  <p className="text-2xl font-bold">{overviewData.totalAssessments}</p>
+                  <p className="text-xs text-muted-foreground">Assessments</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-strong">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-8 w-8 text-purple-600" />
+                <div>
+                  <p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p>
+                  <p className="text-xs text-muted-foreground">Community Posts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-strong">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-8 w-8 text-orange-600" />
+                <div>
+                  <p className="text-2xl font-bold">
+                    {overviewData.growthPercentage > 0 ? '+' : ''}{overviewData.growthPercentage}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Growth This Week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="glass-strong">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-6 w-6 text-green-500" />
+                <div>
+                  <p className="text-xl font-bold">{overviewData.activeUsersToday}</p>
+                  <p className="text-xs text-muted-foreground">Active Today</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-strong">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Users className="h-6 w-6 text-blue-500" />
+                <div>
+                  <p className="text-xl font-bold">{overviewData.newUsersThisWeek}</p>
+                  <p className="text-xs text-muted-foreground">New This Week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-strong">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Target className="h-6 w-6 text-purple-500" />
+                <div>
+                  <p className="text-xl font-bold">{overviewData.completionsThisMonth}</p>
+                  <p className="text-xs text-muted-foreground">Completions This Month</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common administrative tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('assessments')}
+              >
+                <Target className="h-6 w-6" />
+                <span>Create Assessment</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('users')}
+              >
+                <Users className="h-6 w-6" />
+                <span>Manage Users</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('analytics')}
+              >
+                <BarChart3 className="h-6 w-6" />
+                <span>View Analytics</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('voice')}
+              >
+                <Mic className="h-6 w-6" />
+                <span>Configure Voice</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('ai-content')}
+              >
+                <Sparkles className="h-6 w-6" />
+                <span>Content Builder</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2 glass"
+                onClick={() => setActiveSection('community')}
+              >
+                <MessageSquare className="h-6 w-6" />
+                <span>Community</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Target className="h-8 w-8 text-green-600" />
-              <div>
-                <p className="text-2xl font-bold">342</p>
-                <p className="text-xs text-muted-foreground">Assessments</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-8 w-8 text-purple-600" />
-              <div>
-                <p className="text-2xl font-bold">89</p>
-                <p className="text-xs text-muted-foreground">Community Posts</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-8 w-8 text-orange-600" />
-              <div>
-                <p className="text-2xl font-bold">23%</p>
-                <p className="text-xs text-muted-foreground">Growth This Month</p>
-              </div>
+
+        {/* Recent Activity */}
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Live activity feed from across the platform</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {overviewData.recentActivity.length > 0 ? (
+                overviewData.recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-3 p-2 rounded-lg glass">
+                    <div className="flex-shrink-0">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-sm">{activity.message}</span>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {formatTimeAgo(activity.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No recent activity to display</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('assessments')}
-            >
-              <Target className="h-6 w-6" />
-              <span>Create Assessment</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('users')}
-            >
-              <Users className="h-6 w-6" />
-              <span>Manage Users</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('analytics')}
-            >
-              <BarChart3 className="h-6 w-6" />
-              <span>View Analytics</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('voice')}
-            >
-              <Mic className="h-6 w-6" />
-              <span>Configure Voice</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('ai-content')}
-            >
-              <Sparkles className="h-6 w-6" />
-              <span>AI Content</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col space-y-2"
-              onClick={() => setActiveSection('community')}
-            >
-              <MessageSquare className="h-6 w-6" />
-              <span>Community</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <Badge variant="secondary">New User</Badge>
-              <span className="text-sm">Sarah M. joined the platform</span>
-              <span className="text-xs text-muted-foreground ml-auto">2 minutes ago</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Badge variant="outline">Assessment</Badge>
-              <span className="text-sm">New assessment "Career Clarity" was completed 15 times</span>
-              <span className="text-xs text-muted-foreground ml-auto">1 hour ago</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Badge>Voice Agent</Badge>
-              <span className="text-sm">Voice configuration "Therapy Bot" was updated</span>
-              <span className="text-xs text-muted-foreground ml-auto">3 hours ago</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+    );
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -301,15 +531,18 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
       <div className="flex">
         {/* Sidebar Navigation */}
-        <div className="w-72 bg-white shadow-lg h-screen overflow-y-auto">
-          <div className="p-6 border-b">
+        <div className="w-72 glass-strong h-screen overflow-y-auto border-r border-glass">
+          <div className="p-6 border-b border-glass">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <Globe className="w-6 h-6 text-white" />
-              </div>
+              <button
+                onClick={() => window.location.href = '/'}
+                className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity"
+              >
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8" />
+              </button>
               <div>
                 <h1 className="text-xl font-bold">Newomen.me</h1>
                 <p className="text-sm text-muted-foreground">Admin Dashboard</p>
@@ -325,10 +558,10 @@ const AdminDashboard: React.FC = () => {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
                       activeSection === item.id
-                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                        : 'hover:bg-gray-100 text-gray-700'
+                        ? 'glass-strong border border-primary/20 text-primary'
+                        : 'glass hover:glass-strong text-foreground hover:text-primary'
                     }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
@@ -349,10 +582,10 @@ const AdminDashboard: React.FC = () => {
         <div className="flex-1 h-screen overflow-y-auto">
           <div className="p-8">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900">
+              <h2 className="text-3xl font-bold text-foreground">
                 {navigationItems.find(item => item.id === activeSection)?.label || 'Overview'}
               </h2>
-              <p className="text-gray-600 mt-2">
+              <p className="text-muted-foreground mt-2">
                 {navigationItems.find(item => item.id === activeSection)?.description}
               </p>
             </div>

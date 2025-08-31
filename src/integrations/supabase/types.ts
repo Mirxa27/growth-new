@@ -302,6 +302,47 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_options: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          id: number
+          is_correct: boolean
+          option_text: string
+          position: number
+          question_id: number
+          scoring_data: Json | null
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          id?: never
+          is_correct: boolean
+          option_text: string
+          position: number
+          question_id: number
+          scoring_data?: Json | null
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          id?: never
+          is_correct?: boolean
+          option_text?: string
+          position?: number
+          question_id?: number
+          scoring_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_options_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_progress: {
         Row: {
           assessment_type: string
@@ -335,6 +376,44 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_questions: {
+        Row: {
+          assessment_id: number
+          created_at: string
+          id: number
+          media_url: string | null
+          position: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          assessment_id: number
+          created_at?: string
+          id?: never
+          media_url?: string | null
+          position: number
+          question_text: string
+          question_type: string
+        }
+        Update: {
+          assessment_id?: number
+          created_at?: string
+          id?: never
+          media_url?: string | null
+          position?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_results: {
         Row: {
           answers: Json
@@ -365,6 +444,45 @@ export type Database = {
           results?: Json
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      assessments: {
+        Row: {
+          ai_model: string | null
+          ai_provider: string | null
+          ai_prompt: string | null
+          created_at: string
+          description: string | null
+          id: number
+          title: string
+          type: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          ai_model?: string | null
+          ai_provider?: string | null
+          ai_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: never
+          title: string
+          type: string
+          updated_at?: string
+          visibility: string
+        }
+        Update: {
+          ai_model?: string | null
+          ai_provider?: string | null
+          ai_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: never
+          title?: string
+          type?: string
+          updated_at?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -570,6 +688,9 @@ export type Database = {
           updated_at: string
           user_id: string
           visibility: string
+          status: string
+          title: string | null
+          views_count: number | null
         }
         Insert: {
           comments_count?: number
@@ -586,6 +707,9 @@ export type Database = {
           updated_at?: string
           user_id: string
           visibility?: string
+          status?: string
+          title?: string | null
+          views_count?: number | null
         }
         Update: {
           comments_count?: number
@@ -602,6 +726,9 @@ export type Database = {
           updated_at?: string
           user_id?: string
           visibility?: string
+          status?: string
+          title?: string | null
+          views_count?: number | null
         }
         Relationships: []
       }
@@ -707,6 +834,7 @@ export type Database = {
           questions: Json
           title: string
           updated_at: string
+          visibility: string
         }
         Insert: {
           analysis_structure?: Json | null
@@ -723,6 +851,7 @@ export type Database = {
           questions?: Json
           title: string
           updated_at?: string
+          visibility?: string
         }
         Update: {
           analysis_structure?: Json | null
@@ -739,6 +868,7 @@ export type Database = {
           questions?: Json
           title?: string
           updated_at?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -775,6 +905,63 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      library_items: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          content_type: string
+          difficulty_level: string
+          category: string | null
+          tags: string[] | null
+          is_premium: boolean
+          is_featured: boolean
+          is_published: boolean
+          author: string | null
+          content_url: string | null
+          thumbnail_url: string | null
+          duration_minutes: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          content_type: string
+          difficulty_level?: string
+          category?: string | null
+          tags?: string[] | null
+          is_premium?: boolean
+          is_featured?: boolean
+          is_published?: boolean
+          author?: string | null
+          content_url?: string | null
+          thumbnail_url?: string | null
+          duration_minutes?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          content_type?: string
+          difficulty_level?: string
+          category?: string | null
+          tags?: string[] | null
+          is_premium?: boolean
+          is_featured?: boolean
+          is_published?: boolean
+          author?: string | null
+          content_url?: string | null
+          thumbnail_url?: string | null
+          duration_minutes?: number | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1017,6 +1204,8 @@ export type Database = {
           subscription_tier: string | null
           updated_at: string | null
           user_id: string | null
+          is_banned: boolean | null
+          bio: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1035,6 +1224,8 @@ export type Database = {
           subscription_tier?: string | null
           updated_at?: string | null
           user_id?: string | null
+          is_banned?: boolean | null
+          bio?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1053,6 +1244,8 @@ export type Database = {
           subscription_tier?: string | null
           updated_at?: string | null
           user_id?: string | null
+          is_banned?: boolean | null
+          bio?: string | null
         }
         Relationships: []
       }
@@ -2131,6 +2324,39 @@ export type Database = {
           },
         ]
       }
+      voice_agent_configs: {
+        Row: {
+          id: string
+          name: string
+          provider: string
+          model: string
+          voice_settings: Json
+          conversation_settings: Json
+          enabled: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          provider: string
+          model: string
+          voice_settings: Json
+          conversation_settings: Json
+          enabled?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          provider?: string
+          model?: string
+          voice_settings?: Json
+          conversation_settings?: Json
+          enabled?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       voice_chat_signals: {
         Row: {
           created_at: string | null
@@ -2240,6 +2466,19 @@ export type Database = {
       }
       complete_exploration_session: {
         Args: { final_analysis_input: Json; session_id_input: string }
+        Returns: undefined
+      }
+      create_assessment_with_questions: {
+        Args: {
+          _title: string
+          _description: string
+          _type: string
+          _visibility: string
+          _ai_provider: string
+          _ai_model: string
+          _ai_prompt: string
+          _questions: Json
+        }
         Returns: undefined
       }
       get_admin_safe_profiles: {
@@ -2360,6 +2599,14 @@ export type Database = {
       update_platform_setting: {
         Args: { setting_key: string; setting_value: string }
         Returns: boolean
+      }
+      update_post_status_secure: {
+        Args: { p_post_id: string; p_new_status: string }
+        Returns: undefined
+      }
+      update_user_ban_status_secure: {
+        Args: { target_user_id: string; new_status: boolean }
+        Returns: undefined
       }
       update_user_role_secure: {
         Args: { new_role: string; target_user_id: string }

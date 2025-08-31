@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { ResponsiveImage } from "@/components/ui/responsive-image";
 
 export const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,8 +14,8 @@ export const Navigation = () => {
 
   const navItems = [
     { name: "Home", href: "#home" },
-    { name: "About NewMe", href: "#newme" },
-    { name: "Journey", href: "#journey" },
+    { name: "Discover", href: "#newme" },
+    { name: "Founder", href: "#founder" },
     { name: "Community", href: "#community" },
   ];
 
@@ -31,6 +32,11 @@ export const Navigation = () => {
   };
 
   const handleNavClick = (href: string) => {
+    if (href === '#community') {
+      navigate('/community');
+      setIsMenuOpen(false);
+      return;
+    }
     // If we're not on the landing page, navigate there first
     if (location.pathname !== '/') {
       navigate('/');
@@ -45,7 +51,13 @@ export const Navigation = () => {
       // We're already on the landing page, just scroll
       const element = document.querySelector(href);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+        // Add a small offset to account for fixed header
+        window.scrollBy(0, -80);
       }
     }
     setIsMenuOpen(false);
@@ -54,14 +66,20 @@ export const Navigation = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
       <div className="max-w-7xl mx-auto">
-        <div className="glass rounded-2xl px-6 py-4 flex items-center justify-between">
+        <div className="glass-strong rounded-2xl px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <img src="/symbol.svg" alt="Newomen Logo" className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
+              <ResponsiveImage
+                src="/symbol.svg"
+                alt="Newomen Logo"
+                className="w-8 h-8"
+                loadingType="eager"
+                sizes="32px"
+              />
             </div>
             <span className="text-xl font-bold text-hero bg-gradient-primary bg-clip-text text-transparent">
               Newomen
@@ -126,7 +144,7 @@ export const Navigation = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-3 rounded-lg glass interactive hover:scale-105 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="lg:hidden p-3 rounded-lg glass-button interactive hover:scale-105 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle mobile menu"
           >
@@ -137,7 +155,7 @@ export const Navigation = () => {
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="lg:hidden mt-4">
-            <div className="glass rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-5 duration-200">
+            <div className="glass-strong rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-5 duration-300 ease-in-out">
               {navItems.map((item) => (
                 <button
                   key={item.name}
