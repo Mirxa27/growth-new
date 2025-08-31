@@ -293,8 +293,8 @@ export const CommunityPosts = () => {
             <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-2">
               <MessageSquare className="w-4 h-4 text-secondary" />
             </div>
-            <p className="text-2xl font-bold text-secondary">45</p>
-            <p className="text-xs text-muted-foreground">Posts Today</p>
+            <p className="text-2xl font-bold text-secondary">{posts.length}</p>
+            <p className="text-xs text-muted-foreground">Total Posts</p>
           </CardContent>
         </Card>
         
@@ -303,8 +303,8 @@ export const CommunityPosts = () => {
             <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
               <TrendingUp className="w-4 h-4 text-accent" />
             </div>
-            <p className="text-2xl font-bold text-accent">92%</p>
-            <p className="text-xs text-muted-foreground">Positive Mood</p>
+            <p className="text-2xl font-bold text-accent">{posts.filter(p => p.likes_count > 0).length}</p>
+            <p className="text-xs text-muted-foreground">Liked Posts</p>
           </CardContent>
         </Card>
       </div>

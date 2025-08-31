@@ -6,7 +6,7 @@ export const Hero = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-screen flex flex-col justify-center items-center px-6 py-20 overflow-hidden">
+    <section className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-16 sm:py-20 overflow-hidden">
       {/* Floating Elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-primary-glow animate-pulse opacity-60" />
@@ -24,42 +24,53 @@ export const Hero = () => {
         </div>
 
         {/* Hero Title */}
-        <h1 className="text-hero font-hero leading-tight">
-          Discover Your
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-hero font-bold leading-tight px-4">
+          <span className="bg-gradient-primary bg-clip-text text-transparent text-shadow-lg shadow-primary/30">
+            Discover Your
+          </span>
           <br />
-          <span className="relative inline-block">
+          <span className="relative inline-block bg-gradient-secondary bg-clip-text text-transparent animate-pulse">
             Authentic Self
-            <div className="absolute -inset-2 bg-gradient-glow rounded-lg opacity-20 blur-xl"></div>
+            <div className="absolute -inset-4 bg-gradient-glow rounded-lg opacity-30 blur-2xl animate-ping"></div>
+            <div className="absolute -inset-2 bg-gradient-primary rounded-lg opacity-10 blur-lg"></div>
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
+        <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto px-4 text-balance">
           Transform your personal journey with NewMe, an emotionally intelligent AI companion designed for women seeking growth, empowerment, and authentic self-discovery.
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex justify-center pt-4">
-          <Button 
-            size="lg" 
-            className="glass glass-glow interactive group px-8 py-4 text-lg font-semibold"
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-6">
+          <Button
+            size="lg"
+            className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-2xl hover:shadow-primary/25 transform hover:scale-105 transition-all duration-300 group px-8 py-4 text-lg font-semibold w-full sm:w-auto min-h-[3.5rem]"
             onClick={() => navigate("/mobile-assessment-hub")}
           >
             Start Free Discovery
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="glass hover:glass-glow border-primary/20 hover:border-primary/40 px-8 py-4 text-lg font-medium w-full sm:w-auto min-h-[3.5rem]"
+            onClick={() => navigate("/auth")}
+          >
+            Sign In
+          </Button>
         </div>
 
         {/* Trust Indicators */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8 text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 pt-8 text-sm text-muted-foreground px-4">
           <div className="flex items-center gap-2">
             <Heart className="w-4 h-4 text-primary" />
-            Culturally Sensitive
+            <span className="whitespace-nowrap">Culturally Sensitive</span>
           </div>
           <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground/40"></div>
-          <div>Voice & Text AI Support</div>
+          <div className="whitespace-nowrap">Voice & Text AI Support</div>
           <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground/40"></div>
-          <div>Available in Arabic & English</div>
+          <div className="whitespace-nowrap">Available in Arabic & English</div>
         </div>
       </div>
 

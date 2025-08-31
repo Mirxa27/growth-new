@@ -56,7 +56,7 @@ export const Navigation = () => {
       <div className="max-w-7xl mx-auto">
         <div className="glass rounded-2xl px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
@@ -69,14 +69,15 @@ export const Navigation = () => {
           </button>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-8">
             {navItems.map((item) => (
               <button
                 key={item.name}
                 onClick={() => handleNavClick(item.href)}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium hover:scale-105 transition-transform"
+                className="text-muted-foreground hover:text-foreground transition-all duration-200 font-medium hover:scale-105 relative group px-3 py-2"
               >
                 {item.name}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-primary group-hover:w-full transition-all duration-300"></span>
               </button>
             ))}
           </div>
@@ -88,15 +89,15 @@ export const Navigation = () => {
                 <span className="text-sm text-muted-foreground">
                   Welcome back!
                 </span>
-                <Button 
+                <Button
                   onClick={() => navigate('/dashboard')}
-                  size="sm" 
+                  size="sm"
                   variant="hero"
                 >
                   Dashboard
                 </Button>
-                <Button 
-                  variant="glass" 
+                <Button
+                  variant="glass"
                   onClick={signOut}
                   size="sm"
                 >
@@ -105,15 +106,15 @@ export const Navigation = () => {
               </>
             ) : (
               <>
-                <Button 
-                  variant="glass" 
+                <Button
+                  variant="glass"
                   size="sm"
                   onClick={handleSignIn}
                 >
                   Sign In
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="hero"
                   onClick={handleAuthAction}
                 >
@@ -125,8 +126,9 @@ export const Navigation = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 rounded-lg glass interactive"
+            className="lg:hidden p-3 rounded-lg glass interactive hover:scale-105 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle mobile menu"
           >
             {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -134,13 +136,13 @@ export const Navigation = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4">
-            <div className="glass rounded-2xl p-6 space-y-4">
+          <div className="lg:hidden mt-4">
+            <div className="glass rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-5 duration-200">
               {navItems.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => handleNavClick(item.href)}
-                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium py-2 w-full text-left hover:scale-105 transition-transform"
+                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium py-3 w-full text-left hover:scale-105 transition-transform min-h-[44px] flex items-center"
                 >
                   {item.name}
                 </button>
@@ -148,7 +150,7 @@ export const Navigation = () => {
               <div className="pt-4 border-t border-border flex flex-col gap-3">
                 {user ? (
                   <>
-                    <Button 
+                    <Button
                       variant="hero"
                       onClick={() => {
                         navigate('/dashboard');
@@ -158,7 +160,7 @@ export const Navigation = () => {
                     >
                       Dashboard
                     </Button>
-                    <Button 
+                    <Button
                       variant="glass"
                       className="w-full"
                       onClick={() => {
@@ -171,7 +173,7 @@ export const Navigation = () => {
                   </>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       variant="glass"
                       className="w-full"
                       onClick={() => {
@@ -181,7 +183,7 @@ export const Navigation = () => {
                     >
                       Sign In
                     </Button>
-                    <Button 
+                    <Button
                       variant="hero"
                       className="w-full"
                       onClick={() => {

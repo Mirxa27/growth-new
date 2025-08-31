@@ -1,8 +1,11 @@
 import { Brain, MessageCircle, Trophy, Users, Globe, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export const Features = () => {
+  const navigate = useNavigate();
+  
   const features = [
     {
       icon: Brain,
@@ -43,7 +46,7 @@ export const Features = () => {
   ];
 
   return (
-    <section className="py-20 px-6">
+    <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8" id="newme">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -54,7 +57,7 @@ export const Features = () => {
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-16">
           {features.map((feature, index) => (
             <Card key={index} className="glass p-8 interactive group border-card-border">
               <div className="mb-6">
@@ -76,10 +79,20 @@ export const Features = () => {
               Join thousands of women who have discovered their authentic selves with NewMe's AI-powered guidance
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="hero" size="lg">
+              <Button 
+                variant="hero" 
+                size="lg"
+                onClick={() => navigate("/mobile-assessment-hub")}
+                className="transform hover:scale-105 transition-all duration-300"
+              >
                 Start Free Discovery Session
               </Button>
-              <Button variant="outline" size="lg" className="glass">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="glass hover:glass-glow transition-all duration-300"
+                onClick={() => navigate("/auth")}
+              >
                 Learn About Pricing
               </Button>
             </div>

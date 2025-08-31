@@ -71,9 +71,9 @@ const Community = () => {
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
       setCommunityStats({
-        activeMembers: membersCount || 1250,
-        postsToday: postsTodayCount || 45,
-        positiveMood: 92
+        activeMembers: membersCount || 0,
+        postsToday: postsTodayCount || 0,
+        positiveMood: 0
       });
 
     } catch (error) {

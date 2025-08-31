@@ -22,6 +22,7 @@ import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
+import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/assessment" element={<PublicAssessment />} />
               <Route path="/mobile-assessment" element={<MobileAssessment />} />
+              <Route path="/mobile-assessment-hub" element={<MobileAssessmentHub />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

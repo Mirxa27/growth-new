@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Brain, Target, Sparkles, BookOpen, Users, Heart, TrendingUp } from 'lucide-react';
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 // Import our new components
@@ -237,11 +237,7 @@ const MobileAssessmentHub: React.FC = () => {
             Back to Home
           </Button>
           
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-2"
-          >
+          <div className="space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Discovery Hub
             </h1>
@@ -249,16 +245,11 @@ const MobileAssessmentHub: React.FC = () => {
               Explore your inner world with free assessments, quizzes, and guided explorations. 
               No signup required - start your journey of self-discovery now.
             </p>
-          </motion.div>
+          </div>
         </div>
 
         {/* Quick Access Categories */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-        >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.map((category) => {
             const Icon = category.icon;
             return (
@@ -282,26 +273,17 @@ const MobileAssessmentHub: React.FC = () => {
               </Card>
             );
           })}
-        </motion.div>
+        </div>
 
         {/* Featured Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-4"
-        >
+        <div className="space-y-4">
           <h2 className="text-2xl font-bold text-center">Start Your Journey</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {featuredContent.map((content, index) => {
               const Icon = content.icon;
               return (
-                <motion.div
+                <div
                   key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * index }}
-                  whileHover={{ scale: 1.02 }}
                   className="h-full"
                 >
                   <Card className="h-full glass hover:glass-glow transition-all duration-300 cursor-pointer group">
@@ -348,19 +330,14 @@ const MobileAssessmentHub: React.FC = () => {
                       </Button>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </div>
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* Benefits Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="text-center space-y-4"
-        >
+        <div className="text-center space-y-4">
           <Card className="glass border-primary/20">
             <CardContent className="p-6 space-y-4">
               <h3 className="text-xl font-semibold">Why Start Your Journey Here?</h3>
@@ -399,7 +376,7 @@ const MobileAssessmentHub: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

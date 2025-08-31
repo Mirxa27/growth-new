@@ -47,7 +47,7 @@ export const AssessmentManager: React.FC = () => {
       const assessmentsWithCounts = data?.map((assessment: any) => ({
         ...assessment,
         question_count: assessment.assessment_questions?.[0]?.count || 0,
-        completion_count: Math.floor(Math.random() * 100) // Mock completion count
+        completion_count: 0 // This would come from assessment_results table when implemented
       })) || [];
 
       setAssessments(assessmentsWithCounts as any);

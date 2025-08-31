@@ -33,16 +33,16 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [profile, setProfile] = useState({
-    name: 'Sarah Johnson',
-    email: user?.email || 'sarah@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'San Francisco, CA',
-    bio: 'Passionate about personal growth and helping others discover their authentic selves. Currently exploring mindfulness and creative expression.',
-    joinDate: 'January 2024',
-    personalityType: 'Empathetic Connector',
-    crystalsEarned: 1250,
-    completedAssessments: 5,
-    streakDays: 14
+    name: user?.user_metadata?.full_name || '',
+    email: user?.email || '',
+    phone: '',
+    location: '',
+    bio: '',
+    joinDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
+    personalityType: '',
+    crystalsEarned: 0,
+    completedAssessments: 0,
+    streakDays: 0
   });
 
   const [notifications, setNotifications] = useState({
