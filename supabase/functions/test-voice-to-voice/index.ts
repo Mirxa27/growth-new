@@ -90,7 +90,7 @@ async function testElevenLabsVoice(config: VoiceTestConfig): Promise<any> {
   };
 }
 
-async function testGoogleVoice(config: VoiceTestConfig): Promise<any> {
+async function testGoogleVoice(_config: VoiceTestConfig): Promise<any> {
   // For Google Cloud Text-to-Speech, we'd need OAuth setup
   // This is a placeholder implementation
   return {

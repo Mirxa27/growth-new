@@ -5,7 +5,9 @@
       "Bash(grep:*)",
       "Bash(npm install:*)",
       "Bash(rm:*)",
-      "Bash(npm cache clean:*)"
+      "Bash(npm cache clean:*)",
+      "Bash(npx cap add:*)",
+      "Bash(npx cap sync:*)"
     ],
     "deny": [],
     "ask": []

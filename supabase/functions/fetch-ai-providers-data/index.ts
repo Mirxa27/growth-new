@@ -96,7 +96,7 @@ async function fetchElevenLabsData(apiKey: string): Promise<any> {
   };
 }
 
-async function fetchGoogleVertexData(apiKey: string): Promise<any> {
+async function fetchGoogleVertexData(_apiKey: string): Promise<any> {
   // Google Vertex AI models (static list as they require OAuth)
   return {
     models: [

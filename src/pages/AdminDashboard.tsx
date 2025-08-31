@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigManager';
 import AIContentBuilder from '@/components/admin/AIContentBuilder';
+import RealtimeVoiceAgent from '@/components/voice/RealtimeVoiceAgent';
 
 const AdminDashboard: React.FC = () => {
   return (
@@ -14,10 +15,11 @@ const AdminDashboard: React.FC = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="voice-config" className="space-y-6">
-        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-          <TabsTrigger value="voice-config">Voice Agent</TabsTrigger>
+      <Tabs defaultValue="content-builder" className="space-y-6">
+        <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
           <TabsTrigger value="content-builder">Content Builder</TabsTrigger>
+          <TabsTrigger value="voice-agent">Voice Agent</TabsTrigger>
+          <TabsTrigger value="voice-config">Voice Config</TabsTrigger>
         </TabsList>
 
         <TabsContent value="voice-config" className="space-y-6">
@@ -56,6 +58,10 @@ const AdminDashboard: React.FC = () => {
 
         <TabsContent value="content-builder" className="space-y-6">
           <AIContentBuilder />
+        </TabsContent>
+
+        <TabsContent value="voice-agent" className="space-y-6">
+          <RealtimeVoiceAgent />
         </TabsContent>
       </Tabs>
     </div>

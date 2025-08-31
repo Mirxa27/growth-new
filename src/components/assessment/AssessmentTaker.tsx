@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 
@@ -46,7 +46,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
             .select('*')
             .eq('question_id', q.id)
             .order('position', { ascending: true });
-          optionMap[q.id] = oData || [];
+          optionMap[q.id] = (oData as any) || [];
         }
       }
       setOptions(optionMap);

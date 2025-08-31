@@ -36,7 +36,7 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
       if (error) {
         setError(error.message);
       } else {
-        setAssessments(data as Assessment[]);
+        setAssessments(data as any as Assessment[]);
       }
       setLoading(false);
     };

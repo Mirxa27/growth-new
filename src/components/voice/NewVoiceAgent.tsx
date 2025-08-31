@@ -5,33 +5,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
+import { VoiceAgentConfig } from '@/types/voice';
 
 export const NewVoiceAgent = () => {
   const { toast } = useToast();
   const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
-  const voiceConfig = {
-    onConnect: () => toast({ title: "Voice agent connected" }),
-    onDisconnect: () => toast({ title: "Voice agent disconnected" }),
-    onMessage: (message: any) => {
-      if (message.type === 'response.audio.delta' && message.delta?.audio) {
-        // Handle audio streaming
-      }
-    },
-    onError: (error: Error) => toast({ title: "Voice Error", description: error.message, variant: "destructive" }),
+  const voiceConfig: VoiceAgentConfig = {
+    name: 'NewMe Agent',
+    instructions: 'You are a helpful assistant.',
   };
 
   const {
-    isConnected,
-    isConnecting,
-    isRecording,
-    isSpeaking,
-    transcript,
+    state,
     connect,
     disconnect,
     startRecording,
     stopRecording,
   } = useVoiceAgent(voiceConfig);
+
+  const { isConnected, isConnecting, isRecording, isSpeaking, transcript } = state;
 
   useEffect(() => {
     if (audioPlayerRef.current) {

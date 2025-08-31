@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Zap,
   Brain,
-  Heart
+  Heart,
+  Users
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -57,8 +58,8 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
         const { data, error } = await query;
         if (error) throw error;
 
-        setQuizzes(data || []);
-        setFilteredQuizzes(data || []);
+        setQuizzes((data as any) || []);
+        setFilteredQuizzes((data as any) || []);
       } catch (error) {
         console.error('Error loading quizzes:', error);
         toast({
