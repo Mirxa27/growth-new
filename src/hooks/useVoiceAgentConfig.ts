@@ -1,83 +1,65 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 
-export interface VoiceAgentConfig {
-  id: string;
-  name: string;
-  provider: string;
-  model: string;
-  voice_settings: {
-    voice_id: string;
-    stability: number;
-    similarity_boost: number;
-  };
-  conversation_settings: {
-    temperature: number;
-    max_tokens: number;
-    system_prompt: string;
-  };
-  enabled: boolean;
-}
+export type VoiceAgentConfig = Database['public']['Tables']['voice_agent_configs']['Row'];
 
 export const useVoiceAgentConfig = () => {
   const [configs, setConfigs] = useState<VoiceAgentConfig[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadConfigs = useCallback(async () => {
-    setLoading(true);
+  const fetchConfigs = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+      const { data, error: fetchErr } = await supabase
         .from('voice_agent_configs')
         .select('*')
         .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      
+      if (fetchErr) throw fetchErr;
       setConfigs(data || []);
-    } catch (error) {
-      console.error('Failed to load configs:', error);
-      setConfigs([]);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const saveConfig = useCallback(async (config: VoiceAgentConfig) => {
-    try {
-      const { error } = await supabase
-        .from('voice_agent_configs')
-        .upsert(config);
+  useEffect(() => {
+    fetchConfigs();
+  }, [fetchConfigs]);
 
-      if (error) throw error;
-      await loadConfigs(); // Refresh the list
-    } catch (error) {
-      console.error('Failed to save config:', error);
-      throw error;
-    }
-  }, [loadConfigs]);
-
-  const deleteConfig = useCallback(async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('voice_agent_configs')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      await loadConfigs(); // Refresh the list
-    } catch (error) {
-      console.error('Failed to delete config:', error);
-      throw error;
-    }
-  }, [loadConfigs]);
-
-  return {
-    configs,
-    loading,
-    loadConfigs,
-    saveConfig,
-    deleteConfig,
+  const addConfig = async (config: Omit<VoiceAgentConfig, 'id' | 'created_at'>) => {
+    const { data, error: addErr } = await supabase
+      .from('voice_agent_configs')
+      .insert(config as any)
+      .select();
+    if (addErr) throw addErr;
+    if (data) setConfigs(prev => [data[0], ...prev]);
   };
-};
 
-export type { VoiceAgentConfig as VoiceAgentConfigType };
-export type VoiceAgentConfigWithId = VoiceAgentConfig;
+  const updateConfig = async (id: string, updates: Partial<VoiceAgentConfig>) => {
+    const { data, error: updateErr } = await supabase
+      .from('voice_agent_configs')
+      .update(updates)
+      .eq('id', id)
+      .select();
+    if (updateErr) throw updateErr;
+    if (data) {
+      setConfigs(prev => prev.map(c => c.id === id ? data[0] : c));
+    }
+  };
+
+  const deleteConfig = async (id: string) => {
+    const { error: deleteErr } = await supabase
+      .from('voice_agent_configs')
+      .delete()
+      .eq('id', id);
+    if (deleteErr) throw deleteErr;
+    setConfigs(prev => prev.filter(c => c.id !== id));
+  };
+
+  return { configs, loading, error, fetchConfigs, addConfig, updateConfig, deleteConfig };
+};

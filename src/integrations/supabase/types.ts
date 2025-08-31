@@ -732,6 +732,42 @@ export type Database = {
         }
         Relationships: []
       }
+      content_challenges: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          challenge_type: string
+          difficulty: string
+          reward: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          challenge_type: string
+          difficulty: string
+          reward: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          challenge_type?: string
+          difficulty?: string
+          reward?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversation_context: {
         Row: {
           context_data: Json
@@ -2330,9 +2366,10 @@ export type Database = {
           name: string
           provider: string
           model: string
-          voice_settings: Json
-          conversation_settings: Json
-          enabled: boolean
+          voice: string
+          temperature: number
+          instructions: string | null
+          is_active: boolean
           created_at: string
         }
         Insert: {
@@ -2340,9 +2377,10 @@ export type Database = {
           name: string
           provider: string
           model: string
-          voice_settings: Json
-          conversation_settings: Json
-          enabled?: boolean
+          voice: string
+          temperature?: number
+          instructions?: string | null
+          is_active?: boolean
           created_at?: string
         }
         Update: {
@@ -2350,9 +2388,10 @@ export type Database = {
           name?: string
           provider?: string
           model?: string
-          voice_settings?: Json
-          conversation_settings?: Json
-          enabled?: boolean
+          voice?: string
+          temperature?: number
+          instructions?: string | null
+          is_active?: boolean
           created_at?: string
         }
         Relationships: []

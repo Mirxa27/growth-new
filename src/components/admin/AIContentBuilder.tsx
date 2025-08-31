@@ -18,8 +18,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 
-// AIExplorationBuilder is now part of this component
-// ... (logic for exploration builder can be integrated here)
+interface GeneratedQuestion {
+  question_text: string;
+  question_type: 'multiple_choice' | 'free_text' | 'image';
+  position: number;
+  options: GeneratedOption[];
+}
+
+interface GeneratedOption {
+  option_text: string;
+  is_correct: boolean;
+  position: number;
+  feedback?: string;
+}
+
+interface GeneratedContent {
+  title: string;
+  description: string;
+  questions: GeneratedQuestion[];
+}
 
 export const AIContentBuilder = () => {
   const { toast } = useToast();
@@ -27,7 +44,7 @@ export const AIContentBuilder = () => {
   const [type, setType] = useState<'quiz' | 'personality'>('personality');
   const [questionCount, setQuestionCount] = useState(10);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<any | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
 
@@ -40,10 +57,10 @@ export const AIContentBuilder = () => {
     setGeneratedContent(null);
     
     try {
-      const { data, error } = await (supabase.functions as any).invoke('create-assessment', {
+      const { data, error } = await supabase.functions.invoke('create-assessment', {
         body: {
           topic,
-          type: 'test', // Use 'test' type for generation
+          type: 'test',
           provider: 'openai',
           model: 'gpt-4o-mini',
           questionCount,
@@ -55,10 +72,11 @@ export const AIContentBuilder = () => {
 
       if (error) throw error;
       
-      setGeneratedContent(data.generated_content);
+      setGeneratedContent(data.generated_content as GeneratedContent);
       toast({ title: "Content generated successfully!" });
-    } catch (error: any) {
-      toast({ title: "Generation failed", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: "Generation failed", description: errorMessage, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
@@ -69,7 +87,7 @@ export const AIContentBuilder = () => {
     setIsSaving(true);
 
     try {
-      const { error } = await (supabase.rpc as any)('create_assessment_with_questions', {
+      const { error } = await supabase.rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
         _description: generatedContent.description,
         _type: type,
@@ -77,7 +95,7 @@ export const AIContentBuilder = () => {
         _ai_provider: 'openai',
         _ai_model: 'gpt-4o-mini',
         _ai_prompt: `Generated assessment on the topic: ${topic}`,
-        _questions: generatedContent.questions
+        _questions: JSON.stringify(generatedContent.questions)
       });
 
       if (error) throw error;
@@ -85,8 +103,9 @@ export const AIContentBuilder = () => {
       toast({ title: "Assessment saved successfully!" });
       setGeneratedContent(null);
       setTopic('');
-    } catch (error: any) {
-      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: "Save failed", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +152,7 @@ export const AIContentBuilder = () => {
               </div>
               <div>
                 <Label>Type</Label>
-                <select value={type} onChange={e => setType(e.target.value as any)} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass">
+                <select value={type} onChange={e => setType(e.target.value as 'quiz' | 'personality')} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass" aria-label="Assessment type">
                   <option value="personality">Personality Assessment</option>
                   <option value="quiz">Quiz (with correct answers)</option>
                 </select>
@@ -159,7 +178,7 @@ export const AIContentBuilder = () => {
                   <h3 className="font-bold">{generatedContent.title}</h3>
                   <p className="text-sm text-muted-foreground">{generatedContent.description}</p>
                   <div className="max-h-60 overflow-y-auto space-y-2 p-2 glass rounded">
-                    {generatedContent.questions?.map((q: any, i: number) => (
+                    {generatedContent.questions?.map((q: GeneratedQuestion, i: number) => (
                       <div key={i} className="text-xs"><strong>Q{i+1}:</strong> {q.question_text}</div>
                     ))}
                   </div>

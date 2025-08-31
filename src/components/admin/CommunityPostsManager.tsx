@@ -38,7 +38,7 @@ export const CommunityPostsManager: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data as CommunityPost[] || []);
+      setPosts((data as any) || []);
     } catch (error: any) {
       toast({ title: "Error", description: `Failed to fetch posts: ${error.message}`, variant: "destructive" });
     } finally {

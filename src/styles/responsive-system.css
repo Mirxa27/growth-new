@@ -1,0 +1,359 @@
+/* Comprehensive Mobile-First Responsive Design System */
+
+/* Base Mobile Styles (320px - 768px) */
+:root {
+  --mobile-padding: 1rem;
+  --mobile-spacing: 0.75rem;
+  --mobile-font-size: 0.875rem;
+  --mobile-heading-size: 1.25rem;
+  --mobile-button-size: 2.5rem;
+  --mobile-input-height: 2.75rem;
+  --mobile-card-padding: 1rem;
+  --mobile-radius: 0.75rem;
+}
+
+/* Tablet Styles (768px - 1024px) */
+@media (min-width: 768px) {
+  :root {
+    --tablet-padding: 1.5rem;
+    --tablet-spacing: 1rem;
+    --tablet-font-size: 1rem;
+    --tablet-heading-size: 1.5rem;
+    --tablet-button-size: 3rem;
+    --tablet-input-height: 3rem;
+    --tablet-card-padding: 1.5rem;
+    --tablet-radius: 1rem;
+  }
+}
+
+/* Desktop Styles (1024px+) */
+@media (min-width: 1024px) {
+  :root {
+    --desktop-padding: 2rem;
+    --desktop-spacing: 1.5rem;
+    --desktop-font-size: 1.125rem;
+    --desktop-heading-size: 2rem;
+    --desktop-button-size: 3.5rem;
+    --desktop-input-height: 3.25rem;
+    --desktop-card-padding: 2rem;
+    --desktop-radius: 1.25rem;
+  }
+}
+
+/* Ultra-wide Screens (1440px+) */
+@media (min-width: 1440px) {
+  :root {
+    --ultra-padding: 3rem;
+    --ultra-spacing: 2rem;
+    --ultra-font-size: 1.25rem;
+    --ultra-heading-size: 2.5rem;
+    --ultra-button-size: 4rem;
+    --ultra-input-height: 3.5rem;
+    --ultra-card-padding: 2.5rem;
+    --ultra-radius: 1.5rem;
+  }
+}
+
+/* Fluid Typography System */
+.text-fluid-xs { font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem); }
+.text-fluid-sm { font-size: clamp(0.875rem, 0.8rem + 0.375vw, 1rem); }
+.text-fluid-base { font-size: clamp(1rem, 0.9rem + 0.5vw, 1.125rem); }
+.text-fluid-lg { font-size: clamp(1.125rem, 1rem + 0.625vw, 1.25rem); }
+.text-fluid-xl { font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem); }
+.text-fluid-2xl { font-size: clamp(1.5rem, 1.3rem + 1vw, 2rem); }
+.text-fluid-3xl { font-size: clamp(2rem, 1.7rem + 1.5vw, 2.5rem); }
+.text-fluid-4xl { font-size: clamp(2.5rem, 2rem + 2.5vw, 4rem); }
+
+/* Fluid Spacing System */
+.space-fluid-xs { margin: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem); }
+.space-fluid-sm { margin: clamp(0.5rem, 0.4rem + 0.5vw, 1rem); }
+.space-fluid-base { margin: clamp(1rem, 0.8rem + 1vw, 2rem); }
+.space-fluid-lg { margin: clamp(1.5rem, 1.2rem + 1.5vw, 3rem); }
+.space-fluid-xl { margin: clamp(2rem, 1.6rem + 2vw, 4rem); }
+.space-fluid-2xl { margin: clamp(3rem, 2.4rem + 3vw, 6rem); }
+
+/* Container Queries */
+.container-mobile {
+  max-width: 100%;
+  padding: var(--mobile-padding);
+}
+
+.container-tablet {
+  max-width: 768px;
+  padding: var(--tablet-padding);
+}
+
+.container-desktop {
+  max-width: 1024px;
+  padding: var(--desktop-padding);
+}
+
+.container-ultra {
+  max-width: 1440px;
+  padding: var(--ultra-padding);
+}
+
+/* Grid Systems */
+.grid-mobile { 
+  display: grid;
+  gap: var(--mobile-spacing);
+  grid-template-columns: 1fr;
+}
+
+.grid-tablet {
+  display: grid;
+  gap: var(--tablet-spacing);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-desktop {
+  display: grid;
+  gap: var(--desktop-spacing);
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+}
+
+/* Card Responsive Design */
+.card-mobile {
+  padding: var(--mobile-card-padding);
+  border-radius: var(--mobile-radius);
+  margin-bottom: var(--mobile-spacing);
+}
+
+.card-tablet {
+  padding: var(--tablet-card-padding);
+  border-radius: var(--tablet-radius);
+  margin-bottom: var(--tablet-spacing);
+}
+
+.card-desktop {
+  padding: var(--desktop-card-padding);
+  border-radius: var(--desktop-radius);
+  margin-bottom: var(--desktop-spacing);
+}
+
+/* Button Responsive Design */
+.btn-mobile {
+  min-height: var(--mobile-button-size);
+  font-size: var(--mobile-font-size);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--mobile-radius);
+}
+
+.btn-tablet {
+  min-height: var(--tablet-button-size);
+  font-size: var(--tablet-font-size);
+  padding: 1rem 2rem;
+  border-radius: var(--tablet-radius);
+}
+
+.btn-desktop {
+  min-height: var(--desktop-button-size);
+  font-size: var(--desktop-font-size);
+  padding: 1.25rem 2.5rem;
+  border-radius: var(--desktop-radius);
+}
+
+/* Input Responsive Design */
+.input-mobile {
+  min-height: var(--mobile-input-height);
+  font-size: var(--mobile-font-size);
+  padding: 0.75rem 1rem;
+  border-radius: var(--mobile-radius);
+}
+
+.input-tablet {
+  min-height: var(--tablet-input-height);
+  font-size: var(--tablet-font-size);
+  padding: 1rem 1.25rem;
+  border-radius: var(--tablet-radius);
+}
+
+.input-desktop {
+  min-height: var(--desktop-input-height);
+  font-size: var(--desktop-font-size);
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--desktop-radius);
+}
+
+/* Navigation Responsive */
+.nav-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-tablet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-desktop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Sidebar Responsive */
+.sidebar-mobile {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(20px);
+  transition: left 0.3s ease;
+}
+
+.sidebar-tablet {
+  position: fixed;
+  top: 4rem;
+  left: 0;
+  width: 250px;
+  height: calc(100vh - 4rem);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-desktop {
+  position: fixed;
+  top: 5rem;
+  left: 0;
+  width: 300px;
+  height: calc(100vh - 5rem);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+/* Content Area Responsive */
+.content-mobile {
+  margin-top: 0;
+  margin-bottom: 5rem;
+  padding: var(--mobile-padding);
+}
+
+.content-tablet {
+  margin-top: 5rem;
+  margin-left: 250px;
+  padding: var(--tablet-padding);
+}
+
+.content-desktop {
+  margin-top: 6rem;
+  margin-left: 300px;
+  padding: var(--desktop-padding);
+}
+
+/* Modal Responsive */
+.modal-mobile {
+  max-width: 100%;
+  max-height: 90vh;
+  margin: var(--mobile-padding);
+  border-radius: var(--mobile-radius);
+}
+
+.modal-tablet {
+  max-width: 600px;
+  max-height: 80vh;
+  margin: 2rem auto;
+  border-radius: var(--tablet-radius);
+}
+
+.modal-desktop {
+  max-width: 800px;
+  max-height: 70vh;
+  margin: 3rem auto;
+  border-radius: var(--desktop-radius);
+}
+
+/* Touch Targets for Mobile */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Safe Areas for Mobile */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left, 1rem);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 1rem);
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .glass-mobile {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .glass-tablet {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .glass-desktop {
+    background: rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-friendly {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+}

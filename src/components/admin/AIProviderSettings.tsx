@@ -37,8 +37,9 @@ export const AIProviderSettings: React.FC = () => {
       const { data, error } = await supabase.from('admin_ai_providers').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       setProviders(data || []);
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to fetch providers: ${error.message}`, variant: "destructive" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: "Error", description: `Failed to fetch providers: ${errorMessage}`, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,9 @@ export const AIProviderSettings: React.FC = () => {
       toast({ title: "Success", description: `Provider ${editingProvider ? 'updated' : 'created'}` });
       setIsDialogOpen(false);
       fetchProviders();
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to save provider: ${error.message}`, variant: "destructive" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: "Error", description: `Failed to save provider: ${errorMessage}`, variant: "destructive" });
     }
   };
 
@@ -73,8 +75,9 @@ export const AIProviderSettings: React.FC = () => {
       if (error) throw error;
       toast({ title: "Success", description: "Provider deleted" });
       fetchProviders();
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to delete provider: ${error.message}`, variant: "destructive" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: "Error", description: `Failed to delete provider: ${errorMessage}`, variant: "destructive" });
     }
   };
 
@@ -111,7 +114,7 @@ export const AIProviderSettings: React.FC = () => {
         <DialogContent className="glass-strong"><DialogHeader><DialogTitle>{editingProvider ? 'Edit' : 'Create'} AI Provider</DialogTitle><DialogDescription>Configure the settings for the AI provider.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Name</Label><Input value={formData.name || ''} onChange={e => setFormData(p => ({...p, name: e.target.value}))} className="glass-input" /></div>
-            <div className="space-y-2"><Label>Provider Type</Label><Select value={formData.provider_type || 'openai'} onValueChange={(v: any) => setFormData(p => ({...p, provider_type: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem><SelectItem value="google">Google</SelectItem><SelectItem value="elevenlabs">ElevenLabs</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Provider Type</Label><Select value={formData.provider_type || 'openai'} onValueChange={(v) => setFormData(p => ({...p, provider_type: v}))}><SelectTrigger className="glass"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem><SelectItem value="google">Google</SelectItem><SelectItem value="elevenlabs">ElevenLabs</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Description</Label><Textarea value={formData.description || ''} onChange={e => setFormData(p => ({...p, description: e.target.value}))} className="glass-input" /></div>
             <div className="space-y-2"><Label>API Key</Label><Input type="password" value={formData.api_key || ''} onChange={e => setFormData(p => ({...p, api_key: e.target.value}))} className="glass-input" placeholder="Enter API Key (stored securely)" /></div>
             <div className="flex items-center space-x-2"><Switch id="is_active" checked={formData.is_active || false} onCheckedChange={c => setFormData(p => ({...p, is_active: c}))} /><Label htmlFor="is_active">Active</Label></div>

@@ -13,6 +13,8 @@
     "@dyad-sh/react-vite-component-tagger": "latest",
     "@eslint/js": "latest",
     "@tailwindcss/typography": "latest",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "@types/dompurify": "latest",
     "@types/node": "latest",
     "@types/react": "^18.3.24",
@@ -30,7 +32,8 @@
     "typescript-eslint": "latest",
     "vite": "latest",
     "vite-plugin-static-copy": "latest",
-    "vite-tsconfig-paths": "latest"
+    "vite-tsconfig-paths": "latest",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@kombai/react-error-boundary": "latest",

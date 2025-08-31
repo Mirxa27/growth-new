@@ -1,231 +1,125 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Lock, User, ArrowRight } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useNavigate } from 'react-router-dom';
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const from = location.state?.from?.pathname || '/dashboard';
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    const { email, password } = Object.fromEntries(new FormData(event.currentTarget));
 
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (!error) {
-          navigate(from, { replace: true });
-        } else {
-          toast({
-            title: "Sign in failed",
-            description: error.message || "Invalid email or password",
-            variant: "destructive",
-          });
-        }
-      } else {
-        if (!name.trim()) {
-          toast({
-            title: "Validation error",
-            description: "Please enter your full name",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        if (password.length < 6) {
-          toast({
-            title: "Validation error",
-            description: "Password must be at least 6 characters",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        const { error } = await signUp(email, password, { data: { full_name: name } });
-        if (!error) {
-          toast({
-            title: "Account created!",
-            description: "Please check your email to verify your account.",
-          });
-          setTimeout(() => setIsLogin(true), 3000);
-        } else {
-          toast({
-            title: "Sign up failed",
-            description: error.message || "Unable to create account",
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Auth error:', error);
-      toast({
-        title: "Authentication error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      const { error } = await signIn(email as string, password as string);
+      if (error) throw error;
+      toast({ title: "Success", description: "Signed in successfully." });
+      navigate('/dashboard');
+    } catch (error: any) {
+      setError(error.message);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    const { name, email, password } = Object.fromEntries(new FormData(event.currentTarget));
+
+    try {
+      const { error } = await signUp({
+        email: email as string,
+        password: password as string,
+        options: {
+          data: {
+            full_name: name as string,
+          }
+        }
+      });
+      if (error) throw error;
+      toast({ title: "Success", description: "Account created. Please check your email to verify." });
+    } catch (error: any) {
+      setError(error.message);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => navigate('/')}
-            className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 hover:opacity-80 transition-opacity"
-          >
-            <img src="/symbol.svg" alt="Newomen Logo" className="w-14 h-14" />
-          </button>
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Welcome to Newomen
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {isLogin ? 'Sign in to continue your journey' : 'Create your account to get started'}
-          </p>
-        </div>
-
-        {/* Auth Form */}
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {isLogin 
-                ? 'Enter your credentials to access your account'
-                : 'Fill in your details to create a new account'
-              }
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+      <Tabs defaultValue="sign-in" className="w-[400px]">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="sign-in">Sign In</TabsTrigger>
+          <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
+        </TabsList>
+        <TabsContent value="sign-in">
+          <Card className="glass-strong">
+            <CardHeader>
+              <CardTitle>Sign In</CardTitle>
+              <CardDescription>Enter your credentials to access your account.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-10 glass-input"
-                      required={!isLogin}
-                    />
-                  </div>
+                  <Label htmlFor="email-in">Email</Label>
+                  <Input id="email-in" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
                 </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 glass-input"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="password-in">Password</Label>
+                  <Input id="password-in" name="password" type="password" required className="glass-input" />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 glass-input"
-                    required
-                  />
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+                  {loading ? 'Signing In...' : 'Sign In'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="sign-up">
+          <Card className="glass-strong">
+            <CardHeader>
+              <CardTitle>Sign Up</CardTitle>
+              <CardDescription>Create a new account to start your journey.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name-up">Name</Label>
+                  <Input id="name-up" name="name" placeholder="Your Name" required className="glass-input" />
                 </div>
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-primary text-lg py-6"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <>
-                    {isLogin ? 'Sign In' : 'Create Account'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or
-                </span>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
-              </p>
-              <Button
-                variant="link"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary font-semibold"
-              >
-                {isLogin ? 'Create one here' : 'Sign in instead'}
-              </Button>
-            </div>
-
-          </CardContent>
-        </Card>
-
-        {/* Back to Home */}
-        <div className="text-center mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="text-muted-foreground"
-          >
-            ← Back to Home
-          </Button>
-        </div>
-      </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-up">Email</Label>
+                  <Input id="email-up" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-up">Password</Label>
+                  <Input id="password-up" name="password" type="password" required className="glass-input" />
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Create Account'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

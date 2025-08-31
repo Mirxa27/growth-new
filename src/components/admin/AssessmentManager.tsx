@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 interface Assessment {
-  id: string;
+  id: number;
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
@@ -102,7 +102,7 @@ export const AssessmentManager: React.FC = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('assessments' as any)
+        .from('assessments')
         .select(`
           *,
           assessment_questions (count)
@@ -264,7 +264,7 @@ export const AssessmentManager: React.FC = () => {
         return;
       }
 
-      const { error } = await (supabase.rpc as any)('create_assessment_with_questions', {
+      const { error } = await supabase.rpc('create_assessment_with_questions', {
         _title: assessmentForm.title,
         _description: assessmentForm.description,
         _type: assessmentForm.type,
@@ -272,7 +272,7 @@ export const AssessmentManager: React.FC = () => {
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
         _ai_prompt: assessmentForm.ai_prompt,
-        _questions: JSON.stringify(assessmentForm.questions)
+        _questions: assessmentForm.questions as any
       });
 
       if (error) throw error;
@@ -309,12 +309,12 @@ export const AssessmentManager: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this assessment?')) return;
     
     try {
       const { error } = await supabase
-        .from('assessments' as any)
+        .from('assessments')
         .delete()
         .eq('id', id);
 
@@ -331,7 +331,7 @@ export const AssessmentManager: React.FC = () => {
   const handleDuplicate = async (assessment: Assessment) => {
     try {
       const { error } = await supabase
-        .from('assessments' as any)
+        .from('assessments')
         .insert({
           title: `${assessment.title} (Copy)`,
           description: assessment.description,
