@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { Json, TablesInsert } from '@/integrations/supabase/types';
+import { Json } from '@/integrations/supabase/types';
 
 interface GeneratedQuestion {
   question_text: string;
@@ -38,6 +38,9 @@ interface GeneratedContent {
   title: string;
   description: string;
   questions: GeneratedQuestion[];
+  // Optional metadata returned by AI generator
+  type?: string;
+  visibility?: 'public' | 'private';
 }
 
 export const AIContentBuilder = () => {
@@ -96,17 +99,17 @@ export const AIContentBuilder = () => {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase.rpc('create_assessment_with_questions', {
+      const { error } = await (supabase as any).rpc('create_assessment_with_questions', {
         _title: generatedContent.title,
         _description: generatedContent.description,
-        _type: type,
-        _visibility: visibility,
+        _type: (generatedContent as any).type || type || 'quiz',
+        _visibility: (generatedContent as any).visibility || visibility || 'private',
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
-        _ai_prompt: assessmentForm.ai_prompt,
-        _questions: generatedContent.questions as unknown as Json,
+        _ai_prompt: assessmentForm.ai_prompt || topic,
+        _questions: generatedContent.questions || [],
         _created_by: user.id
-      });
+      } as any);
 
       if (error) throw error;
 

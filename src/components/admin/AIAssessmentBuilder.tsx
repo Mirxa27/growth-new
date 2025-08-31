@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Sparkles, Save, Eye, EyeOff, Plus, Trash2, Copy } from 'lucide-react';
+import { Loader2, Sparkles, Save, Plus, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,7 +53,9 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   const [category, setCategory] = useState(assessment?.category || 'self-discovery');
   const [visibility, setVisibility] = useState<'public' | 'users' | 'premium'>(assessment?.visibility || 'public');
   const [estimatedTime, setEstimatedTime] = useState(assessment?.estimatedTime || 10);
-  const [questions, setQuestions] = useState<Question[]>(assessment?.questions || []);
+  const [questions, setQuestions] = useState<Question[]>(
+    (assessment?.questions?.map((q: any) => ({ ...q, required: q.required ?? true })) as Question[]) || []
+  );
   const [scoring, setScoring] = useState<ScoringConfig>(assessment?.scoring || { type: 'categorical' });
   const [results, setResults] = useState(assessment?.results || { summary: '', insights: [], recommendations: [] });
   
@@ -84,8 +85,14 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
 
     setAILoading(true);
     try {
-      const response = await supabase.functions.invoke('generate-assessment', {
-        body: { prompt: aiPrompt }
+      const response = await supabase.functions.invoke('create-assessment', {
+        body: {
+          type: type,
+          topic: aiPrompt,
+          difficulty: 'medium',
+          target_audience: 'general',
+          question_count: 5
+        }
       });
 
       if (response.data) {
@@ -151,30 +158,30 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
 
     setLoading(true);
     try {
-      const assessmentData = {
-        title,
-        description,
-        type,
-        category,
-        visibility,
-        estimatedTime,
-        questions: questions.map(q => ({
-          question_text: q.text,
-          question_type: q.type,
-          position: questions.indexOf(q) + 1,
-          options: q.options || [],
-          scale: q.scale
-        })),
-        scoring,
-        results,
-        created_by: user?.id
-      };
+      // Prepare questions in the correct format for the stored procedure
+      const formattedQuestions = questions.map((q, index) => ({
+        question_text: q.text,
+        question_type: q.type === 'single' || q.type === 'multiple' ? 'multiple_choice' : 
+                       q.type === 'scale' ? 'scale' : 'free_text',
+        position: index + 1,
+        options: (q.type === 'single' || q.type === 'multiple') && q.options ? 
+          q.options.map((opt, optIndex) => ({
+            option_text: opt,
+            is_correct: false, // Default to false, can be updated later
+            position: optIndex + 1
+          })) : []
+      }));
 
-      const { data, error } = await supabase
-        .from('assessments')
-        .insert([assessmentData])
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('create_assessment_with_questions', {
+        _title: title,
+        _description: description,
+        _type: type,
+        _visibility: visibility,
+        _ai_provider: 'openai',
+        _ai_model: 'gpt-4o-mini',
+        _ai_prompt: aiPrompt || `Manual assessment: ${title}`,
+        _questions: formattedQuestions
+      });
 
       if (error) throw error;
 

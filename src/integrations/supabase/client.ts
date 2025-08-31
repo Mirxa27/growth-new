@@ -14,10 +14,10 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABL
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase: any = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as any, {
   auth: {
-    storage: localStorage,
+    storage: (typeof localStorage !== 'undefined' ? localStorage : undefined),
     persistSession: true,
     autoRefreshToken: true,
   }
-});
+}) as any;

@@ -415,7 +415,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
           // Fallback: call the direct Supabase Functions URL
           const SUPABASE_URL = (supabase as any).url || '';
           const SUPABASE_KEY = (supabase as any).anonKey || '';
-          const resp = await fetch(`${SUPABASE_URL.replace(/\\/$/, '')}/functions/v1/submit-result`, {
+          const resp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/submit-result`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

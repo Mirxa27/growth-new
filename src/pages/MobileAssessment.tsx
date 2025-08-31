@@ -567,13 +567,24 @@ const MobileAssessment = () => {
                       <Label 
                         htmlFor={option.value} 
                         className={cn(
-                          "block p-4 rounded-lg border-2 cursor-pointer transition-all",
-                          "hover:border-primary/50 hover:bg-primary/5",
-                          "peer-checked:border-primary peer-checked:bg-primary/10",
+                          "block p-4 rounded-lg border-2 cursor-pointer transition-all duration-300",
+                          "bg-white/5 backdrop-blur-sm border-white/20",
+                          "hover:bg-white/10 hover:border-white/30 hover:shadow-lg",
+                          "peer-checked:bg-gradient-to-r peer-checked:from-primary/20 peer-checked:to-secondary/20",
+                          "peer-checked:border-primary peer-checked:shadow-xl peer-checked:scale-[1.02]",
+                          "peer-checked:text-white peer-checked:font-medium",
                           "text-sm leading-relaxed"
                         )}
                       >
-                        {option.label}
+                        <span className="flex items-center">
+                          <span className={cn(
+                            "w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center transition-all",
+                            "border-white/30",
+                            "peer-checked:border-primary peer-checked:bg-primary",
+                            "peer-checked:after:content-[''] peer-checked:after:w-2 peer-checked:after:h-2 peer-checked:after:rounded-full peer-checked:after:bg-white"
+                          )} />
+                          {option.label}
+                        </span>
                       </Label>
                     </div>
                   ))}

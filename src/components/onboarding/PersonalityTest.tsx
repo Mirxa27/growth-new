@@ -218,10 +218,12 @@ export const PersonalityTest = ({ onComplete, onBack }: PersonalityTestProps) =>
                 <div
                   key={option.value}
                   className={cn(
-                    "flex items-center space-x-3 p-4 rounded-lg border transition-all cursor-pointer hover:bg-muted/50",
-                    currentAnswer === option.value 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border"
+                    "flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-300",
+                    "bg-white/5 backdrop-blur-sm border-white/20",
+                    "hover:bg-white/10 hover:border-white/30 hover:shadow-lg",
+                    currentAnswer === option.value
+                      ? "border-primary bg-gradient-to-r from-primary/20 to-secondary/20 shadow-xl scale-[1.02]"
+                      : "border-white/20"
                   )}
                   onClick={() => handleAnswer(currentQ.id, option.value)}
                 >

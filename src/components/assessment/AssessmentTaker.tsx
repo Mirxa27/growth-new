@@ -83,8 +83,8 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
         .from('assessment_results')
         .insert({
           user_id: userId,
-          assessment_id: assessmentId,
-          score,
+          assessment_type: 'assessment',
+          results: { score, total_questions: questions.length, percentage: Math.round((score / questions.length) * 100) },
           answers,
         })
       if (error) {
@@ -135,7 +135,12 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
               {options[q.id]?.map(opt => (
                 <label
                   key={opt.id}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-xl transition-all duration-300 cursor-pointer border-2",
+                    answers[q.id] === opt.id
+                      ? "glass-card-selected bg-white/20 border-primary/50 shadow-lg shadow-primary/20 scale-[1.02]"
+                      : "glass-card hover:bg-white/10 hover:border-white/20 border-transparent hover:scale-[1.01]"
+                  )}
                   onKeyDown={(e) => {
                     if (e.key === ' ' || e.key === 'Enter') {
                       e.preventDefault();
@@ -146,14 +151,23 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
                   role="radio"
                   aria-checked={answers[q.id] === opt.id}
                 >
-                  <input
-                    type="radio"
-                    name={`q_${q.id}`}
-                    value={opt.id}
-                    checked={answers[q.id] === opt.id}
-                    onChange={() => handleAnswer(q.id, opt.id)}
-                  />
-                  {opt.option_text}
+                  <div className={cn(
+                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                    answers[q.id] === opt.id
+                      ? "border-primary bg-primary"
+                      : "border-white/40 bg-white/10"
+                  )}>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full transition-all duration-300",
+                      answers[q.id] === opt.id ? "bg-white" : "bg-transparent"
+                    )} />
+                  </div>
+                  <span className={cn(
+                    "transition-all duration-300",
+                    answers[q.id] === opt.id ? "text-white font-medium" : "text-white/80"
+                  )}>
+                    {opt.option_text}
+                  </span>
                 </label>
               ))}
             </div>

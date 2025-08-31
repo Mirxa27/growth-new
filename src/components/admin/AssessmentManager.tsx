@@ -272,8 +272,7 @@ export const AssessmentManager: React.FC = () => {
         _ai_provider: assessmentForm.ai_provider,
         _ai_model: assessmentForm.ai_model,
         _ai_prompt: assessmentForm.ai_prompt,
-        _questions: assessmentForm.questions as unknown as Json,
-        _created_by: null
+        _questions: assessmentForm.questions as unknown as Json
       });
 
       if (error) throw error;

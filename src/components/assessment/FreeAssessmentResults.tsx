@@ -180,7 +180,7 @@ export const FreeAssessmentResults: React.FC<FreeAssessmentResultsProps> = ({
           <div className="mt-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">Completion Rate</span>
-              <Badge variant={completionRate >= 80 ? 'success' : 'warning'}>
+              <Badge variant={completionRate >= 80 ? 'default' : 'secondary'}>
                 {completionRate.toFixed(0)}%
               </Badge>
             </div>

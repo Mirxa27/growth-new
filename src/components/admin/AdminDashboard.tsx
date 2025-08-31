@@ -211,7 +211,12 @@ const AdminDashboard: React.FC = () => {
         : newUsersThisWeek > 0 ? 100 : 0;
 
       // Generate recent activity
-      const recentActivity = [];
+      const recentActivity: {
+        id: string;
+        type: 'user' | 'assessment' | 'community' | 'library';
+        message: string;
+        timestamp: string;
+      }[] = [];
       
       // Recent user registrations
       users
@@ -220,7 +225,7 @@ const AdminDashboard: React.FC = () => {
         .forEach((user, index) => {
           recentActivity.push({
             id: `user-${index}`,
-            type: 'user' as const,
+            type: 'user',
             message: 'New user joined the platform',
             timestamp: user.created_at || new Date().toISOString()
           });
