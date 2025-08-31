@@ -32,9 +32,26 @@ import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Json } from '@/integrations/supabase/types';
 
+// Define a more specific type for our form data and provider structure
 type AIProvider = Tables<'admin_ai_providers'>;
 type AIProviderInsert = TablesInsert<'admin_ai_providers'>;
+
+// This interface represents the expected structure within the 'configuration' JSON column
+interface ProviderConfiguration {
+  model?: string;
+  max_tokens?: number;
+  temperature?: number;
+  timeout?: number;
+  api_key?: string;
+  base_url?: string;
+  organization_id?: string;
+  project_id?: string;
+  region?: string;
+  voice_id?: string;
+  [key: string]: any; // Allow other dynamic properties
+}
 
 interface AIModel {
   id: string;
@@ -125,7 +142,11 @@ export const AIProviderSettings: React.FC = () => {
     }
   }, [toast]);
 
-  const validateProviderConfig = (config: any): { isValid: boolean; errors: string[] } => {
+  useEffect(() => {
+    fetchProviders();
+  }, [fetchProviders]);
+
+  const validateProviderConfig = (config: ProviderConfiguration): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
     const providerConfig = PROVIDER_CONFIGS[selectedProviderType];
     
@@ -135,8 +156,8 @@ export const AIProviderSettings: React.FC = () => {
     }
 
     providerConfig.config_fields.forEach(field => {
-      if (!config[field] || config[field].trim() === '') {
-        errors.push(`${field.replace('_', ' ')} is required`);
+      if (!config[field] || String(config[field]).trim() === '') {
+        errors.push(`${field.replace(/_/g, ' ')} is required`);
       }
     });
 
@@ -150,13 +171,16 @@ export const AIProviderSettings: React.FC = () => {
   const applyPresetConfig = (providerType: string) => {
     const config = PROVIDER_CONFIGS[providerType];
     if (config) {
+      setSelectedProviderType(providerType);
       setFormData(prev => ({
         ...prev,
         provider_type: providerType,
         system_prompt: config.default_system_prompt,
-        configuration: {}
+        configuration: {
+            ...(prev.configuration as object),
+            model: config.models[0]?.id || ''
+        }
       }));
-      setSelectedProviderType(providerType);
     }
   };
 
@@ -164,7 +188,7 @@ export const AIProviderSettings: React.FC = () => {
     setIsTesting(prev => ({ ...prev, [provider.id]: true }));
     try {
       const { data, error } = await supabase.functions.invoke('test-ai-provider', {
-        body: { provider }
+        body: { providerId: provider.id }
       });
 
       if (error) throw error;
@@ -176,10 +200,11 @@ export const AIProviderSettings: React.FC = () => {
         variant: data.success ? "default" : "destructive",
       });
     } catch (error: any) {
-      setTestResults(prev => ({ ...prev, [provider.id]: { success: false, error: error instanceof Error ? error.message : 'Unknown error' } }));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setTestResults(prev => ({ ...prev, [provider.id]: { success: false, error: errorMessage } }));
       toast({
         title: "Connection Test Failed",
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -187,52 +212,44 @@ export const AIProviderSettings: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchProviders();
-  }, [fetchProviders]);
-
   const handleOpenDialog = (provider?: AIProvider) => {
     if (provider) {
       setEditingProvider(provider);
       setFormData({ 
         name: provider.name,
         provider_type: provider.provider_type,
-        api_key: provider.api_key,
         description: provider.description || '',
         is_active: provider.is_active,
         priority: provider.priority,
-        model: provider.model,
-        max_tokens: provider.max_tokens,
-        temperature: provider.temperature,
-        timeout: provider.timeout,
         system_prompt: provider.system_prompt,
-        configuration: provider.configuration || {}
+        configuration: (provider.configuration as ProviderConfiguration) || {}
       });
-      if (provider.provider_type) {
-        setSelectedProviderType(provider.provider_type);
-      }
+      setSelectedProviderType(provider.provider_type || 'openai');
     } else {
       setEditingProvider(null);
+      const initialProviderType = 'openai';
+      const initialConfig = PROVIDER_CONFIGS[initialProviderType];
       setFormData({ 
         name: '', 
-        provider_type: 'openai', 
+        provider_type: initialProviderType, 
         is_active: true, 
         priority: 10,
-        model: PROVIDER_CONFIGS.openai.models[0].id,
-        max_tokens: 1000,
-        temperature: 0.7,
-        timeout: 30,
-        system_prompt: PROVIDER_CONFIGS.openai.default_system_prompt,
-        configuration: {}
+        system_prompt: initialConfig.default_system_prompt,
+        configuration: {
+            model: initialConfig.models[0].id,
+            max_tokens: 1000,
+            temperature: 0.7,
+            timeout: 30,
+        }
       });
-      setSelectedProviderType('openai');
+      setSelectedProviderType(initialProviderType);
     }
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
     try {
-      const validation = validateProviderConfig(formData.configuration || {});
+      const validation = validateProviderConfig(formData.configuration as ProviderConfiguration || {});
       if (!validation.isValid) {
         toast({
           title: "Validation Error",
@@ -251,7 +268,7 @@ export const AIProviderSettings: React.FC = () => {
       } else {
         result = await supabase
           .from('admin_ai_providers')
-          .insert(formData as AIProviderInsert);
+          .insert([formData as AIProviderInsert]);
       }
 
       if (result.error) throw result.error;
@@ -275,7 +292,7 @@ export const AIProviderSettings: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this provider?')) return;
+    if (!window.confirm('Are you sure you want to delete this provider?')) return;
     try {
       const { error } = await supabase
         .from('admin_ai_providers')
@@ -293,25 +310,14 @@ export const AIProviderSettings: React.FC = () => {
     }
   };
 
-  const handleTestProvider = async (provider: AIProvider) => {
-    toast({ title: "Testing Provider...", description: `Sending a test request to ${provider.name}` });
-    try {
-      const { data, error } = await supabase.functions.invoke('test-ai-provider', {
-        body: { providerId: provider.id }
-      });
-      if (error) throw error;
-      if (data.success) {
-        toast({ title: "Test Successful!", description: `Response from ${provider.name}: ${data.response}` });
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Test Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+  const handleFormConfigurationChange = (field: keyof ProviderConfiguration, value: any) => {
+    setFormData(prev => ({
+        ...prev,
+        configuration: {
+            ...(prev.configuration as object),
+            [field]: value
+        }
+    }));
   };
 
   if (loading) {
@@ -327,6 +333,8 @@ export const AIProviderSettings: React.FC = () => {
     const config = PROVIDER_CONFIGS[provider.provider_type];
     const models = config?.models || [];
     const testResult = testResults[provider.id];
+    const configuration = provider.configuration as ProviderConfiguration || {};
+    const modelInfo = models.find(m => m.id === configuration.model);
 
     return (
       <Card key={provider.id}>
@@ -349,7 +357,7 @@ export const AIProviderSettings: React.FC = () => {
                 {isTesting[provider.id] ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                 ) : (
-                  <CheckCircle className="h-4 w-4" />
+                  <TestTube2 className="h-4 w-4" />
                 )}
               </Button>
               <Button
@@ -377,18 +385,19 @@ export const AIProviderSettings: React.FC = () => {
                 <span className="font-medium">Type:</span> {provider.provider_type}
               </div>
               <div>
-                <span className="font-medium">Model:</span> {provider.model}
+                <span className="font-medium">Model:</span> {configuration.model}
               </div>
               <div>
-                <span className="font-medium">Max Tokens:</span> {provider.max_tokens || 'Default'}
+                <span className="font-medium">Max Tokens:</span> {configuration.max_tokens || 'Default'}
               </div>
               <div>
-                <span className="font-medium">Temperature:</span> {provider.temperature || 0.7}
+                <span className="font-medium">Temperature:</span> {configuration.temperature || 0.7}
               </div>
             </div>
             
             {testResult && (
               <Alert variant={testResult.success ? "default" : "destructive"}>
+                <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   {testResult.success ? "Connection successful" : testResult.error}
                 </AlertDescription>
@@ -396,12 +405,12 @@ export const AIProviderSettings: React.FC = () => {
             )}
             
             <div className="flex flex-wrap gap-2">
-              {models.find(m => m.id === provider.model)?.supports_voice && (
+              {modelInfo?.supports_voice && (
                 <Badge variant="outline" className="text-xs">
                   <Brain className="h-3 w-3 mr-1" /> Voice
                 </Badge>
               )}
-              {models.find(m => m.id === provider.model)?.supports_vision && (
+              {modelInfo?.supports_vision && (
                 <Badge variant="outline" className="text-xs">
                   <Eye className="h-3 w-3 mr-1" /> Vision
                 </Badge>
@@ -421,9 +430,9 @@ export const AIProviderSettings: React.FC = () => {
           <p className="text-muted-foreground">Manage AI providers and models for your application</p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Provider
-            </Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Provider
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
@@ -530,13 +539,13 @@ export const AIProviderSettings: React.FC = () => {
                   </DialogDescription>
                 </DialogHeader>
           
-          <div className="space-y-6">
+          <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Provider Type</Label>
                 <Select
                   value={selectedProviderType}
-                  onValueChange={(value) => applyPresetConfig(value)}
+                  onValueChange={applyPresetConfig}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select provider type" />
@@ -554,8 +563,8 @@ export const AIProviderSettings: React.FC = () => {
               <div>
                 <Label>Model</Label>
                 <Select
-                  value={formData.model || ""}
-                  onValueChange={(value) => setFormData({ ...formData, model: value })}
+                  value={(formData.configuration as any)?.model || ""}
+                  onValueChange={(value) => handleFormConfigurationChange('model', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select model" />
@@ -584,8 +593,8 @@ export const AIProviderSettings: React.FC = () => {
                 <Label>Max Tokens</Label>
                 <Input
                   type="number"
-                  value={formData.max_tokens || ''}
-                  onChange={(e) => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
+                  value={(formData.configuration as any)?.max_tokens || ''}
+                  onChange={(e) => handleFormConfigurationChange('max_tokens', parseInt(e.target.value, 10) || null)}
                   placeholder="Maximum tokens"
                 />
               </div>
@@ -615,10 +624,7 @@ export const AIProviderSettings: React.FC = () => {
                     <Input
                       type={field.includes('key') || field.includes('secret') ? 'password' : 'text'}
                       value={(formData.configuration as any)?.[field] || ""}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        configuration: { ...(formData.configuration as any), [field]: e.target.value }
-                      })}
+                      onChange={(e) => handleFormConfigurationChange(field, e.target.value)}
                       placeholder={`Enter ${field.replace('_', ' ')}`}
                     />
                   </div>
@@ -639,16 +645,16 @@ export const AIProviderSettings: React.FC = () => {
                     step="0.1"
                     min="0"
                     max="2"
-                    value={formData.temperature || 0.7}
-                    onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
+                    value={(formData.configuration as any)?.temperature ?? 0.7}
+                    onChange={(e) => handleFormConfigurationChange('temperature', parseFloat(e.target.value))}
                   />
                 </div>
                 <div>
                   <Label>Timeout (seconds)</Label>
                   <Input
                     type="number"
-                    value={formData.timeout || 30}
-                    onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
+                    value={(formData.configuration as any)?.timeout ?? 30}
+                    onChange={(e) => handleFormConfigurationChange('timeout', parseInt(e.target.value, 10))}
                   />
                 </div>
               </div>
@@ -668,8 +674,9 @@ export const AIProviderSettings: React.FC = () => {
               <Switch
                 checked={formData.is_active || false}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                id="is-active-switch"
               />
-              <Label>Active</Label>
+              <Label htmlFor="is-active-switch">Active</Label>
             </div>
           </div>
 

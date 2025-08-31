@@ -83,36 +83,22 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
     
     setSubmitting(true);
     setError(null);
-    // Calculate score for multiple choice
-    let score = 0;
-    for (const q of questions) {
-      if (q.question_type === 'multiple_choice') {
-        const selectedOptionId = answers[q.id];
-        const option = options[q.id]?.find(o => o.id === selectedOptionId);
-        if (option?.is_correct) score += 1;
-      }
-    }
-    // Store result for signed-in users
+    // Submit via Edge Function
     if (userId && assessment) {
-      const { error } = await supabase
-        .from('assessment_results')
-        .insert({
-          user_id: userId,
-          assessment_id: assessmentId,
-          score,
-          answers,
-          assessment_type: assessment.type,
-          results: { finalScore: score }
-        } as AssessmentResultInsert)
+      const { data, error } = await supabase.functions.invoke('submit-result', {
+        body: { assessmentId, answers }
+      });
       if (error) {
         setError(error.message);
         setSubmitting(false);
         return;
       }
+      // Assuming the function returns the processed results
+      const { score } = data; // Adjust based on actual response
     }
     
     if (onComplete) {
-      onComplete({ score, answers, assessment_id: assessmentId, user_id: userId });
+      onComplete({ answers, assessment_id: assessmentId, user_id: userId });
     } else {
       setSubmitted(true);
     }

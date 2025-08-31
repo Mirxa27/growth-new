@@ -74,11 +74,11 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
     try {
       const { data, error } = await supabase
         .from('quiz_attempts')
-        .insert({
+        .insert([{
           user_id: user.id,
           quiz_id: quiz.id,
           status: 'in-progress'
-        })
+        }])
         .select('id')
         .single();
       

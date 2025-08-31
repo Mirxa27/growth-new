@@ -36,34 +36,11 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
           throw error;
         }
 
-        if (data && data.length) {
-          setAssessments(data);
-        } else if (filterPublic) {
-          // Fallback to local seeded public assessments when DB has none or call returns empty
-          const local = getPublicAssessments().map(a => ({
-            id: a.id,
-            title: a.title,
-            description: a.description,
-            type: a.type
-          })) as unknown as Assessment[];
-          setAssessments(local);
-        } else {
-          setAssessments(data || []);
-        }
+        setAssessments(data || []);
       } catch (err: any) {
-        console.warn('Failed to fetch assessments from supabase, falling back to local data.', err?.message || err);
-        if (filterPublic) {
-          const local = getPublicAssessments().map(a => ({
-            id: a.id,
-            title: a.title,
-            description: a.description,
-            type: a.type
-          })) as unknown as Assessment[];
-          setAssessments(local);
-          setError(null);
-        } else {
-          setError((err && err.message) || String(err));
-        }
+        console.error('Failed to fetch assessments from supabase.', err?.message || err);
+        setError((err && err.message) || String(err));
+        setAssessments([]);
       } finally {
         setLoading(false);
       }

@@ -1,153 +1,82 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+}
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
-
-Deno.serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { 
-      status: 405,
-      headers: corsHeaders 
-    });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const auth = req.headers.get('Authorization');
-    if (!auth) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('No authorization header')
     }
 
-    const token = auth.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    )
 
-    const openaiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiKey) {
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      throw new Error('Unauthorized')
     }
 
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: 'gpt-4o-realtime-preview-2024-10-01',
         voice: 'alloy',
+        instructions: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. Speak warmly and empathetically, understanding their unique challenges and aspirations. Provide thoughtful, personalized guidance that helps them navigate life's complexities with confidence and grace.`,
         modalities: ['text', 'audio'],
-        instructions: `You are NewMe, an AI companion and personal growth coach specifically designed for women. 
-
-Your role:
-- Provide empathetic, supportive guidance for personal development
-- Help women discover their authentic selves and build confidence
-- Offer practical advice for career, relationships, and life challenges
-- Create a safe, non-judgmental space for exploration and growth
-- Encourage self-reflection and actionable insights
-
-Communication style:
-- Warm, understanding, and encouraging
-- Ask thoughtful follow-up questions
-- Validate feelings while offering constructive perspectives
-- Use inclusive, empowering language
-- Be concise but meaningful in your responses
-
-Focus areas:
-- Self-discovery and personal identity
-- Career development and leadership
-- Relationship dynamics and communication
-- Mental health and wellness
-- Goal setting and achievement
-- Confidence building and self-worth
-
-Remember: You're speaking with someone who has chosen to invest in their personal growth. Honor that courage and commitment.`,
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500,
-        },
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1'
-        }
+        temperature: 0.7,
+        max_tokens: 1000,
       }),
-    });
+    })
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI Realtime API error:', errorText);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to create realtime session',
-          details: errorText 
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
     }
 
-    const sessionData = await response.json();
-
-    await supabase
-      .from('voice_sessions')
-      .insert({
-        user_id: user.id,
-        session_id: sessionData.id,
-        model: 'gpt-4o-realtime-preview-2024-10-01',
-        voice: 'alloy',
-        status: 'active',
-        created_at: new Date().toISOString()
-      });
-
+    const data = await response.json()
+    
     return new Response(
       JSON.stringify({
-        session_id: sessionData.id,
-        client_secret: sessionData.client_secret,
-        model: sessionData.model,
-        expires_at: sessionData.expires_at
+        client_secret: data.client_secret,
+        expires_at: data.expires_at,
       }),
       {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    );
-
+    )
   } catch (error) {
-    console.error('Realtime token creation error:', error);
+    console.error('Error generating voice token:', error)
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     return new Response(
-      JSON.stringify({
-        error: error.message || 'Failed to create realtime token',
-        details: error.stack
-      }),
+      JSON.stringify({ error: errorMessage }),
       {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
       }
-    );
+    )
   }
-});
+})

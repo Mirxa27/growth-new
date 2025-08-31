@@ -43,7 +43,7 @@ export const OnboardingFlow = () => {
     try {
       // Save personality assessment results
       if (personalityResults) {
-        await supabase.from('assessment_results').insert({
+        await supabase.from('assessment_results').insert([{
           user_id: user.id,
           assessment_type: 'personality',
           answers: personalityResults.answers,
@@ -51,12 +51,12 @@ export const OnboardingFlow = () => {
             personality_type: personalityResults.personality_type,
             completed_at: personalityResults.completed_at
           }
-        });
+        }]);
       }
 
       // Save balance wheel results
       if (balanceResults) {
-        await supabase.from('assessment_results').insert({
+        await supabase.from('assessment_results').insert([{
           user_id: user.id,
           assessment_type: 'balance_wheel',
           answers: balanceResults.ratings,
@@ -65,7 +65,7 @@ export const OnboardingFlow = () => {
             overall_satisfaction: balanceResults.overall_satisfaction,
             completed_at: balanceResults.completed_at
           }
-        });
+        }]);
       }
 
       toast({

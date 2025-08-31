@@ -37,7 +37,7 @@ serve(async (req) => {
     if (!currentConversationId) {
       const { data: newConversation, error: conversationError } = await supabaseClient
         .from('conversations')
-        .insert({ user_id: user.id, title: message.substring(0, 30) })
+        .insert([{ user_id: user.id, title: message.substring(0, 30) }])
         .select('id')
         .single();
       if (conversationError) throw conversationError;
@@ -45,12 +45,12 @@ serve(async (req) => {
     }
 
     // Save user message
-    await supabaseClient.from('messages').insert({
+    await supabaseClient.from('messages').insert([{
       conversation_id: currentConversationId,
       user_id: user.id,
       role: 'user',
       content: message,
-    });
+    }]);
 
     // Fetch conversation history
     const { data: messages } = await supabaseClient
@@ -86,13 +86,13 @@ serve(async (req) => {
     const aiResponse = openAIData.choices[0]?.message?.content || 'I apologize, but I had trouble processing your message. Could you please try again?';
 
     // Save AI response
-    await supabaseClient.from('messages').insert({
+    await supabaseClient.from('messages').insert([{
       conversation_id: currentConversationId,
       user_id: user.id,
       role: 'assistant',
       content: aiResponse,
       usage: openAIData.usage
-    });
+    }]);
 
     // Update conversation
     await supabaseClient
@@ -114,8 +114,9 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

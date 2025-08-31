@@ -125,11 +125,11 @@ export const CommunitySearch = () => {
     try {
       const { error } = await supabase
         .from('community_connections')
-        .insert({
+        .insert([{
           requester_id: currentUserId,
           requested_id: targetUserId,
           status: 'pending'
-        });
+        }]);
 
       if (error) throw error;
 

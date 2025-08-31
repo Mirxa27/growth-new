@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,48 +9,75 @@ import { Progress } from '@/components/ui/progress';
 import { Brain, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth'; // Correctly import the auth hook
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+
+// Define types for our data structures
+interface QuestionOption {
+  value: string;
+  label: string;
+}
+
+interface PersonalityQuestion {
+  id: string;
+  question: string;
+  options: QuestionOption[];
+}
 
 interface PersonalityAssessmentProps {
   onComplete?: (results: any) => void;
   embedded?: boolean;
 }
 
-const personalityQuestions = [
-  {
-    id: 'energy_source',
-    question: 'Where do you typically gain energy?',
-    options: [
-      { value: 'social', label: 'Being around people and social activities' },
-      { value: 'solitude', label: 'Quiet time alone for reflection' },
-      { value: 'balanced', label: 'A mix of both social and alone time' }
-    ]
-  },
-  {
-    id: 'decision_style',
-    question: 'How do you prefer to make decisions?',
-    options: [
-      { value: 'analytical', label: 'Careful analysis of facts and data' },
-      { value: 'intuitive', label: 'Following my gut feelings and instincts' },
-      { value: 'collaborative', label: 'Discussing with others and seeking input' }
-    ]
-  },
-  {
-    id: 'communication',
-    question: 'What communication style feels most natural to you?',
-    options: [
-      { value: 'direct', label: 'Direct and straightforward communication' },
-      { value: 'empathetic', label: 'Warm and socially aware communication' },
-      { value: 'thoughtful', label: 'Careful and considered communication' }
-    ]
-  }
-];
-
 export const PersonalityAssessment = ({ onComplete, embedded = false }: PersonalityAssessmentProps) => {
+  const [personalityQuestions, setPersonalityQuestions] = useState<PersonalityQuestion[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [personalityResult, setPersonalityResult] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth(); // Get user from the auth context
+
+  // Fetch questions when the component mounts
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoadingQuestions(true);
+      const { data, error } = await supabase
+        .from('personality_questions')
+        .select('id, question_text, options')
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching personality questions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load assessment questions.",
+          variant: "destructive",
+        });
+        setIsLoadingQuestions(false);
+        return;
+      }
+
+      // Ensure options are correctly formatted
+      const formattedQuestions = data.map(q => ({
+        id: q.id,
+        question: q.question_text,
+        // Safely map options, providing a default empty array if options are null/undefined
+        options: (q.options as any[])?.map(opt => ({ value: opt.value, label: opt.text })) || [],
+      }));
+
+      setPersonalityQuestions(formattedQuestions);
+      setIsLoadingQuestions(false);
+    };
+
+    fetchQuestions();
+  }, [toast]);
 
   const handleAnswerSelect = (value: string) => {
     setAnswers({ ...answers, [personalityQuestions[currentQuestion].id]: value });
@@ -70,47 +97,77 @@ export const PersonalityAssessment = ({ onComplete, embedded = false }: Personal
     }
   };
 
-  const completeAssessment = () => {
-    const results = {
-      answers,
-      personality_type: determinePersonalityType(answers),
-      completed_at: new Date().toISOString()
-    };
-
-    setIsComplete(true);
-    
-    if (onComplete) {
-      onComplete(results);
+  const completeAssessment = async () => {
+    if (!user) {
+      toast({ title: "Authentication Error", description: "You must be logged in to complete the assessment.", variant: "destructive" });
+      return;
     }
+    
+    setIsSubmitting(true);
+    try {
+      // 1. Calculate personality type via RPC call
+      const { data: rpcData, error: rpcError } = await supabase.rpc('calculate_personality_type', { user_answers: answers });
+      if (rpcError) throw rpcError;
 
-    toast({
-      title: "Assessment Complete!",
-      description: "Your personality insights are ready.",
-    });
+      const personalityType = rpcData.personality_type || 'Balanced Personality';
+      setPersonalityResult(personalityType); // Store result in state
+
+      const resultsPayload = {
+        answers,
+        personality_type: personalityType,
+        completed_at: new Date().toISOString()
+      };
+
+      // 2. Save results to the database
+      const { error: insertError } = await supabase
+        .from('user_personality_results')
+        .insert([{ user_id: user.id, results: resultsPayload }]);
+      if (insertError) throw insertError;
+
+      setIsComplete(true);
+      if (onComplete) {
+        onComplete(resultsPayload);
+      }
+
+      toast({
+        title: "Assessment Complete!",
+        description: "Your personality insights are ready.",
+      });
+
+    } catch (error: any) {
+      console.error('Error completing assessment:', error);
+      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const resetAssessment = () => {
+    setCurrentQuestion(0);
+    setAnswers({});
+    setIsComplete(false);
+    setPersonalityResult(null);
   };
 
-  const determinePersonalityType = (answers: Record<string, string>) => {
-    // Simple personality type determination logic
-    const traits = Object.values(answers);
-    
-    if (traits.includes('analytical') && traits.includes('direct')) {
-      return 'Analytical Leader';
-    } else if (traits.includes('empathetic') && traits.includes('social')) {
-      return 'Empathetic Connector';
-    } else if (traits.includes('intuitive') && traits.includes('thoughtful')) {
-      return 'Intuitive Thinker';
-    } else {
-      return 'Balanced Personality';
-    }
-  };
+  if (isLoadingQuestions) {
+    return (
+      <Card className="glass border-card-border flex items-center justify-center p-10">
+        <LoadingSpinner />
+        <p className="ml-4">Loading assessment...</p>
+      </Card>
+    );
+  }
 
-  const progress = ((currentQuestion + 1) / personalityQuestions.length) * 100;
-  const currentAnswerValue = answers[personalityQuestions[currentQuestion]?.id];
-  const canProceed = currentAnswerValue !== undefined;
+  if (personalityQuestions.length === 0) {
+    return (
+        <Card className="glass border-card-border p-10 text-center">
+            <CardTitle>Assessment Unavailable</CardTitle>
+            <CardDescription>We couldn't load the questions. Please try again later.</CardDescription>
+        </Card>
+    );
+  }
 
   if (isComplete) {
-    const personalityType = determinePersonalityType(answers);
-    
     return (
       <Card className="glass border-card-border">
         <CardHeader className="text-center">
@@ -118,32 +175,22 @@ export const PersonalityAssessment = ({ onComplete, embedded = false }: Personal
             <CheckCircle className="w-8 h-8 text-white" />
           </div>
           <CardTitle className="text-2xl">Assessment Complete!</CardTitle>
-          <CardDescription>
-            Your personality type has been identified
-          </CardDescription>
+          <CardDescription>Your personality type has been identified.</CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-6">
           <div className="p-6 glass rounded-2xl bg-gradient-primary/10">
-            <h3 className="text-xl font-bold mb-2 text-primary">{personalityType}</h3>
+            <h3 className="text-xl font-bold mb-2 text-primary">{personalityResult || 'Calculating...'}</h3>
             <p className="text-muted-foreground">
-              This assessment provides insights into your communication style and decision-making preferences.
+              This provides insights into your communication style and decision-making preferences.
             </p>
           </div>
           
           {!embedded && (
             <div className="flex gap-4 justify-center">
-              <Button 
-                onClick={() => navigate('/dashboard')}
-                className="bg-gradient-primary"
-              >
-                Continue to Dashboard
-                <ArrowRight className="w-4 h-4 ml-2" />
+              <Button onClick={() => navigate('/dashboard')} className="bg-gradient-primary">
+                Continue to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.reload()}
-                className="glass"
-              >
+              <Button variant="outline" onClick={resetAssessment} className="glass">
                 Retake Assessment
               </Button>
             </div>
@@ -152,6 +199,10 @@ export const PersonalityAssessment = ({ onComplete, embedded = false }: Personal
       </Card>
     );
   }
+
+  const progress = ((currentQuestion + 1) / personalityQuestions.length) * 100;
+  const currentAnswerValue = answers[personalityQuestions[currentQuestion]?.id];
+  const canProceed = currentAnswerValue !== undefined;
 
   return (
     <Card className="glass border-card-border">
@@ -173,7 +224,6 @@ export const PersonalityAssessment = ({ onComplete, embedded = false }: Personal
           key={currentQuestion}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3 }}
         >
           <h3 className="text-lg font-semibold mb-4">
@@ -186,63 +236,34 @@ export const PersonalityAssessment = ({ onComplete, embedded = false }: Personal
             className="space-y-3"
           >
             {personalityQuestions[currentQuestion]?.options.map((option) => (
-              <div key={option.value} className="relative">
-                <RadioGroupItem 
-                  value={option.value} 
-                  id={option.value}
-                  className="peer sr-only"
-                />
-                <Label 
-                  htmlFor={option.value} 
-                  className={cn(
-                    "block p-4 rounded-lg border-2 cursor-pointer transition-all duration-300",
-                    "bg-white/5 backdrop-blur-sm border-white/20",
-                    "hover:bg-white/10 hover:border-white/30 hover:shadow-lg",
-                    "peer-checked:bg-gradient-to-r peer-checked:from-primary/20 peer-checked:to-secondary/20",
-                    "peer-checked:border-primary peer-checked:shadow-xl peer-checked:scale-[1.02]",
-                    "peer-checked:text-white peer-checked:font-medium"
-                  )}
-                >
-                  <span className="flex items-center">
-                    <span className={cn(
-                      "w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center transition-all",
-                      "border-white/30",
-                      "peer-checked:border-primary peer-checked:bg-primary",
-                      "peer-checked:after:content-[''] peer-checked:after:w-2 peer-checked:after:h-2 peer-checked:after:rounded-full peer-checked:after:bg-white"
-                    )} />
-                    {option.label}
-                  </span>
-                </Label>
-              </div>
+              <Label 
+                key={option.value}
+                htmlFor={option.value} 
+                className={cn(
+                  "block p-4 rounded-lg border-2 cursor-pointer transition-all",
+                  "bg-white/5 border-white/20 hover:bg-white/10",
+                  "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/20"
+                )}
+              >
+                <RadioGroupItem value={option.value} id={option.value} className="peer sr-only" />
+                {option.label}
+              </Label>
             ))}
           </RadioGroup>
         </motion.div>
 
         <div className="flex justify-between items-center pt-4">
-          <Button
-            onClick={prevQuestion}
-            disabled={currentQuestion === 0}
-            variant="outline"
-            className="glass"
-          >
+          <Button onClick={prevQuestion} disabled={currentQuestion === 0} variant="outline" className="glass">
             Previous
           </Button>
 
-          <Button
-            onClick={nextQuestion}
-            disabled={!canProceed}
-            className="bg-gradient-primary"
-          >
-            {currentQuestion === personalityQuestions.length - 1 ? (
-              <>
-                Complete
-                <Sparkles className="w-4 h-4 ml-2" />
-              </>
-            ) : (
-              <>
-                Next
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
+          <Button onClick={nextQuestion} disabled={!canProceed || isSubmitting} className="bg-gradient-primary">
+            {isSubmitting ? <LoadingSpinner size="sm" /> : (
+              currentQuestion === personalityQuestions.length - 1 ? (
+                <>Complete <Sparkles className="w-4 h-4 ml-2" /></>
+              ) : (
+                <>Next <ArrowRight className="w-4 h-4 ml-2" /></>
+              )
             )}
           </Button>
         </div>
