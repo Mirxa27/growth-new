@@ -17,16 +17,18 @@ import {
   Headphones,
   FileText,
   Video,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LibraryItem {
   id: string;
   title: string;
   description: string;
-  type: 'article' | 'audio' | 'video' | 'exercise';
+  type: 'article' | 'audio' | 'video' | 'exercise' | 'meditation' | 'course';
   category: string;
   duration: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
@@ -35,6 +37,12 @@ interface LibraryItem {
   isCompleted: boolean;
   progress?: number;
   tags: string[];
+  author?: string;
+  thumbnail_url?: string;
+  content_url?: string;
+  is_featured?: boolean;
+  is_premium?: boolean;
+  rating_count?: number;
 }
 
 const Library = () => {
@@ -45,111 +53,83 @@ const Library = () => {
   const [loading, setLoading] = useState(true);
 
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading
-    setLoading(true);
-    setTimeout(() => {
-      const items: LibraryItem[] = [
-        {
-          id: '1',
-          title: 'Mindfulness for Beginners',
-          description: 'Learn the fundamentals of mindfulness meditation with guided sessions designed for newcomers.',
-          type: 'article',
-          category: 'Mindfulness',
-          duration: '15 min',
-          difficulty: 'beginner',
-          rating: 4.8,
-          isBookmarked: false,
-          isCompleted: true,
-          progress: 100,
-          tags: ['meditation', 'mindfulness', 'beginner']
-        },
-        {
-          id: '2',
-          title: 'Advanced Breathing Techniques',
-          description: 'Master advanced breathing techniques used by athletes and performers to enhance focus and performance.',
-          type: 'video',
-          category: 'Breathwork',
-          duration: '25 min',
-          difficulty: 'advanced',
-          rating: 4.9,
-          isBookmarked: true,
-          isCompleted: false,
-          progress: 60,
-          tags: ['breathwork', 'performance', 'advanced']
-        },
-        {
-          id: '3',
-          title: 'Daily Gratitude Practice',
-          description: 'Cultivate gratitude through simple daily exercises that transform your mindset and relationships.',
-          type: 'audio',
-          category: 'Gratitude',
-          duration: '10 min',
-          difficulty: 'beginner',
-          rating: 4.7,
-          isBookmarked: false,
-          isCompleted: false,
-          progress: 0,
-          tags: ['gratitude', 'daily', 'relationships']
-        },
-        {
-          id: '4',
-          title: 'Stress Management Strategies',
-          description: 'Evidence-based strategies to manage stress and build resilience in challenging situations.',
-          type: 'article',
-          category: 'Stress Management',
-          duration: '20 min',
-          difficulty: 'intermediate',
-          rating: 4.6,
-          isBookmarked: true,
-          isCompleted: true,
-          progress: 100,
-          tags: ['stress', 'resilience', 'evidence-based']
-        },
-        {
-          id: '5',
-          title: 'Sleep Meditation Series',
-          description: 'Guided meditations specifically designed to improve sleep quality and establish healthy bedtime routines.',
-          type: 'audio',
-          category: 'Sleep',
-          duration: '30 min',
-          difficulty: 'beginner',
-          rating: 4.9,
-          isBookmarked: false,
-          isCompleted: false,
-          progress: 25,
-          tags: ['sleep', 'meditation', 'bedtime']
-        },
-        {
-          id: '6',
-          title: 'Emotional Intelligence Workshop',
-          description: 'Develop emotional intelligence through practical exercises and real-world applications.',
-          type: 'video',
-          category: 'Emotional Intelligence',
-          duration: '45 min',
-          difficulty: 'intermediate',
-          rating: 4.8,
-          isBookmarked: false,
-          isCompleted: false,
-          progress: 0,
-          tags: ['emotional-intelligence', 'practical', 'workshop']
-        }
-      ];
-      setLibraryItems(items);
-      setLoading(false);
-    }, 1000);
-  }, [toast]);
+    fetchLibraryItems();
+  }, []);
 
-  const categories = [
-    'all',
-    'Self-Awareness',
-    'Mindfulness',
-    'Relationships',
-    'Wellness',
-    'Career Growth',
-    'Creativity'
-  ];
+  const fetchLibraryItems = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch library items from database
+      const { data: items, error: itemsError } = await supabase
+        .from('library_items' as any)
+        .select('*')
+        .order('is_featured', { ascending: false })
+        .order('rating', { ascending: false });
+
+      if (itemsError) throw itemsError;
+
+      // Get current user for progress/bookmarks
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let userProgress: any[] = [];
+      if (user) {
+        const { data: progressData, error: progressError } = await supabase
+          .from('user_library_progress' as any)
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (!progressError) {
+          userProgress = progressData || [];
+        }
+      }
+
+      // Transform data to match interface
+      const transformedItems: LibraryItem[] = items?.map((item: any) => {
+        const userItemProgress = userProgress.find(p => p.library_item_id === item.id);
+        
+        return {
+          id: item.id,
+          title: item.title,
+          description: item.description || '',
+          type: item.type,
+          category: item.category,
+          duration: item.duration || '',
+          difficulty: item.difficulty || 'beginner',
+          rating: parseFloat(item.rating) || 0,
+          isBookmarked: userItemProgress?.is_bookmarked || false,
+          isCompleted: userItemProgress?.is_completed || false,
+          progress: userItemProgress?.progress || 0,
+          tags: item.tags || [],
+          author: item.author,
+          thumbnail_url: item.thumbnail_url,
+          content_url: item.content_url,
+          is_featured: item.is_featured,
+          is_premium: item.is_premium,
+          rating_count: item.rating_count || 0
+        };
+      }) || [];
+
+      setLibraryItems(transformedItems);
+    } catch (err: any) {
+      console.error('Error fetching library items:', err);
+      setError(err.message);
+      toast({
+        title: "Error loading library",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get unique categories from library items
+  const categories = ['all', ...Array.from(new Set(libraryItems.map(item => item.category)))];
 
   const filteredItems = libraryItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,27 +143,114 @@ const Library = () => {
   const completedItems = libraryItems.filter(item => item.isCompleted);
   const inProgressItems = libraryItems.filter(item => item.progress && item.progress > 0 && item.progress < 100);
 
-  const handleBookmark = (itemId: string) => {
-    // Update bookmark status (in real app, this would update the database)
-    setLibraryItems(prevItems => 
-      prevItems.map(item => 
-        item.id === itemId 
-          ? { ...item, isBookmarked: !item.isBookmarked }
-          : item
-      )
-    );
-    
-    toast({
-      title: "Bookmark updated!",
-      description: "Item bookmark status has been updated.",
-    });
+  const handleBookmark = async (itemId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to bookmark items.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const item = libraryItems.find(item => item.id === itemId);
+      if (!item) return;
+
+      // Update or insert user progress with bookmark status
+      const { error } = await supabase
+        .from('user_library_progress' as any)
+        .upsert({
+          user_id: user.id,
+          library_item_id: itemId,
+          is_bookmarked: !item.isBookmarked,
+          progress: item.progress || 0,
+          is_completed: item.isCompleted,
+          last_accessed: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,library_item_id'
+        });
+
+      if (error) throw error;
+
+      // Update local state
+      setLibraryItems(prevItems => 
+        prevItems.map(item => 
+          item.id === itemId 
+            ? { ...item, isBookmarked: !item.isBookmarked }
+            : item
+        )
+      );
+      
+      toast({
+        title: item.isBookmarked ? "Bookmark removed" : "Bookmark added",
+        description: item.isBookmarked ? "Item removed from bookmarks." : "Item added to bookmarks.",
+      });
+    } catch (err: any) {
+      console.error('Error updating bookmark:', err);
+      toast({
+        title: "Error updating bookmark",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleStartItem = (item: LibraryItem) => {
-    toast({
-      title: `Starting ${item.title}`,
-      description: `Opening ${item.type} content...`,
-    });
+  const handleStartItem = async (item: LibraryItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Track analytics for content start
+      if (user) {
+        await supabase
+          .from('analytics_events' as any)
+          .insert({
+            user_id: user.id,
+            event_type: 'content_start',
+            event_category: 'library',
+            event_action: 'start_item',
+            event_label: item.title,
+            metadata: {
+              item_id: item.id,
+              type: item.type,
+              category: item.category,
+              difficulty: item.difficulty
+            }
+          });
+
+        // Update last accessed time
+        await supabase
+          .from('user_library_progress' as any)
+          .upsert({
+            user_id: user.id,
+            library_item_id: item.id,
+            progress: item.progress || 0,
+            is_completed: item.isCompleted,
+            is_bookmarked: item.isBookmarked,
+            last_accessed: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,library_item_id'
+          });
+      }
+
+      // Open content based on type and URL
+      if (item.content_url) {
+        window.open(item.content_url, '_blank');
+      } else {
+        toast({
+          title: `Starting ${item.title}`,
+          description: `Opening ${item.type} content...`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error starting item:', err);
+      toast({
+        title: `Starting ${item.title}`,
+        description: `Opening ${item.type} content...`,
+      });
+    }
   };
 
   const getTypeIcon = (type: string) => {
@@ -192,6 +259,8 @@ const Library = () => {
       case 'audio': return Headphones;
       case 'video': return Video;
       case 'exercise': return Target;
+      case 'meditation': return Sparkles;
+      case 'course': return BookOpen;
       default: return BookOpen;
     }
   };
@@ -209,9 +278,25 @@ const Library = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <Loader2 className="animate-spin h-8 w-8 text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading library...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (error && libraryItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+        <Card className="glass border-card-border text-center p-8 max-w-md">
+          <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Unable to load library</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchLibraryItems} className="bg-gradient-primary">
+            <Loader2 className="w-4 h-4 mr-2" />
+            Try again
+          </Button>
+        </Card>
       </div>
     );
   }

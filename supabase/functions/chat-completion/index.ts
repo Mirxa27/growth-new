@@ -51,7 +51,7 @@ serve(async (req) => {
     let currentConversationId = conversationId;
     if (!currentConversationId) {
       const { data: newConversation, error: conversationError } = await supabaseClient
-        .from('conversations')
+        .from('conversations' as any)
         .insert({
           user_id: user.id,
           title: `Chat ${new Date().toLocaleDateString()}`,
@@ -66,7 +66,7 @@ serve(async (req) => {
     }
 
     // Save user message
-    await supabaseClient.from('messages').insert({
+    await supabaseClient.from('messages' as any).insert({
       conversation_id: currentConversationId,
       user_id: user.id,
       role: 'user',
@@ -118,7 +118,7 @@ Remember: You're not just an AI - you're their trusted companion on a journey of
     const aiResponse = openAIData.choices[0]?.message?.content || 'I apologize, but I had trouble processing your message. Could you please try again?';
 
     // Save AI response
-    await supabaseClient.from('messages').insert({
+    await supabaseClient.from('messages' as any).insert({
       conversation_id: currentConversationId,
       user_id: user.id,
       role: 'assistant',
@@ -128,7 +128,7 @@ Remember: You're not just an AI - you're their trusted companion on a journey of
 
     // Update conversation
     await supabaseClient
-      .from('conversations')
+      .from('conversations' as any)
       .update({ 
         last_activity: new Date().toISOString(),
         total_messages: 2 // This would be calculated properly in production

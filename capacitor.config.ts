@@ -1,12 +1,12 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.newme.growthecho',
-  appName: 'NewMe - Personal Growth',
+  appId: 'com.newomen.me',
+  appName: 'Newomen.me',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    url: process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : undefined,
+    url: process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : 'https://newomen.me',
     cleartext: true
   },
   ios: {
@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
     backgroundColor: '#ffffff',
     preferredContentMode: 'mobile',
     limitsNavigationsToAppBoundDomains: false,
-    scheme: 'NewMe'
+    scheme: 'Newomen'
   },
   android: {
     backgroundColor: '#ffffff',
@@ -72,8 +72,7 @@ const config: CapacitorConfig = {
         fineLocation: 'This app needs precise location access to provide the most relevant content.'
       }
     }
-  },
-  bundledWebRuntime: false
+  }
 };
 
 export default config;

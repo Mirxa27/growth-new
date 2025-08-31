@@ -18,9 +18,12 @@ interface Quiz {
   id: string;
   title: string;
   description: string;
-  category: string;
-  difficulty: string;
-  time_limit_minutes?: number;
+  type: 'quiz' | 'personality' | 'test' | 'exploration' | 'course';
+  visibility: 'public' | 'private';
+  created_at?: string;
+  ai_provider?: string;
+  ai_model?: string;
+  question_count?: number;
 }
 
 interface QuizBrowserProps {
@@ -41,30 +44,45 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
       setLoading(true);
       try {
         let query = supabase
-          .from('quizzes' as any)
+          .from('assessments')
           .select(`
             id,
             title,
             description,
-            category,
-            difficulty,
-            time_limit_minutes
+            type,
+            visibility,
+            created_at,
+            ai_provider,
+            ai_model,
+            assessment_questions(count)
           `);
 
         if (filterPublic) {
-          query = query.eq('is_public', true);
+          query = query.eq('visibility', 'public');
         }
 
         const { data, error } = await query;
         if (error) throw error;
 
-        setQuizzes((data as any) || []);
-        setFilteredQuizzes((data as any) || []);
+        const transformedData = data?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description || '',
+          type: item.type,
+          visibility: item.visibility,
+          created_at: item.created_at,
+          ai_provider: item.ai_provider,
+          ai_model: item.ai_model,
+          question_count: item.assessment_questions?.length || 0
+        })) || [];
+
+        setQuizzes(transformedData);
+        setFilteredQuizzes(transformedData);
       } catch (error) {
-        console.error('Error loading quizzes:', error);
+        console.error('Error loading assessments:', error);
         toast({
           title: "Error",
-          description: "Failed to load quizzes.",
+          description: "Failed to load assessments.",
           variant: "destructive"
         });
       } finally {
@@ -77,23 +95,26 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
   useEffect(() => {
     let filtered = quizzes;
     if (searchQuery) {
-      filtered = filtered.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      filtered = filtered.filter(q => 
+        q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(q => q.category === selectedCategory);
+      filtered = filtered.filter(q => q.type === selectedCategory);
     }
     setFilteredQuizzes(filtered);
   }, [searchQuery, selectedCategory, quizzes]);
 
-  const categories = ['all', 'Wellness', 'Relationships', 'Self-Awareness', 'Productivity'];
+  const categories = ['all', 'quiz', 'personality', 'test'];
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Wellness': return <Heart className="w-4 h-4" />;
-      case 'Relationships': return <Users className="w-4 h-4" />;
-      case 'Self-Awareness': return <Brain className="w-4 h-4" />;
-      case 'Productivity': return <Zap className="w-4 h-4" />;
-      default: return <TrendingUp className="w-4 h-4" />;
+  const getCategoryIcon = (type: string) => {
+    switch (type) {
+      case 'quiz': return <Zap className="w-4 h-4" />;
+      case 'personality': return <Brain className="w-4 h-4" />;
+      case 'test': return <TrendingUp className="w-4 h-4" />;
+      case 'exploration': return <Heart className="w-4 h-4" />;
+      default: return <Brain className="w-4 h-4" />;
     }
   };
 
@@ -125,7 +146,7 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
                   onClick={() => setSelectedCategory(cat)}
                   className={selectedCategory === cat ? "bg-gradient-primary" : "glass"}
                 >
-                  {cat}
+                  {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
                 </Button>
               ))}
             </div>
@@ -139,20 +160,27 @@ const QuizBrowser: React.FC<QuizBrowserProps> = ({ onQuizSelect, filterPublic = 
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                  {getCategoryIcon(quiz.category)}
+                  {getCategoryIcon(quiz.type)}
                 </div>
-                <Badge variant="secondary" className="glass">{quiz.category}</Badge>
+                <Badge variant="secondary" className="glass">{quiz.type}</Badge>
+                {quiz.visibility === 'public' && (
+                  <Badge variant="outline" className="text-green-600 border-green-200">Public</Badge>
+                )}
               </div>
               <CardTitle>{quiz.title}</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <p className="text-sm text-muted-foreground flex-1">{quiz.description}</p>
               <div className="flex justify-between items-center mt-4 text-sm">
-                <Badge variant="outline">{quiz.difficulty}</Badge>
-                {quiz.time_limit_minutes && <span>{quiz.time_limit_minutes} min</span>}
+                <Badge variant="outline">{quiz.ai_provider || 'AI Generated'}</Badge>
+                {quiz.question_count && (
+                  <span className="text-muted-foreground">
+                    {quiz.question_count} questions
+                  </span>
+                )}
               </div>
               <Button onClick={() => onQuizSelect(quiz)} className="w-full mt-4 bg-gradient-primary">
-                Start Quiz
+                Start {quiz.type === 'personality' ? 'Assessment' : 'Quiz'}
               </Button>
             </CardContent>
           </Card>

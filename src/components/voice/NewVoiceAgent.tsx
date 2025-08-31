@@ -3,12 +3,10 @@ import { useVoiceAgent } from '@/hooks/useVoiceAgent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
 import { VoiceAgentConfig } from '@/types/voice';
 
 export const NewVoiceAgent = () => {
-  const { toast } = useToast();
   const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
   const voiceConfig: VoiceAgentConfig = {
@@ -24,7 +22,7 @@ export const NewVoiceAgent = () => {
     stopRecording,
   } = useVoiceAgent(voiceConfig);
 
-  const { isConnected, isConnecting, isRecording, isSpeaking, transcript } = state;
+  const { isConnected, isRecording, isSpeaking, transcript } = state;
 
   useEffect(() => {
     if (audioPlayerRef.current) {
@@ -43,9 +41,9 @@ export const NewVoiceAgent = () => {
         
         <div className="flex gap-4 justify-center">
           {!isConnected ? (
-            <Button onClick={connect} disabled={isConnecting}>
+            <Button onClick={connect}>
               <Phone className="w-4 h-4 mr-2" />
-              {isConnecting ? 'Connecting...' : 'Start Call'}
+              Start Call
             </Button>
           ) : (
             <>

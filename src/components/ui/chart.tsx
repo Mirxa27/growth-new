@@ -1,26 +1,9 @@
 import * as React from "react"
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
   Legend as RechartsPrimitiveLegend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  RadialBar,
-  RadialBarChart,
-  Rectangle,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip as RechartsPrimitiveTooltip,
-  XAxis,
-  YAxis,
 } from "recharts"
-import { AxisDomain } from "recharts/types/util/types"
 
 import { cn } from "@/lib/utils"
 
@@ -33,7 +16,7 @@ const ChartContainer = React.forwardRef<
       typeof ResponsiveContainer
     >["children"]
   }
->(({ id, className, children, config, ...props }, ref) => {
+>(({ id, className, children, ...props }, ref) => {
   const chartContainerId = `chart-container-${id}`
 
   return (
@@ -77,12 +60,10 @@ const ChartTooltipContent = React.forwardRef<
       hideLabel = false,
       hideIndicator = false,
       label,
-      labelFormatter,
       labelClassName,
       formatter,
       color,
       nameKey,
-      labelKey,
     },
     ref
   ) => {
@@ -176,8 +157,6 @@ const ChartLegendContent = React.forwardRef<
       )}
     >
       {(payload as any[]).map((item) => {
-        const key = `${item.dataKey || "value"}`
-
         return (
           <div
             key={item.value}

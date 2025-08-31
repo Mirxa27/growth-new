@@ -7,7 +7,9 @@
       "Bash(rm:*)",
       "Bash(npm cache clean:*)",
       "Bash(npx cap add:*)",
-      "Bash(npx cap sync:*)"
+      "Bash(npx cap sync:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []
