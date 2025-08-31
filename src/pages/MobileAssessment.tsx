@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import {
   Heart, 
   Sparkles, 
   ArrowRight, 
-  ArrowLeft,
   Star,
   Target,
   BookOpen,
@@ -258,7 +257,7 @@ const MobileAssessment = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<AssessmentResult | null>(null);
-  const [direction, setDirection] = useState(0);
+  const [, setDirection] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
   const controls = useAnimation();

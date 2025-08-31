@@ -2,8 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigManager';
-import { AIContentBuilderClean } from '@/components/admin/AIContentBuilderClean';
-import { cn } from '@/lib/utils';
+import AIContentBuilder from '@/components/admin/AIContentBuilder';
 
 const AdminDashboard: React.FC = () => {
   return (
@@ -56,7 +55,7 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="content-builder" className="space-y-6">
-          <AIContentBuilderClean />
+          <AIContentBuilder />
         </TabsContent>
       </Tabs>
     </div>

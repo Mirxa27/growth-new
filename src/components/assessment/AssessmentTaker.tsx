@@ -1,6 +1,6 @@
-
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
+import { Button } from '../ui/button';
 
 interface Question {
   id: number;
@@ -15,7 +15,7 @@ interface Option {
   position: number;
 }
 
-const AssessmentTaker = ({ assessmentId, userId }: { assessmentId: number; userId?: string }) => {
+const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessmentId: number; userId?: string; onComplete?: (results: any) => void; onBack?: () => void }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [options, setOptions] = useState<{ [key: number]: Option[] }>({});
   const [answers, setAnswers] = useState<{ [key: number]: number | string }>({});
@@ -84,7 +84,12 @@ const AssessmentTaker = ({ assessmentId, userId }: { assessmentId: number; userI
         return;
       }
     }
-    setSubmitted(true);
+    
+    if (onComplete) {
+      onComplete({ score, answers });
+    } else {
+      setSubmitted(true);
+    }
   };
 
   if (loading) return <div className="glass-card p-4">Loading...</div>;
@@ -93,7 +98,10 @@ const AssessmentTaker = ({ assessmentId, userId }: { assessmentId: number; userI
 
   return (
     <form className="glass-card p-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-      <h2 className="text-heading mb-2">Take Assessment</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-heading mb-2">Take Assessment</h2>
+        {onBack && <Button type="button" variant="ghost" onClick={onBack}>Back</Button>}
+      </div>
       {questions.map(q => (
         <div key={q.id} className="mb-4">
           <div className="mb-1 font-semibold">{q.position}. {q.question_text}</div>

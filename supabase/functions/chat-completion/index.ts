@@ -1,4 +1,4 @@
-
+/// <reference types="https://esm.sh/v135/@deno/types@0.1.43/index.d.ts" />
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -23,7 +23,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, conversationId, context }: ChatRequest = await req.json();
+    const { message, conversationId }: ChatRequest = await req.json();
 
     // Initialize Supabase client
     const supabaseClient = createClient(

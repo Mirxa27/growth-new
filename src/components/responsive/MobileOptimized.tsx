@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 // Mobile Container - Responsive container with proper padding
 interface MobileContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
+  className?: string;
 }
 
 export const MobileContainer = ({ children, className, ...props }: MobileContainerProps) => {
@@ -27,6 +28,7 @@ interface MobileGridProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   cols?: 1 | 2 | 3 | 4;
   gap?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 export const MobileGrid = ({ 
@@ -65,7 +67,7 @@ export const MobileGrid = ({
 };
 
 // Mobile Card - Enhanced card with mobile-first design
-interface MobileCardProps {
+interface MobileCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   title?: string;
@@ -112,6 +114,7 @@ interface MobileTypographyProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
   variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'body' | 'caption' | 'small';
   as?: keyof JSX.IntrinsicElements;
+  className?: string;
 }
 
 export const MobileTypography = ({ 
@@ -157,6 +160,7 @@ export const MobileTypography = ({
 interface MobileSectionProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 export const MobileSection = ({ 
@@ -191,6 +195,7 @@ export const MobileSection = ({
 interface MobileStackProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   spacing?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 export const MobileStack = ({ 

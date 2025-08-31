@@ -2,20 +2,19 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Brain, Target, Sparkles, BookOpen, Users, Heart, TrendingUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 // Import our new components
-import AssessmentBrowser from '@/components/assessment/AssessmentBrowser';
+import { AssessmentBrowser } from '@/components/assessment/AssessmentBrowser';
 import AssessmentTaker from '@/components/assessment/AssessmentTaker';
-import AssessmentResults from '@/components/assessment/AssessmentResults';
+import { AssessmentResults } from '@/components/assessment/AssessmentResults';
 import QuizBrowser from '@/components/quiz/QuizBrowser';
 import QuizTaker from '@/components/quiz/QuizTaker';
 
 interface Assessment {
-  id: string;
+  id: number;
   title: string;
   description: string;
   instructions?: string;
@@ -53,7 +52,7 @@ const MobileAssessmentHub: React.FC = () => {
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [assessmentResults, setAssessmentResults] = useState<any>(null);
-  const [quizResults, setQuizResults] = useState<any>(null);
+  const [, setQuizResults] = useState<any>(null);
   const navigate = useNavigate();
 
   const handleAssessmentSelect = (assessment: Assessment) => {
@@ -152,7 +151,7 @@ const MobileAssessmentHub: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
         <AssessmentTaker
-          assessment={selectedAssessment}
+          assessmentId={selectedAssessment.id}
           onComplete={handleAssessmentComplete}
           onBack={goBack}
         />
@@ -203,7 +202,7 @@ const MobileAssessmentHub: React.FC = () => {
           </Button>
         </div>
         <AssessmentBrowser
-          onAssessmentSelect={handleAssessmentSelect}
+          onAssessmentSelect={handleAssessmentSelect as any}
           filterPublic={true}
         />
       </div>
@@ -220,7 +219,7 @@ const MobileAssessmentHub: React.FC = () => {
           </Button>
         </div>
         <QuizBrowser
-          onQuizSelect={handleQuizSelect}
+          onQuizSelect={handleQuizSelect as any}
           filterPublic={true}
         />
       </div>
@@ -260,7 +259,7 @@ const MobileAssessmentHub: React.FC = () => {
           transition={{ delay: 0.2 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          {categories.map((category, index) => {
+          {categories.map((category) => {
             const Icon = category.icon;
             return (
               <Card
