@@ -23,7 +23,7 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
     const fetchAssessments = async () => {
       setLoading(true);
       let query = supabase
-        .from('assessments')
+        .from('assessments' as any)
         .select('id, title, description, type')
         .order('created_at', { ascending: false });
       

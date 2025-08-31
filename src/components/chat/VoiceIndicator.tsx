@@ -1,46 +1,30 @@
-import { Mic, MicOff } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface VoiceIndicatorProps {
   isRecording: boolean;
-  isSpeaking: boolean;
 }
 
-export const VoiceIndicator = ({ isRecording, isSpeaking }: VoiceIndicatorProps) => {
-  if (!isRecording && !isSpeaking) return null;
-
+export const VoiceIndicator = ({ isRecording }: VoiceIndicatorProps) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      className="fixed top-4 right-4 z-50"
-    >
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-full glass-card border-glass ${
-        isRecording ? 'bg-red-500/10 border-red-500/20' : 'bg-blue-500/10 border-blue-500/20'
-      }`}>
-        {isRecording ? (
-          <>
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 1 }}
-            >
-              <Mic className="w-4 h-4 text-red-500" />
-            </motion.div>
-            <span className="text-sm font-medium text-red-500">Recording...</span>
-          </>
-        ) : (
-          <>
-            <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-            >
-              <div className="w-4 h-4 rounded-full bg-blue-500" />
-            </motion.div>
-            <span className="text-sm font-medium text-blue-500">AI Speaking...</span>
-          </>
-        )}
+    <div className="relative w-16 h-16 flex items-center justify-center">
+      {isRecording && (
+        <>
+          <motion.div
+            className="absolute w-full h-full bg-primary/20 rounded-full"
+            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute w-full h-full bg-primary/30 rounded-full"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.7, 0, 0.7] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+          />
+        </>
+      )}
+      <div className="relative w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+        <Mic className="w-6 h-6 text-white" />
       </div>
-    </motion.div>
+    </div>
   );
 };

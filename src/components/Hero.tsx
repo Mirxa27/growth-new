@@ -39,7 +39,7 @@ export const Hero = () => {
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+        <div className="flex justify-center pt-4">
           <Button 
             size="lg" 
             className="glass glass-glow interactive group px-8 py-4 text-lg font-semibold"
@@ -47,14 +47,6 @@ export const Hero = () => {
           >
             Start Free Discovery
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="lg" 
-            className="glass interactive px-8 py-4 text-lg"
-            onClick={() => navigate("/assessment")}
-          >
-            Desktop Assessment
           </Button>
         </div>
 

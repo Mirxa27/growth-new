@@ -1,9 +1,15 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Star, Users, Sparkles, Play } from 'lucide-react';
-import { MobileCard } from '@/components/responsive/MobileOptimized';
+import { 
+  Compass, 
+  Clock, 
+  Star, 
+  Brain, 
+  Heart, 
+  TrendingUp, 
+  Sparkles 
+} from 'lucide-react';
 
 interface Exploration {
   id: string;
@@ -13,107 +19,60 @@ interface Exploration {
   difficulty_level: string;
   estimated_duration: number;
   crystal_reward: number;
-  is_active: boolean;
 }
 
 interface ExplorationListProps {
   explorations: Exploration[];
-  onStartExploration: (exploration: Exploration) => void;
+  onSelect: (id: string) => void;
 }
 
-export const ExplorationList: React.FC<ExplorationListProps> = ({
-  explorations,
-  onStartExploration
-}) => {
-  const getDifficultyColor = (level: string) => {
-    switch (level) {
-      case 'beginner': return 'hsl(142, 71%, 45%)';
-      case 'intermediate': return 'hsl(45, 93%, 47%)';
-      case 'advanced': return 'hsl(346, 87%, 58%)';
-      default: return 'hsl(220, 85%, 57%)';
-    }
-  };
-
+export const ExplorationList: React.FC<ExplorationListProps> = ({ explorations, onSelect }) => {
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'self-discovery': return Star;
-      case 'relationships': return Users;
-      case 'personal-growth': return Sparkles;
-      default: return Star;
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'self-discovery': return 'hsl(320, 85%, 65%)';
-      case 'relationships': return 'hsl(346, 87%, 58%)';
-      case 'personal-growth': return 'hsl(280, 70%, 60%)';
-      default: return 'hsl(320, 85%, 65%)';
+      case 'self-discovery': return <Brain className="w-4 h-4" />;
+      case 'relationships': return <Heart className="w-4 h-4" />;
+      case 'career': return <TrendingUp className="w-4 h-4" />;
+      case 'healing': return <Sparkles className="w-4 h-4" />;
+      default: return <Compass className="w-4 h-4" />;
     }
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {explorations.map((exploration) => {
-        const IconComponent = getCategoryIcon(exploration.category);
-        const categoryColor = getCategoryColor(exploration.category);
-        
-        return (
-          <MobileCard 
-            key={exploration.id} 
-            className="hover:scale-105 transition-all duration-300 cursor-pointer group interactive"
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {explorations.map((exploration) => (
+        <div key={exploration.id} className="glass-card border-glass p-6 flex flex-col">
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                {getCategoryIcon(exploration.category)}
+              </div>
+              <Badge variant="secondary" className="glass">{exploration.category}</Badge>
+            </div>
+            <h3 className="font-semibold text-lg leading-tight">{exploration.title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {exploration.description}
+            </p>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              {exploration.estimated_duration} min
+            </div>
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4" />
+              {exploration.crystal_reward}
+            </div>
+          </div>
+
+          <Button 
+            onClick={() => onSelect(exploration.id)} 
+            className="w-full mt-4 bg-gradient-primary"
           >
-            <CardHeader>
-              <div className="flex items-start justify-between mb-3">
-                <div 
-                  className="p-2 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${categoryColor}20` }}
-                >
-                  <IconComponent className="h-5 w-5" style={{ color: categoryColor }} />
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className="glass text-xs"
-                  style={{ 
-                    borderColor: getDifficultyColor(exploration.difficulty_level),
-                    color: getDifficultyColor(exploration.difficulty_level)
-                  }}
-                >
-                  {exploration.difficulty_level}
-                </Badge>
-              </div>
-              
-              <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                {exploration.title}
-              </CardTitle>
-              <CardDescription className="text-base line-clamp-3">
-                {exploration.description}
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  {exploration.estimated_duration} min
-                </div>
-                <div className="flex items-center gap-1">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {exploration.crystal_reward} crystals
-                </div>
-              </div>
-              
-              <Button 
-                onClick={() => onStartExploration(exploration)}
-                className="w-full bg-gradient-primary hover:opacity-90 group-hover:shadow-lg transition-all micro-bounce"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Begin Exploration
-              </Button>
-            </CardContent>
-          </MobileCard>
-        );
-      })}
+            Start Exploration
+          </Button>
+        </div>
+      ))}
     </div>
   );
 };

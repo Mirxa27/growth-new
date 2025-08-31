@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 
@@ -27,7 +27,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
     const fetchQuestions = async () => {
       setLoading(true);
       const { data: qData, error: qError } = await supabase
-        .from('assessment_questions')
+        .from('assessment_questions' as any)
         .select('*')
         .eq('assessment_id', assessmentId)
         .order('position', { ascending: true });
@@ -36,13 +36,13 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
         setLoading(false);
         return;
       }
-      setQuestions(qData);
+      setQuestions(qData as any[]);
       // Fetch options for each question
       const optionMap: { [key: number]: Option[] } = {};
-      for (const q of qData) {
+      for (const q of (qData as any[])) {
         if (q.question_type === 'multiple_choice') {
           const { data: oData } = await supabase
-            .from('assessment_options')
+            .from('assessment_options' as any)
             .select('*')
             .eq('question_id', q.id)
             .order('position', { ascending: true });
@@ -78,7 +78,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: { assessm
           assessment_id: assessmentId,
           score,
           answers,
-        });
+        } as any);
       if (error) {
         setError(error.message);
         return;

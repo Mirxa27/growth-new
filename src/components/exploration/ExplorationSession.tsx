@@ -27,15 +27,6 @@ interface Exploration {
   questions: string[];
 }
 
-interface ExplorationResponse {
-  id: string;
-  exploration_id: string;
-  user_id: string;
-  responses: Record<string, string>;
-  completed_at?: string;
-  crystal_reward: number;
-}
-
 const ExplorationSession = () => {
   const { explorationId } = useParams();
   const navigate = useNavigate();
@@ -73,17 +64,17 @@ const ExplorationSession = () => {
 
       if (user) {
         const { data: existingResponse } = await supabase
-          .from('exploration_responses' as any)
+          .from('exploration_sessions' as any)
           .select('*')
           .eq('exploration_id', explorationId)
           .eq('user_id', user.id)
           .single();
 
         if (existingResponse) {
-          setResponseId(existingResponse.id);
-          setAnswers(existingResponse.responses || {});
+          setResponseId((existingResponse as any).id);
+          setAnswers((existingResponse as any).responses || {});
           
-          if (existingResponse.completed_at) {
+          if ((existingResponse as any).completed_at) {
             setIsComplete(true);
           }
         }
@@ -119,18 +110,18 @@ const ExplorationSession = () => {
 
       if (responseId) {
         await supabase
-          .from('exploration_responses' as any)
+          .from('exploration_sessions' as any)
           .update(responseData)
           .eq('id', responseId);
       } else {
         const { data, error } = await supabase
-          .from('exploration_responses' as any)
+          .from('exploration_sessions' as any)
           .insert(responseData)
           .select()
           .single();
         
         if (error) throw error;
-        setResponseId(data.id);
+        setResponseId((data as any).id);
       }
     } catch (error) {
       console.error('Error saving progress:', error);
@@ -164,7 +155,7 @@ const ExplorationSession = () => {
       
       if (responseId) {
         await supabase
-          .from('exploration_responses' as any)
+          .from('exploration_sessions' as any)
           .update({ completed_at: new Date().toISOString() })
           .eq('id', responseId);
       }

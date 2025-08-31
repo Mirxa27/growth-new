@@ -26,7 +26,7 @@ export const EnhancedVoiceInterface: React.FC<EnhancedVoiceInterfaceProps> = ({
   onMessage
 }) => {
   const { toast } = useToast();
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, ] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
