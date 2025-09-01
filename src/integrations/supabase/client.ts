@@ -2,6 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/environment';
 import type { Database } from './types';
 
+// Sanitize headers to prevent non-ASCII character issues
+const sanitizeHeader = (value: string): string => {
+  // Remove quotes and non-ASCII characters
+  return value.replace(/['"]/g, '').replace(/[^\x00-\x7F]/g, '');
+};
+
 // Create Supabase client with proper typing and configuration
 export const supabase = createClient<Database>(
   env.supabase.url,
@@ -16,8 +22,8 @@ export const supabase = createClient<Database>(
     },
     global: {
       headers: {
-        'x-application-name': env.app.name,
-        'x-application-version': env.app.version,
+        'x-application-name': sanitizeHeader(env.app.name || 'Life-Navigation-System'),
+        'x-application-version': sanitizeHeader(env.app.version || '1.0.0'),
       },
     },
     db: {
@@ -47,8 +53,8 @@ export const getServiceRoleClient = () => {
       },
       global: {
         headers: {
-          'x-application-name': `${env.app.name}-admin`,
-          'x-application-version': env.app.version,
+          'x-application-name': sanitizeHeader(`${env.app.name || 'Life-Navigation-System'}-admin`),
+          'x-application-version': sanitizeHeader(env.app.version || '1.0.0'),
         },
       },
     }
