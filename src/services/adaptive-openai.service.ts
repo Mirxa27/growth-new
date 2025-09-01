@@ -24,8 +24,16 @@ class AdaptiveOpenAIService {
   private apiKey: string | undefined;
 
   constructor() {
-    this.apiKey = env.openai.apiKey;
-    console.log(`OpenAI Service initialized in ${this.apiMode.mode} mode`);
+    this.apiKey = env.openai.apiKey || import.meta.env.VITE_OPENAI_API_KEY;
+    
+    // Log initialization details for debugging
+    if (this.apiMode.mode === 'proxy') {
+      console.log('OpenAI Service: Using secure proxy mode (no client API key needed)');
+    } else if (this.apiKey) {
+      console.log('OpenAI Service: Using direct mode with API key');
+    } else {
+      console.warn('OpenAI Service: No API key found, some features may be limited');
+    }
   }
 
   /**

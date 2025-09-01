@@ -8,8 +8,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.1';
 // CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-version, x-application-name',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-version, x-application-name, x-request-id',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
   'Access-Control-Max-Age': '86400',
 };
 

@@ -24,8 +24,13 @@ export function getApiMode(): ApiModeConfig {
   // In production, always use proxy for security
   const isProduction = import.meta.env.PROD;
   
-  // Determine mode
-  if (forceProxy || isProduction || !hasClientKey) {
+  // Check if we're on a deployment (Vercel, Netlify, etc)
+  const isDeployed = window.location.hostname !== 'localhost' && 
+                     !window.location.hostname.includes('127.0.0.1') &&
+                     !window.location.hostname.includes('192.168.');
+  
+  // Determine mode - prefer proxy for security
+  if (forceProxy || isProduction || isDeployed || !hasClientKey) {
     return {
       mode: 'proxy',
       useProxy: true,
@@ -33,7 +38,7 @@ export function getApiMode(): ApiModeConfig {
     };
   }
   
-  // Development with API key - use direct mode
+  // Only use direct mode in local development with API key
   return {
     mode: 'direct',
     useProxy: false,
