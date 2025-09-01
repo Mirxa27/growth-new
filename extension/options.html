@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Growth Echo Assistant Settings</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 24px; }
+      label { display: block; margin: 12px 0 4px; font-weight: 600; }
+      input { width: 560px; max-width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+      .row { margin: 10px 0; }
+      button { background: #6366f1; color: white; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+      .muted { color: #6b7280; font-size: 12px; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Growth Echo Assistant Settings</h1>
+    <div class="row">
+      <label for="openai_api_key">OpenAI API Key</label>
+      <input id="openai_api_key" type="password" placeholder="sk-..." />
+      <div class="muted">Stored locally in chrome.storage.sync</div>
+    </div>
+    <div class="row">
+      <label for="openai_base_url">OpenAI Base URL</label>
+      <input id="openai_base_url" type="text" value="https://api.openai.com" />
+    </div>
+    <div class="row">
+      <label for="openai_model">Default Model</label>
+      <input id="openai_model" type="text" value="gpt-4o-mini" />
+    </div>
+    <hr />
+    <div class="row">
+      <label for="supabase_url">Supabase URL</label>
+      <input id="supabase_url" type="text" placeholder="https://<project>.supabase.co" />
+    </div>
+    <div class="row">
+      <label for="supabase_anon_key">Supabase Anon Key</label>
+      <input id="supabase_anon_key" type="password" placeholder="eyJhbGciOiJI..." />
+    </div>
+    <div class="row">
+      <button id="save">Save</button>
+      <button id="test" style="margin-left:8px; background:#10b981">Test</button>
+      <span id="status" class="muted" style="margin-left:8px"></span>
+    </div>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
+
