@@ -1,7 +1,7 @@
 {
-  "name": "Growth Echo Nexus",
-  "short_name": "GEN",
-  "description": "Life Navigation System - Your personal growth and development companion",
+  "name": "NewMe - Life Navigation System",
+  "short_name": "NewMe",
+  "description": "Your personal growth and development companion with AI-powered assessments and voice support",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
@@ -21,6 +21,5 @@
     }
   ],
   "categories": ["health", "lifestyle", "productivity"],
-  "screenshots": [],
   "prefer_related_applications": false
 }
