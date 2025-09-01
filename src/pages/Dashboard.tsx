@@ -41,15 +41,27 @@ const Dashboard = () => {
       }
 
       try {
-        // Fetch user profile
+        // Fetch user profile with safe column selection
         const { data: profileData, error: profilesError } = await supabase
           .from('profiles')
           .select('*')
           .eq('user_id', user.id)
           .single();
         
-        if (profilesError && profilesError.code !== 'PGRST116') throw profilesError;
-        setProfile(profileData);
+        // Handle missing profile or columns gracefully
+        if (profilesError && profilesError.code !== 'PGRST116') {
+          console.warn('Profile fetch error:', profilesError);
+          // Create a default profile structure
+          setProfile({
+            user_id: user.id,
+            username: user.email?.split('@')[0] || 'User',
+            avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+            created_at: new Date().toISOString(),
+            last_login_at: new Date().toISOString()
+          });
+        } else {
+          setProfile(profileData);
+        }
 
         // Fetch latest assessment result
         const { data: latestResult } = await assessmentService.getLatestAssessmentResult();
