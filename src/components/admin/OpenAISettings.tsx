@@ -160,6 +160,34 @@ const OpenAISettings = () => {
     setIsTesting(true);
     setTestResults(null);
 
+    // Check if API key is provided
+    if (!config.apiKey) {
+      setTestResults({
+        apiKeyValid: false,
+        chatTest: {
+          success: false,
+          message: 'Please enter your OpenAI API key first'
+        },
+        timestamp: new Date().toISOString()
+      });
+      setIsTesting(false);
+      return;
+    }
+
+    // Check API key format
+    if (!config.apiKey.startsWith('sk-')) {
+      setTestResults({
+        apiKeyValid: false,
+        chatTest: {
+          success: false,
+          message: 'Invalid API key format. OpenAI keys should start with "sk-"'
+        },
+        timestamp: new Date().toISOString()
+      });
+      setIsTesting(false);
+      return;
+    }
+
     try {
       // Test chat completion
       const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {

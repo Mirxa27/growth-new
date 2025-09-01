@@ -428,7 +428,18 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         return {
           data: {
             success: false,
-            message: 'Voice features are not enabled. Please configure OpenAI API key.',
+            message: 'Voice features are not enabled. Please configure OpenAI API key in Settings.',
+          },
+          error: null,
+        };
+      }
+      
+      // Check if API key is valid format
+      if (this.openAIApiKey && !this.openAIApiKey.startsWith('sk-')) {
+        return {
+          data: {
+            success: false,
+            message: 'Invalid OpenAI API key format. Keys should start with "sk-"',
           },
           error: null,
         };
