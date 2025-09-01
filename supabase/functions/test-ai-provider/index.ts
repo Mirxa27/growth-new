@@ -1,162 +1,149 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+// supabase/functions/test-ai-provider/index.ts
+// -------------------------------------------------
+// CORS-enabled Edge Function for AI Provider Testing
+// -------------------------------------------------
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGIN = "*" // Change to your Vercel domain for production
+const ALLOWED_METHODS = "POST, GET, OPTIONS"
+const ALLOWED_HEADERS = "content-type, authorization, x-application-version, x-application-name"
+const MAX_AGE = "86400" // 24 h cache for pre-flight
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+function corsHeaders(): HeadersInit {
+  return {
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Methods": ALLOWED_METHODS,
+    "Access-Control-Allow-Headers": ALLOWED_HEADERS,
+    "Access-Control-Max-Age": MAX_AGE,
+  }
+}
+
+Deno.serve(async (req: Request) => {
+  // ---------- 1️⃣ OPTIONS pre-flight ----------
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders() })
   }
 
+  // ---------- 2️⃣ Normal request ----------
   try {
-    const { providerId } = await req.json();
+    const payload = req.method === "POST" ? await req.json() : {}
     
-    if (!providerId) {
-      throw new Error('Provider ID is required');
+    // Test AI provider configuration
+    const { provider, apiKey, model } = payload
+
+    // Validate required fields
+    if (!provider || !apiKey) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Missing required fields: provider and apiKey" 
+        }), 
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders() },
+        }
+      )
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Test based on provider
+    let testResult = { success: false, message: "", details: {} }
 
-    // Fetch provider configuration
-    const { data: provider, error: providerError } = await supabase
-      .from('admin_ai_providers')
-      .select('*')
-      .eq('id', providerId)
-      .single();
+    if (provider === "openai") {
+      try {
+        // Test OpenAI API
+        const response = await fetch("https://api.openai.com/v1/models", {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+          },
+        })
 
-    if (providerError || !provider) {
-      throw new Error('Provider not found');
-    }
-
-    const config = provider.configuration as any;
-    let testResult = { success: false, error: 'Unknown provider type' };
-
-    // Test based on provider type
-    switch (provider.provider_type) {
-      case 'openai':
-        testResult = await testOpenAI(config);
-        break;
-      case 'anthropic':
-        testResult = await testAnthropic(config);
-        break;
-      case 'google':
-        testResult = await testGoogle(config);
-        break;
-      case 'elevenlabs':
-        testResult = await testElevenLabs(config);
-        break;
-      default:
-        testResult = { success: false, error: 'Unsupported provider type' };
-    }
-
-    return new Response(
-      JSON.stringify(testResult),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        if (response.ok) {
+          const data = await response.json()
+          testResult = {
+            success: true,
+            message: "OpenAI API key is valid",
+            details: {
+              modelsAvailable: data.data?.length || 0,
+              hasGPT4: data.data?.some((m: any) => m.id.includes("gpt-4")),
+              hasRealtime: data.data?.some((m: any) => m.id.includes("realtime")),
+            },
+          }
+        } else {
+          const error = await response.json()
+          testResult = {
+            success: false,
+            message: error.error?.message || "Invalid API key",
+            details: { status: response.status },
+          }
+        }
+      } catch (error) {
+        testResult = {
+          success: false,
+          message: `Failed to connect to OpenAI: ${error.message}`,
+          details: {},
+        }
       }
-    );
-  } catch (error) {
-    console.error('Error testing provider:', error);
+    } else if (provider === "anthropic") {
+      // Test Anthropic API
+      try {
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: model || "claude-3-haiku-20240307",
+            max_tokens: 10,
+            messages: [{ role: "user", content: "Hi" }],
+          }),
+        })
+
+        if (response.ok) {
+          testResult = {
+            success: true,
+            message: "Anthropic API key is valid",
+            details: { model: model || "claude-3-haiku-20240307" },
+          }
+        } else {
+          const error = await response.json()
+          testResult = {
+            success: false,
+            message: error.error?.message || "Invalid API key",
+            details: { status: response.status },
+          }
+        }
+      } catch (error) {
+        testResult = {
+          success: false,
+          message: `Failed to connect to Anthropic: ${error.message}`,
+          details: {},
+        }
+      }
+    } else {
+      testResult = {
+        success: false,
+        message: `Unsupported provider: ${provider}`,
+        details: {},
+      }
+    }
+
+    return new Response(JSON.stringify(testResult), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders() },
+    })
+  } catch (e) {
+    console.error(e)
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
+        error: "Internal server error",
+        message: e.message 
+      }), 
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders() },
       }
-    );
+    )
   }
-});
-
-async function testOpenAI(config: any): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${config.api_key}`
-      }
-    });
-
-    if (response.ok) {
-      return { success: true };
-    } else {
-      const error = await response.text();
-      return { success: false, error: `OpenAI API error: ${response.status} - ${error}` };
-    }
-  } catch (error) {
-    return { success: false, error: `Failed to connect to OpenAI: ${error}` };
-  }
-}
-
-async function testAnthropic(config: any): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': config.api_key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: config.model || 'claude-3-haiku-20240307',
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 10
-      })
-    });
-
-    if (response.ok || response.status === 400) {
-      // 400 might mean invalid model but API key is valid
-      return { success: true };
-    } else {
-      const error = await response.text();
-      return { success: false, error: `Anthropic API error: ${response.status} - ${error}` };
-    }
-  } catch (error) {
-    return { success: false, error: `Failed to connect to Anthropic: ${error}` };
-  }
-}
-
-async function testGoogle(config: any): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${config.api_key}`
-    );
-
-    if (response.ok) {
-      return { success: true };
-    } else {
-      const error = await response.text();
-      return { success: false, error: `Google API error: ${response.status} - ${error}` };
-    }
-  } catch (error) {
-    return { success: false, error: `Failed to connect to Google: ${error}` };
-  }
-}
-
-async function testElevenLabs(config: any): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-      headers: {
-        'xi-api-key': config.api_key
-      }
-    });
-
-    if (response.ok) {
-      return { success: true };
-    } else {
-      const error = await response.text();
-      return { success: false, error: `ElevenLabs API error: ${response.status} - ${error}` };
-    }
-  } catch (error) {
-    return { success: false, error: `Failed to connect to ElevenLabs: ${error}` };
-  }
-}
+})
