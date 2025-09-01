@@ -92,7 +92,7 @@ class VoiceService extends BaseApiService {
       name: 'Default Assistant',
       provider: 'openai',
       voice: 'alloy',
-      model: env.openai.model,
+      model: env.openai.realtimeModel || 'gpt-realtime-2025-08-28',
       temperature: env.openai.temperature,
       instructions: `You are a helpful life navigation assistant. Your role is to:
 1. Provide thoughtful, empathetic guidance
@@ -189,7 +189,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       
       if (env.isProduction()) {
         // In production, call your backend service
-        const response = await fetch(`${env.supabase.url}/functions/v1/generate-voice-token`, {
+        const response = await fetch(`${env.supabase.url}/functions/v1/get-realtime-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -258,7 +258,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       return {
         data: {
           apiKey: this.openAIApiKey!,
-          model: config.model || env.openai.model,
+          model: config.model || env.openai.realtimeModel || 'gpt-realtime-2025-08-28',
           voice: config.voice || 'alloy',
           instructions: config.instructions || '',
           temperature: config.temperature || env.openai.temperature,
@@ -428,7 +428,18 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         return {
           data: {
             success: false,
-            message: 'Voice features are not enabled. Please configure OpenAI API key.',
+            message: 'Voice features are not enabled. Please configure OpenAI API key in Settings.',
+          },
+          error: null,
+        };
+      }
+      
+      // Check if API key is valid format
+      if (this.openAIApiKey && !this.openAIApiKey.startsWith('sk-')) {
+        return {
+          data: {
+            success: false,
+            message: 'Invalid OpenAI API key format. Keys should start with "sk-"',
           },
           error: null,
         };
@@ -441,6 +452,9 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       }
       
       // Test OpenAI connection with a simple completion
+      // Use a chat model for testing, not the realtime model
+      const testModel = config.model?.includes('realtime') ? 'gpt-4o-mini' : (config.model || 'gpt-4o-mini');
+      
       const testResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -448,7 +462,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
           'Authorization': `Bearer ${this.openAIApiKey}`,
         },
         body: JSON.stringify({
-          model: config.model || 'gpt-4o-mini',
+          model: testModel,
           messages: [
             {
               role: 'system',

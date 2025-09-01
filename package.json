@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@kombai/react-error-boundary": "latest",
+    "@openai/agents": "^0.1.0",
     "@openai/agents-realtime": "latest",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -93,7 +94,7 @@
     "recharts": "latest",
     "sonner": "latest",
     "supabase": "latest",
-    "tailwind-merge": "latest",
+    "tailwind-merge": "^3.3.1",
     "tailwindcss": "latest",
     "validator": "latest",
     "vaul": "latest"

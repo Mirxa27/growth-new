@@ -6,6 +6,9 @@
 /* Import Responsive Design System */
 @import './styles/responsive.css';
 
+/* Import Visibility Fixes */
+@import './styles/visibility-fixes.css';
+
 /* Newomen Design System - Liquid Glassmorphism */
 
 @layer base {
@@ -42,8 +45,8 @@
     --popover: 250 25% 6% / 0.9;
     --popover-foreground: 310 15% 95%;
 
-    --muted: 260 15% 15% / 0.4;
-    --muted-foreground: 300 10% 65%;
+    --muted: 260 15% 20% / 0.5;
+    --muted-foreground: 300 10% 75%;
 
     --accent: 300 60% 25% / 0.3;
     --accent-foreground: 310 25% 95%;

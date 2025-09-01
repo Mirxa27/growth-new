@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { assessmentService } from '@/services/assessment.service';
 import { 
   Brain, 
   Heart, 
@@ -329,10 +330,32 @@ const MobileAssessment = () => {
     };
   };
 
-  const completeAssessment = () => {
+  const completeAssessment = async () => {
     const assessmentResults = calculateResults();
     setResults(assessmentResults);
     setShowResults(true);
+    
+    // Save results to database
+    try {
+      const { error } = await assessmentService.saveAssessmentResult({
+        assessmentId: 'mobile-personality-assessment',
+        answers,
+        personalityType: assessmentResults.personalityType,
+        score: assessmentResults.score,
+        insights: assessmentResults.insights,
+        recommendations: assessmentResults.recommendations,
+        metadata: {
+          traits: assessmentResults.traits,
+          completedAt: new Date().toISOString()
+        }
+      });
+
+      if (error && !error.message.includes('saved locally')) {
+        console.error('Failed to save assessment results:', error);
+      }
+    } catch (error) {
+      console.error('Error saving assessment results:', error);
+    }
     
     toast({
       title: "Assessment Complete!",

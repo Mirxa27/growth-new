@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Key Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border-left: 4px solid #ddd;
+    }
+    .test-section.success {
+      border-left-color: #4caf50;
+      background: #f1f8f4;
+    }
+    .test-section.error {
+      border-left-color: #f44336;
+      background: #fef1f0;
+    }
+    .test-section.warning {
+      border-left-color: #ff9800;
+      background: #fff8f1;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    button {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #1976d2;
+    }
+    .status {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .instructions {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔑 OpenAI API Key Test</h1>
+    
+    <div class="instructions">
+      <strong>Instructions:</strong>
+      <ol>
+        <li>Enter your OpenAI API key below (starts with "sk-")</li>
+        <li>Click "Test API Key" to verify it works</li>
+        <li>If successful, the key will be saved to your browser</li>
+      </ol>
+    </div>
+
+    <div class="test-section" id="env-check">
+      <h3>1. Environment Check</h3>
+      <div id="env-status"></div>
+    </div>
+
+    <div class="test-section" id="manual-test">
+      <h3>2. Manual API Key Test</h3>
+      <input 
+        type="password" 
+        id="api-key-input" 
+        placeholder="sk-..." 
+        value=""
+      />
+      <button onclick="testApiKey()">Test API Key</button>
+      <div id="test-status"></div>
+    </div>
+
+    <div class="test-section" id="results">
+      <h3>3. Test Results</h3>
+      <pre id="results-output">No tests run yet</pre>
+    </div>
+  </div>
+
+  <script type="module">
+    // Check environment on load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkEnvironment();
+      
+      // Check if there's a key in localStorage
+      const savedKey = localStorage.getItem('openai_api_key');
+      if (savedKey) {
+        document.getElementById('api-key-input').value = savedKey;
+        document.getElementById('env-status').innerHTML += 
+          '<div class="status success">Found saved API key in browser storage</div>';
+      }
+    });
+
+    function checkEnvironment() {
+      const envStatus = document.getElementById('env-status');
+      
+      // Check if running in Vite dev server
+      if (typeof import.meta !== 'undefined' && import.meta.env) {
+        const viteKey = import.meta.env.VITE_OPENAI_API_KEY;
+        if (viteKey) {
+          envStatus.innerHTML = `
+            <div class="status success">✅ Found VITE_OPENAI_API_KEY in environment</div>
+            <div>Key prefix: ${viteKey.substring(0, 7)}...</div>
+            <div>Key length: ${viteKey.length} characters</div>
+          `;
+          document.getElementById('api-key-input').value = viteKey;
+        } else {
+          envStatus.innerHTML = `
+            <div class="status error">❌ VITE_OPENAI_API_KEY not found in environment</div>
+            <div>Available env vars: ${Object.keys(import.meta.env).join(', ')}</div>
+          `;
+        }
+      } else {
+        envStatus.innerHTML = `
+          <div class="status warning">⚠️ Not running in Vite environment</div>
+          <div>Open this file through the Vite dev server: http://localhost:5173/test-api-key.html</div>
+        `;
+      }
+    }
+
+    window.testApiKey = async function() {
+      const apiKey = document.getElementById('api-key-input').value.trim();
+      const statusDiv = document.getElementById('test-status');
+      const resultsDiv = document.getElementById('results-output');
+      
+      if (!apiKey) {
+        statusDiv.innerHTML = '<div class="status error">Please enter an API key</div>';
+        return;
+      }
+      
+      if (!apiKey.startsWith('sk-')) {
+        statusDiv.innerHTML = '<div class="status error">API key must start with "sk-"</div>';
+        return;
+      }
+      
+      statusDiv.innerHTML = '<div class="status">Testing API key...</div>';
+      
+      const results = {
+        timestamp: new Date().toISOString(),
+        keyPrefix: apiKey.substring(0, 7),
+        keyLength: apiKey.length
+      };
+      
+      try {
+        // Test 1: List models
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        results.modelsEndpoint = {
+          status: response.status,
+          statusText: response.statusText
+        };
+        
+        if (response.ok) {
+          const data = await response.json();
+          results.modelsEndpoint.success = true;
+          results.modelsEndpoint.modelsCount = data.data.length;
+          results.modelsEndpoint.hasGPT4 = data.data.some(m => m.id.includes('gpt-4'));
+          
+          statusDiv.innerHTML = '<div class="status success">✅ API Key is valid!</div>';
+          
+          // Save to localStorage
+          localStorage.setItem('openai_api_key', apiKey);
+          statusDiv.innerHTML += '<div class="status success">Key saved to browser storage</div>';
+          
+          // Test 2: Try a simple completion
+          const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [{ role: 'user', content: 'Say "API test successful"' }],
+              max_tokens: 10
+            })
+          });
+          
+          results.chatEndpoint = {
+            status: chatResponse.status,
+            statusText: chatResponse.statusText,
+            success: chatResponse.ok
+          };
+          
+          if (chatResponse.ok) {
+            const chatData = await chatResponse.json();
+            results.chatEndpoint.response = chatData.choices[0].message.content;
+          }
+          
+        } else if (response.status === 401) {
+          statusDiv.innerHTML = '<div class="status error">❌ Invalid API key</div>';
+          results.error = 'Invalid API key - check your OpenAI dashboard';
+        } else if (response.status === 429) {
+          statusDiv.innerHTML = '<div class="status error">❌ Rate limit or quota exceeded</div>';
+          results.error = 'Check your OpenAI billing and usage limits';
+        } else {
+          statusDiv.innerHTML = `<div class="status error">❌ API Error: ${response.statusText}</div>`;
+          results.error = await response.text();
+        }
+        
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="status error">❌ Network Error: ${error.message}</div>`;
+        results.error = error.message;
+      }
+      
+      resultsDiv.textContent = JSON.stringify(results, null, 2);
+      
+      // Update the main section styling
+      const manualSection = document.getElementById('manual-test');
+      const resultsSection = document.getElementById('results');
+      
+      if (results.modelsEndpoint?.success) {
+        manualSection.className = 'test-section success';
+        resultsSection.className = 'test-section success';
+      } else {
+        manualSection.className = 'test-section error';
+        resultsSection.className = 'test-section error';
+      }
+    };
+  </script>
+</body>
+</html>

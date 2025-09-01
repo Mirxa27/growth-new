@@ -37,7 +37,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
   const activeConfig = useMemo(() => configs?.find(c => c.is_active) ?? configs?.[0] ?? null, [configs]);
 
   const [form, setForm] = useState<VoiceAgentConfig>({
-    id: '', name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-mini', temperature: 0.7, instructions: '', is_active: true
+    id: '', name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-realtime-preview-2024-10-01', temperature: 0.7, instructions: '', is_active: true
   });
   
   useEffect(() => {
@@ -157,7 +157,15 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="model">AI Model</Label>
-              <Input id="model" className="glass-input" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} />
+              <Select value={form.model} onValueChange={(v) => setForm(p => ({ ...p, model: v }))}>
+                <SelectTrigger className="glass"><SelectValue placeholder="Select model" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt-4o-realtime-preview-2024-10-01">GPT-4 Realtime Preview</SelectItem>
+                  <SelectItem value="gpt-4o-realtime-preview">GPT-4 Realtime (Latest)</SelectItem>
+                  <SelectItem value="gpt-4o-mini">GPT-4 Mini (Chat)</SelectItem>
+                  <SelectItem value="gpt-4o">GPT-4 Omni</SelectItem>
+                </SelectContent>
+              </Select>
               {errors.model && <p className="text-sm text-red-500">{errors.model}</p>}
             </div>
             <div className="space-y-2">

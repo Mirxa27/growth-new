@@ -14,11 +14,14 @@ import {
   User,
   Heart,
   Brain,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import { chatService, type ChatMessage } from '@/services/chat.service';
+import RealtimeVoiceInterface from '@/components/voice/RealtimeVoiceInterface';
 
 interface Message {
   id: string;
@@ -73,54 +76,51 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      if (!apiKey || apiKey === 'your-openai-api-key-here') {
-        throw new Error('OpenAI API key not configured');
+      // Check if chat is enabled
+      if (!chatService.isChatEnabled()) {
+        throw new Error('Chat features are not configured. Please set up your OpenAI API key.');
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are NewMe, a supportive growth guide dedicated to helping women on their journey of self-discovery and personal growth. Be warm, considerate, and insightful. Always respond in a supportive, non-judgmental way. Keep responses concise but meaningful, around 2-3 sentences. Focus on encouragement and gentle guidance.`
-            },
-            ...messages.map(msg => ({
-              role: msg.sender === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            })),
-            {
-              role: 'user',
-              content: content
-            }
-          ],
-          max_tokens: 150,
-          temperature: 0.7
-        })
-      });
+      // Convert messages to ChatMessage format for the service
+      const sessionMessages: ChatMessage[] = messages.map(msg => ({
+        id: msg.id,
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+      // Get AI response
+      const { response, error } = await chatService.sendMessage(
+        content,
+        sessionMessages
+      );
+
+      if (error) {
+        throw error;
       }
-
-      const data = await response.json();
-      const aiContent = data.choices[0]?.message?.content || "I'm here to support you. Could you tell me more about what's on your mind?";
 
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: aiContent,
+        content: response || "I'm here to support you. Could you tell me more about what's on your mind?",
         sender: 'ai',
         timestamp: new Date(),
         type: 'text'
       };
       
       setMessages(prev => [...prev, aiResponse]);
+      
+      // Save session to database
+      const sessionId = `chat_${Date.now()}`;
+      await chatService.saveChatSession({
+        id: sessionId,
+        userId: 'current_user',
+        messages: [...sessionMessages, 
+          { id: userMessage.id, role: 'user', content, timestamp: userMessage.timestamp },
+          { id: aiResponse.id, role: 'assistant', content: aiResponse.content, timestamp: aiResponse.timestamp }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
     } catch (error) {
       console.error('Error sending message:', error);
       
@@ -321,52 +321,8 @@ const Chat = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="voice" className="m-0">
-                <div className="h-[500px] flex flex-col items-center justify-center p-8">
-                  <div className="text-center space-y-6">
-                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${
-                      isRecording 
-                        ? 'bg-red-500/20 border-4 border-red-500 animate-pulse' 
-                        : 'bg-primary/20 border-4 border-primary'
-                    }`}>
-                      {isRecording ? (
-                        <MicOff className="w-16 h-16 text-red-500" />
-                      ) : (
-                        <Mic className="w-16 h-16 text-primary" />
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        {isRecording ? 'Recording...' : 'Voice Chat'}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {isRecording 
-                          ? 'Speak now, tap to stop recording'
-                          : 'Tap the microphone to start voice chat'
-                        }
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={handleVoiceToggle}
-                      size="lg"
-                      className={isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-primary'}
-                    >
-                      {isRecording ? (
-                        <>
-                          <MicOff className="w-5 h-5 mr-2" />
-                          Stop Recording
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-5 h-5 mr-2" />
-                          Start Recording
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+              <TabsContent value="voice" className="m-0 p-4">
+                <RealtimeVoiceInterface />
               </TabsContent>
             </Tabs>
           </CardContent>

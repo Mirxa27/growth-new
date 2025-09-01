@@ -1,69 +1,89 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// supabase/functions/get-realtime-token/index.ts
+// -------------------------------------------------
+// CORS-enabled Edge Function for Realtime Token Generation
+// -------------------------------------------------
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const ALLOWED_ORIGIN = "*" // Change to your domain for production
+const ALLOWED_METHODS = "POST, GET, OPTIONS"
+const ALLOWED_HEADERS = "content-type, authorization, x-application-version, x-application-name"
+const MAX_AGE = "86400"
+
+function corsHeaders(): HeadersInit {
+  return {
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Methods": ALLOWED_METHODS,
+    "Access-Control-Allow-Headers": ALLOWED_HEADERS,
+    "Access-Control-Max-Age": MAX_AGE,
+  }
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+Deno.serve(async (req: Request) => {
+  // ---------- OPTIONS pre-flight ----------
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders() })
   }
 
+  // ---------- Normal request ----------
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('No authorization header')
+    // Get OpenAI API key from environment
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")
+    
+    if (!OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "OpenAI API key not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders() },
+        }
+      )
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
-    )
+    // Generate ephemeral token for OpenAI Realtime API
+    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-realtime-preview-2024-10-01",
+        voice: "alloy",
+      }),
+    })
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      throw new Error('Unauthorized')
+    if (!response.ok) {
+      const error = await response.json()
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to generate token",
+          details: error 
+        }),
+        {
+          status: response.status,
+          headers: { "Content-Type": "application/json", ...corsHeaders() },
+        }
+      )
     }
 
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiKey) {
-      throw new Error('OpenAI API key not configured')
-    }
-
-    // For OpenAI Realtime API, we generate an ephemeral token
-    // Since the API doesn't have a separate token endpoint, we return the API key
-    // in a secure way that the client can use
-    const ephemeralToken = openaiKey
-
+    const data = await response.json()
+    
     return new Response(
       JSON.stringify({
-        client_secret: ephemeralToken,
-        expires_at: Date.now() + (60 * 60 * 1000), // 1 hour from now
+        client_secret: data.client_secret,
+        expires_at: data.expires_at,
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders() },
       }
     )
-  } catch (error) {
-    console.error('Error generating voice token:', error)
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+  } catch (e) {
+    console.error(e)
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Internal server error", message: e.message }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders() },
       }
     )
   }
