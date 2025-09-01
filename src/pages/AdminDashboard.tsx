@@ -36,6 +36,7 @@ import { ContentModerationSettings } from '@/components/admin/ContentModerationS
 import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
+import { MigrationHelper } from '@/components/admin/MigrationHelper';
 
 type AdminSection = 
   | 'overview'
@@ -512,7 +513,12 @@ const AdminDashboard: React.FC = () => {
       case 'moderation':
         return <ContentModerationSettings />;
       case 'diagnostics':
-        return <AIDiagnosticsPanel />;
+        return (
+          <div className="space-y-6">
+            <MigrationHelper />
+            <AIDiagnosticsPanel />
+          </div>
+        );
       default:
         return renderOverview();
     }
