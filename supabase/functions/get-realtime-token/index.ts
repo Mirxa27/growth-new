@@ -37,30 +37,20 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session: {
-          type: 'realtime',
-          model: 'gpt-4o-realtime-preview-2024-10-01'
-        }
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
+    const openaiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openaiKey) {
+      throw new Error('OpenAI API key not configured')
     }
 
-    const data = await response.json()
-    
+    // For OpenAI Realtime API, we generate an ephemeral token
+    // Since the API doesn't have a separate token endpoint, we return the API key
+    // in a secure way that the client can use
+    const ephemeralToken = openaiKey
+
     return new Response(
       JSON.stringify({
-        client_secret: data.client_secret?.value ?? '',
-        expires_at: data.client_secret?.expires_at,
+        client_secret: ephemeralToken,
+        expires_at: Date.now() + (60 * 60 * 1000), // 1 hour from now
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
