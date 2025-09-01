@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Mic, 
   Volume2, 
@@ -9,9 +10,13 @@ import {
   PhoneOff,
   Sparkles,
   Zap,
-  Heart
+  Heart,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { voiceService } from '@/services';
+import { useToast } from '@/hooks/use-toast';
+import { env } from '@/config/environment';
 
 interface RealtimeVoiceInterfaceProps {
   onMessage?: (message: RealtimeEvent) => void;
@@ -43,6 +48,9 @@ export const RealtimeVoiceInterface = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [userTranscript, setUserTranscript] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [sessionId, setSessionId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -57,18 +65,27 @@ export const RealtimeVoiceInterface = ({
     
     setConnectionStatus('connecting');
     setIsConnecting(true);
+    setError(null);
     
     try {
-      // Get OpenAI API key from environment
-      const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-      
-      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'your-openai-api-key-here') {
-        throw new Error('OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your .env file.');
+      // Check if voice features are enabled
+      if (!voiceService.isVoiceEnabled()) {
+        throw new Error('Voice features are not enabled. Please configure OpenAI API key in settings.');
       }
       
+      // Get realtime configuration from service
+      const { data: config, error: configError } = await voiceService.getRealtimeConfig();
+      if (configError || !config) {
+        throw new Error(configError?.message || 'Failed to load voice configuration');
+      }
+      
+      // Generate session
+      const newSessionId = `voice_session_${Date.now()}`;
+      setSessionId(newSessionId);
+      
       const ws = new WebSocket(
-        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
-        ['realtime', `openai-insecure-api-key.${OPENAI_API_KEY}`]
+        `wss://api.openai.com/v1/realtime?model=${config.model || 'gpt-4o-realtime-preview-2024-10-01'}`,
+        ['realtime', `openai-insecure-api-key.${config.apiKey}`]
       );
       
       ws.onopen = () => {
@@ -77,21 +94,24 @@ export const RealtimeVoiceInterface = ({
         setIsConnecting(false);
         setConnectionStatus('connected');
         
-        // Configure session
+        // Configure session with voice config
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: `You are NewMe, a supportive growth guide dedicated to helping women on their journey of self-discovery and personal growth. Speak warmly and with care.`,
-            voice: 'alloy',
+            instructions: config.instructions || `You are a supportive growth guide dedicated to helping users on their journey of self-discovery and personal growth. Speak warmly and with care.`,
+            voice: config.voice || 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
+            temperature: config.temperature,
+            max_response_output_tokens: config.maxTokens,
             turn_detection: {
               type: 'server_vad',
               threshold: 0.5,
               prefix_padding_ms: 300,
               silence_duration_ms: 200
-            }
+            },
+            tools: config.tools || []
           }
         }));
         
@@ -128,10 +148,17 @@ export const RealtimeVoiceInterface = ({
       
     } catch (error) {
       console.error('Failed to connect to OpenAI:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to voice service';
+      setError(errorMessage);
+      toast({
+        title: 'Connection Failed',
+        description: errorMessage,
+        variant: 'destructive'
+      });
       setConnectionStatus('disconnected');
       setIsConnecting(false);
     }
-  }, [connectionStatus, isConnected]);
+  }, [connectionStatus, isConnected, toast]);
 
   // Handle realtime events from OpenAI
   const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
@@ -277,7 +304,20 @@ export const RealtimeVoiceInterface = ({
   }, []);
 
   // Disconnect from OpenAI
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    // Save session transcript if we have one
+    if (sessionId && wsRef.current) {
+      try {
+        const transcript = [userTranscript]; // In production, collect full conversation
+        await voiceService.saveSessionTranscript(sessionId, transcript, {
+          duration: Date.now() - parseInt(sessionId.split('_')[2]),
+          status: 'completed'
+        });
+      } catch (error) {
+        console.error('Failed to save session transcript:', error);
+      }
+    }
+    
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -294,8 +334,10 @@ export const RealtimeVoiceInterface = ({
     setIsRecording(false);
     setIsSpeaking(false);
     setUserTranscript('');
+    setSessionId('');
+    setError(null);
     
-  }, []);
+  }, [sessionId, userTranscript]);
 
   // Initialize on mount
   useEffect(() => {
@@ -334,6 +376,14 @@ export const RealtimeVoiceInterface = ({
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* Error Display */}
+        {error && (
+          <Alert variant="destructive" className="glass-card">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         {/* Main Voice Interface */}
         <div className="flex flex-col items-center space-y-4">
           {/* Voice Visualization */}

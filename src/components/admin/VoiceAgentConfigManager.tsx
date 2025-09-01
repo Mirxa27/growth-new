@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
-import { Save, AlertCircle, Mic, Settings } from 'lucide-react';
+import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
 import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
 
@@ -175,10 +175,37 @@ export const VoiceAgentConfigManager: React.FC = () => {
               <Switch id="is_active" checked={!!form.is_active} onCheckedChange={(checked) => setForm(p => ({ ...p, is_active: checked }))} />
               <Label htmlFor="is_active">Set as active configuration</Label>
             </div>
-            <Button onClick={handleSave} disabled={isSaving} className="bg-gradient-primary">
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Configuration'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  if (form.id) {
+                    const { voiceService } = await import('@/services');
+                    const result = await voiceService.testConfiguration(form.id);
+                    toast({ 
+                      title: result.data?.success ? "Test Successful" : "Test Failed",
+                      description: result.data?.message,
+                      variant: result.data?.success ? "default" : "destructive"
+                    });
+                  } else {
+                    toast({ 
+                      title: "Save First",
+                      description: "Please save the configuration before testing",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                variant="outline" 
+                className="glass"
+                disabled={!form.id}
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Test Config
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving} className="bg-gradient-primary">
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Configuration'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
