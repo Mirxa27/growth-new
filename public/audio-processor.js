@@ -1,64 +1,71 @@
-// AudioWorkletProcessor for real-time voice processing
+/**
+ * Audio Worklet Processor for real-time audio processing
+ * Converts audio to PCM16 format for OpenAI Realtime API
+ */
+
 class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.bufferSize = 4096;
+    this.bufferSize = 2048;
     this.buffer = new Float32Array(this.bufferSize);
     this.bufferIndex = 0;
   }
 
+  /**
+   * Convert Float32Array to base64-encoded PCM16
+   */
+  floatTo16BitPCM(float32Array) {
+    const buffer = new ArrayBuffer(float32Array.length * 2);
+    const view = new DataView(buffer);
+    let offset = 0;
+    for (let i = 0; i < float32Array.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, float32Array[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return buffer;
+  }
+
+  /**
+   * Convert ArrayBuffer to base64 string
+   */
+  arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
   process(inputs, outputs, parameters) {
     const input = inputs[0];
-    if (input && input[0]) {
+    
+    if (input.length > 0) {
       const inputChannel = input[0];
       
-      // Calculate audio level for visualization
-      let sum = 0;
+      // Accumulate audio samples
       for (let i = 0; i < inputChannel.length; i++) {
-        sum += inputChannel[i] * inputChannel[i];
-      }
-      const audioLevel = Math.sqrt(sum / inputChannel.length);
-      
-      // Send audio level for visualization
-      this.port.postMessage({
-        type: 'audio-level',
-        level: audioLevel
-      });
-
-      // Buffer audio data for transmission
-      for (let i = 0; i < inputChannel.length; i++) {
-        this.buffer[this.bufferIndex] = inputChannel[i];
-        this.bufferIndex++;
+        this.buffer[this.bufferIndex++] = inputChannel[i];
         
-        // When buffer is full, send to main thread
+        // When buffer is full, send it
         if (this.bufferIndex >= this.bufferSize) {
-          // Convert Float32 to PCM16
-          const pcm16 = new Int16Array(this.bufferSize);
-          for (let j = 0; j < this.bufferSize; j++) {
-            // Clamp and convert to 16-bit PCM
-            const sample = Math.max(-1, Math.min(1, this.buffer[j]));
-            pcm16[j] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-          }
+          const pcm16 = this.floatTo16BitPCM(this.buffer);
+          const base64 = this.arrayBufferToBase64(pcm16);
           
-          // Convert to base64 for transmission
-          const bytes = new Uint8Array(pcm16.buffer);
-          let binary = '';
-          for (let j = 0; j < bytes.length; j++) {
-            binary += String.fromCharCode(bytes[j]);
-          }
-          const base64Audio = btoa(binary);
-          
+          // Send audio data to main thread
           this.port.postMessage({
             type: 'audio-data',
-            audio: base64Audio
+            audio: base64
           });
           
+          // Reset buffer
           this.bufferIndex = 0;
         }
       }
     }
     
-    return true;
+    return true; // Keep processor alive
   }
 }
 
