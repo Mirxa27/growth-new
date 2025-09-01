@@ -1,5 +1,1 @@
-# Redirect www to non-www
-https://www.newomen.me/* https://newomen.me/:splat 301!
-
-# SPA fallback
-/*    /index.html   200
+/* /index.html 200
