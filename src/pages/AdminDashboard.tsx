@@ -15,7 +15,8 @@ import {
   BookOpen,
   Target,
   Activity,
-  TrendingUp
+  TrendingUp,
+  Stethoscope
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -34,6 +35,7 @@ import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
+import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 
 type AdminSection = 
   | 'overview'
@@ -47,7 +49,8 @@ type AdminSection =
   | 'ai-content'
   | 'settings'
   | 'ai-providers'
-  | 'moderation';
+  | 'moderation'
+  | 'diagnostics';
 
 interface RecentActivityItem {
   id: string;
@@ -131,6 +134,12 @@ const AdminDashboard: React.FC = () => {
       label: 'Moderation', 
       icon: Shield,
       description: 'Content moderation settings'
+    },
+    { 
+      id: 'diagnostics' as AdminSection, 
+      label: 'Diagnostics', 
+      icon: Stethoscope,
+      description: 'AI provider diagnostics and troubleshooting'
     }
   ];
 
@@ -502,6 +511,8 @@ const AdminDashboard: React.FC = () => {
         return <AIProviderSettings />;
       case 'moderation':
         return <ContentModerationSettings />;
+      case 'diagnostics':
+        return <AIDiagnosticsPanel />;
       default:
         return renderOverview();
     }
