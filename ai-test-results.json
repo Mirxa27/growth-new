@@ -1,0 +1,49 @@
+{
+  "timestamp": "2025-09-01T07:39:52.771Z",
+  "results": {
+    "supabase": {
+      "status": "success",
+      "message": "Connected successfully"
+    },
+    "tables": {
+      "status": "error",
+      "message": "Some tables are missing",
+      "details": [
+        {
+          "table": "voice_sessions",
+          "exists": false,
+          "error": "relation \"public.voice_sessions\" does not exist"
+        },
+        {
+          "table": "voice_agent_configs",
+          "exists": true
+        },
+        {
+          "table": "system_settings",
+          "exists": false,
+          "error": "relation \"public.system_settings\" does not exist"
+        },
+        {
+          "table": "profiles",
+          "exists": true
+        },
+        {
+          "table": "assessments",
+          "exists": true
+        }
+      ]
+    },
+    "openai": {
+      "status": "error",
+      "message": "OpenAI API key not configured"
+    },
+    "voice": {
+      "status": "success",
+      "message": "Active config: Default Voice Agent"
+    }
+  },
+  "environment": {
+    "supabaseUrl": "https://ufgqmqoykddaotdbwteg.supabase.co",
+    "hasOpenAIKey": false
+  }
+}
