@@ -39,17 +39,15 @@ Deno.serve(async (req: Request) => {
     }
 
     // Generate ephemeral token for OpenAI Realtime API
-    const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model: "gpt-realtime-2025-08-28",
-        },
+        model: "gpt-4o-realtime-preview-2024-10-01",
+        voice: "alloy",
       }),
     })
 
