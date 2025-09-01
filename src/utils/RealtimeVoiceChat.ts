@@ -64,30 +64,7 @@ export class RealtimeVoiceChat {
 
       this.ws.onopen = () => {
         this.onMessageCallback({ type: 'connected' });
-        // Send initial session configuration with all required fields
-        this.ws?.send(JSON.stringify({
-          type: 'session.update',
-          session: {
-            modalities: ['text', 'audio'],
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful. Help users with meditation, goal setting, and personal development.",
-            voice: 'alloy',
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: 'whisper-1'
-            },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 500
-            },
-            tools: [],
-            tool_choice: 'auto',
-            temperature: 0.8,
-            max_response_output_tokens: 4096
-          }
-        }));
+        // Don't send session.update immediately - wait for session.created event
       };
 
       this.ws.onmessage = (event) => {
@@ -144,6 +121,7 @@ export class RealtimeVoiceChat {
         
         this.audioWorkletNode.port.onmessage = (event) => {
           if (event.data.type === 'audio-data' && this.ws?.readyState === WebSocket.OPEN) {
+            // Send audio data to the Realtime API
             this.ws.send(JSON.stringify({
               type: 'input_audio_buffer.append',
               audio: event.data.audio
@@ -206,10 +184,42 @@ export class RealtimeVoiceChat {
     transcript?: string;
     delta?: { text?: string; audio?: string };
     error?: unknown;
+    session?: any;
   }): void {
     this.onMessageCallback(data);
 
     switch (data.type) {
+      case 'session.created':
+        // Session created successfully - now send configuration update
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({
+            type: 'session.update',
+            session: {
+              instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful. Help users with meditation, goal setting, and personal development.",
+              voice: 'alloy',
+              input_audio_format: 'pcm16',
+              output_audio_format: 'pcm16',
+              input_audio_transcription: {
+                model: 'whisper-1'
+              },
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 500
+              },
+              temperature: 0.8,
+              max_response_output_tokens: 4096
+            }
+          }));
+        }
+        break;
+        
+      case 'session.updated':
+        // Session configuration updated successfully
+        console.log('Session updated successfully');
+        break;
+        
       case 'conversation.item.input_audio_transcription.completed':
         if (data.transcript) {
           this.onTranscriptCallback(data.transcript, true);
