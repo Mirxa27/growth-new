@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/environment';
+import { openAIConfig } from '@/utils/openai-config';
 
 export interface ChatMessage {
   id: string;
@@ -37,10 +38,19 @@ class ChatService {
   private defaultMaxTokens: number;
 
   constructor() {
-    this.apiKey = env.openai.apiKey;
-    this.defaultModel = env.openai.model;
-    this.defaultTemperature = env.openai.temperature;
-    this.defaultMaxTokens = env.openai.maxTokens;
+    // Initialize from OpenAI config manager
+    const config = openAIConfig.getConfig();
+    this.apiKey = config.apiKey;
+    this.defaultModel = config.chatModel;
+    this.defaultTemperature = config.temperature;
+    this.defaultMaxTokens = config.maxTokens;
+    
+    // Log diagnostic info
+    if (!this.apiKey) {
+      console.warn('ChatService: No OpenAI API key configured');
+      const diagnostics = openAIConfig.getDiagnostics();
+      console.log('OpenAI Diagnostics:', diagnostics);
+    }
   }
 
   /**

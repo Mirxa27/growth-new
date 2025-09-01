@@ -67,6 +67,7 @@ export class RealtimeVoiceChat {
         this.ws?.send(JSON.stringify({
           type: 'session.update',
           session: {
+            type: 'realtime',  // Add the required session.type parameter
             modalities: ['text', 'audio'],
             instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
             voice: 'alloy',
