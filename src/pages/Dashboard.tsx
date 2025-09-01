@@ -15,17 +15,23 @@ import {
   Target,
   Calendar,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  Heart,
+  Star
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
+import { assessmentService } from '@/services/assessment.service';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [assessmentResult, setAssessmentResult] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -35,15 +41,25 @@ const Dashboard = () => {
       }
 
       try {
-        // Fetch user data
-        const { error: profilesError } = await supabase
+        // Fetch user profile
+        const { data: profileData, error: profilesError } = await supabase
           .from('profiles')
-          .select('created_at, last_login_at, avatar_url')
-          .eq('user_id', user.id);
-        if (profilesError) throw profilesError;
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profilesError && profilesError.code !== 'PGRST116') throw profilesError;
+        setProfile(profileData);
 
-        // Simulate loading user data
-        setTimeout(() => setIsLoading(false), 1000);
+        // Fetch latest assessment result
+        const { data: latestResult } = await assessmentService.getLatestAssessmentResult();
+        setAssessmentResult(latestResult);
+
+        // Fetch user statistics
+        const { data: stats } = await assessmentService.getUserAssessmentStats();
+        setUserStats(stats);
+
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setIsLoading(false);
@@ -124,6 +140,52 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Personalized Insights Based on Assessment */}
+          {assessmentResult && (
+            <Card className="glass-strong mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-primary" />
+                  Your Personality Profile
+                </CardTitle>
+                <CardDescription>
+                  Based on your latest assessment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3 mb-4">
+                  <Badge variant="default" className="text-lg px-3 py-1">
+                    {assessmentResult.personality_type || 'The Explorer'}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Confidence: {assessmentResult.score || 85}%
+                  </span>
+                </div>
+                {assessmentResult.insights && assessmentResult.insights.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Key Insights:</h4>
+                    <ul className="space-y-1">
+                      {assessmentResult.insights.slice(0, 3).map((insight: string, idx: number) => (
+                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <Heart className="w-3 h-3 mt-1 text-primary flex-shrink-0" />
+                          <span>{insight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-4"
+                  onClick={() => navigate('/profile')}
+                >
+                  View Full Profile
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats Overview */}
           <MobileGrid cols={3} className="mb-8">
             <MobileCard className="text-center">
@@ -138,15 +200,21 @@ const Dashboard = () => {
               <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-2">
                 <Target className="w-5 h-5 text-secondary" />
               </div>
-              <div className="text-2xl font-bold text-secondary">{completedAchievements}</div>
-              <div className="text-xs text-muted-foreground">Achievements</div>
+              <div className="text-2xl font-bold text-secondary">
+                {userStats?.totalAssessments || completedAchievements}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {userStats?.totalAssessments ? 'Assessments' : 'Achievements'}
+              </div>
             </MobileCard>
 
             <MobileCard className="text-center">
               <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
                 <TrendingUp className="w-5 h-5 text-accent" />
               </div>
-              <div className="text-2xl font-bold text-accent">7</div>
+              <div className="text-2xl font-bold text-accent">
+                {profile?.streak_days || 7}
+              </div>
               <div className="text-xs text-muted-foreground">Day Streak</div>
             </MobileCard>
           </MobileGrid>
