@@ -189,7 +189,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       
       if (env.isProduction()) {
         // In production, call your backend service
-        const response = await fetch(`${env.supabase.url}/functions/v1/generate-voice-token`, {
+        const response = await fetch(`${env.supabase.url}/functions/v1/get-realtime-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

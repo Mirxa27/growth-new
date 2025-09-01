@@ -47,6 +47,7 @@ export const CommunityPosts = () => {
     try {
       setLoading(true);
       
+      // First get the posts
       const { data: postsData, error } = await supabase
         .from('community_posts')
         .select(`
@@ -57,8 +58,7 @@ export const CommunityPosts = () => {
           likes_count,
           comments_count,
           tags,
-          created_at,
-          profiles (display_name, avatar_url)
+          created_at
         `)
         .eq('is_approved', true)
         .eq('visibility', 'public')
@@ -67,20 +67,35 @@ export const CommunityPosts = () => {
 
       if (error) throw error;
 
-      const transformedPosts: CommunityPost[] = (postsData || []).map((post: any) => ({
-        id: post.id,
-        user_id: post.user_id,
-        content: post.content,
-        post_type: post.post_type,
-        likes_count: post.likes_count,
-        comments_count: post.comments_count,
-        created_at: post.created_at,
-        tags: post.tags || [],
-        user_profile: {
-          display_name: post.profiles?.display_name || 'Anonymous',
-          avatar_url: post.profiles?.avatar_url
-        }
-      }));
+      // Then get the user profiles for these posts
+      const userIds = [...new Set(postsData?.map(post => post.user_id) || [])];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', userIds);
+
+      // Create a map of user profiles
+      const profilesMap = new Map(
+        profilesData?.map(profile => [profile.user_id, profile]) || []
+      );
+
+      const transformedPosts: CommunityPost[] = (postsData || []).map((post: any) => {
+        const profile = profilesMap.get(post.user_id);
+        return {
+          id: post.id,
+          user_id: post.user_id,
+          content: post.content,
+          post_type: post.post_type,
+          likes_count: post.likes_count,
+          comments_count: post.comments_count,
+          created_at: post.created_at,
+          tags: post.tags || [],
+          user_profile: {
+            display_name: profile?.display_name || 'Anonymous',
+            avatar_url: profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user_id}`
+          }
+        };
+      });
 
       setPosts(transformedPosts);
     } catch (error: any) {

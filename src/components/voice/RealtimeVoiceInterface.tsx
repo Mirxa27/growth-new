@@ -112,13 +112,13 @@ const RealtimeVoiceInterface = () => {
         setConnectionState({ status: 'connected' });
         setSessionId(`ws_${Date.now()}`);
         
-        // Send session configuration
+        // Send session configuration without type (already set during connection)
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: config.instructions,
-            voice: config.voice,
+            instructions: config.instructions || "You are a helpful AI assistant. Be concise and friendly.",
+            voice: config.voice || 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
             input_audio_transcription: {
@@ -130,7 +130,9 @@ const RealtimeVoiceInterface = () => {
               prefix_padding_ms: 300,
               silence_duration_ms: 500
             },
-            tools: config.tools || []
+            tools: config.tools || [],
+            temperature: 0.8,
+            max_response_output_tokens: 4096
           }
         }));
         
