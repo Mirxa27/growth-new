@@ -180,6 +180,17 @@ class OpenAIProxyService {
       };
     }
   }
+
+  /**
+   * Generic request method for any OpenAI endpoint
+   */
+  async request(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
+    return this.callOpenAI({
+      endpoint,
+      method: method as 'GET' | 'POST' | 'PUT' | 'DELETE',
+      body
+    });
+  }
 }
 
 // Export singleton instance

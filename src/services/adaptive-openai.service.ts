@@ -207,6 +207,43 @@ class AdaptiveOpenAIService {
     }
     return !!this.apiKey;
   }
+
+  /**
+   * List available models
+   */
+  async listModels(): Promise<any> {
+    if (this.apiMode.useProxy) {
+      // Use proxy to list models
+      return openAIProxyService.request('/v1/models', 'GET');
+    }
+
+    // Direct API call
+    if (!this.apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const response = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      throw new Error(error.error?.message || 'Failed to list models');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Check if service is configured
+   */
+  isConfigured(): boolean {
+    return this.apiMode.useProxy || !!this.apiKey;
+  }
 }
 
 // Export singleton instance
