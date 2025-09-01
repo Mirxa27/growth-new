@@ -144,6 +144,7 @@ export const ExplorationManager: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Exploration</DialogTitle>
+            <div className="text-sm text-muted-foreground">Fill in the details to create a new exploration topic for users.</div>
           </DialogHeader>
 
           <div className="space-y-3">

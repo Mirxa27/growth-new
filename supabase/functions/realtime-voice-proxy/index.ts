@@ -16,6 +16,27 @@ serve(async (req) => {
   
   if (req.headers.get("upgrade") === "websocket") {
     try {
+      // Authenticate the user using the token from the query string
+      const token = url.searchParams.get('token');
+      if (!token) {
+        throw new Error('Authentication token is missing');
+      }
+
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+
+      const { data: { user }, error: userError } = await userClient.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Invalid authentication token');
+      }
+
+      console.log(`Authenticated user ${user.id} for WebSocket session.`);
+
       const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
       if (!OPENAI_API_KEY) {
         throw new Error('OPENAI_API_KEY is not set');

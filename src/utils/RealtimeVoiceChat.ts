@@ -27,56 +27,24 @@ export class RealtimeVoiceChat {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Authentication required');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || 'Failed to create voice session' };
-        }
-        const errorMessage = errorData.error || 'Failed to create voice session';
-        if (response.status === 400 && errorMessage.includes('OpenAI API error')) {
-          throw new Error('Voice chat unavailable: OpenAI API key not configured');
-        }
-        throw new Error(errorMessage);
-      }
-
-      const sessionData = await response.json();
-      
-      if (!sessionData.client_secret) {
-        throw new Error('No client secret received from server');
-      }
-      
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
 
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
-      this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
+      // Connect to our secure WebSocket proxy instead of directly to OpenAI
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const wsUrl = new URL(supabaseUrl);
+      wsUrl.protocol = wsUrl.protocol.replace('http', 'ws');
+      wsUrl.pathname = '/functions/v1/realtime-voice-proxy';
+
+      // Pass the access token as a parameter for the proxy to use for auth
+      wsUrl.searchParams.set('token', session.access_token);
+
+      this.ws = new WebSocket(wsUrl.toString());
 
       this.ws.onopen = () => {
         this.onMessageCallback({ type: 'connected' });
-        this.ws?.send(JSON.stringify({
-          type: 'session.update',
-          session: {
-            modalities: ['text', 'audio'],
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
-            voice: 'alloy',
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: 'whisper-1'
-            }
-          }
-        }));
+        // The server-side proxy now handles the session configuration.
+        // No need to send session.update from the client.
       };
 
       this.ws.onmessage = (event) => {
