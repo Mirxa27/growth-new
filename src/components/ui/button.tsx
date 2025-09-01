@@ -12,11 +12,11 @@ const buttonVariants = cva(
       variant: {
         default: "bg-gradient-primary text-primary-foreground hover:shadow-glow hover:scale-105 active:scale-95",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-primary text-primary bg-transparent hover:bg-primary/10 hover:shadow-glow hover:scale-105 active:scale-95",
+        outline: "border-2 border-primary/60 text-primary bg-background/80 backdrop-blur-sm hover:bg-primary/20 hover:border-primary hover:shadow-glow hover:scale-105 active:scale-95",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-glow",
-        ghost: "text-primary hover:bg-primary/10 rounded-lg",
+        ghost: "text-foreground hover:bg-accent/20 hover:text-accent-foreground rounded-lg",
         link: "text-primary underline-offset-4 hover:underline hover:text-primary-glow",
-        glass: "glass glass-glow text-foreground hover:shadow-glow hover:scale-105 active:scale-95",
+        glass: "glass glass-glow text-foreground border border-white/20 hover:shadow-glow hover:scale-105 active:scale-95",
         hero: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-ambient hover:scale-105 active:scale-95 font-semibold",
       },
       size: {

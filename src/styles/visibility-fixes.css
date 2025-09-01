@@ -1,0 +1,168 @@
+/* 
+ * Visibility Fixes for Interactive Elements
+ * Ensures all buttons and interactive elements have proper contrast
+ */
+
+/* Enhanced button visibility */
+.glass-button,
+button.glass {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(10px);
+}
+
+.glass-button:hover,
+button.glass:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Fix ghost buttons visibility */
+button[class*="ghost"] {
+  color: hsl(var(--foreground)) !important;
+  min-opacity: 0.8;
+}
+
+button[class*="ghost"]:hover {
+  background-color: hsl(var(--accent) / 0.2) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Fix outline buttons visibility */
+button[class*="outline"] {
+  border-width: 2px !important;
+  border-color: hsl(var(--primary) / 0.6) !important;
+  background: hsl(var(--background) / 0.8) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+button[class*="outline"]:hover {
+  background: hsl(var(--primary) / 0.2) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* Tab triggers visibility */
+button[role="tab"] {
+  color: hsl(var(--foreground) / 0.8);
+  font-weight: 500;
+}
+
+button[role="tab"]:hover {
+  background: hsl(var(--accent) / 0.2);
+  color: hsl(var(--foreground));
+}
+
+button[role="tab"][data-state="active"] {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  font-weight: 600;
+}
+
+/* Dropdown menu items */
+[role="menuitem"] {
+  color: hsl(var(--foreground));
+}
+
+[role="menuitem"]:hover,
+[role="menuitem"]:focus {
+  background: hsl(var(--accent) / 0.3);
+  color: hsl(var(--accent-foreground));
+}
+
+/* Dialog close buttons */
+button[aria-label*="Close"],
+button[aria-label*="close"] {
+  color: hsl(var(--foreground) / 0.7);
+}
+
+button[aria-label*="Close"]:hover,
+button[aria-label*="close"]:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--destructive) / 0.1);
+}
+
+/* Disabled state - ensure still visible */
+button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed;
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Links in dark mode */
+a {
+  color: hsl(var(--primary));
+}
+
+a:hover {
+  color: hsl(var(--primary) / 0.8);
+  text-decoration: underline;
+}
+
+/* Form inputs visibility */
+input,
+textarea,
+select {
+  background: hsl(var(--background) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--background) / 0.8);
+}
+
+/* Badge visibility */
+.badge {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.3);
+}
+
+/* Card visibility in dark mode */
+.glass-card,
+.glass-strong {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Ensure text is always readable */
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 1 !important;
+}
+
+/* Icon buttons - ensure they're visible */
+button svg {
+  opacity: 0.9;
+}
+
+button:hover svg {
+  opacity: 1;
+}
+
+/* Mobile tap targets - ensure minimum size */
+@media (max-width: 768px) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  [role="tab"] {
+    padding: 12px 16px;
+  }
+  
+  [role="menuitem"] {
+    padding: 12px 16px;
+  }
+}
