@@ -38,6 +38,7 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import OpenAISettings from '@/components/admin/OpenAISettings';
+import APIKeyDiagnostics from '@/components/admin/APIKeyDiagnostics';
 
 type AdminSection = 
   | 'overview'
@@ -510,6 +511,7 @@ const AdminDashboard: React.FC = () => {
       case 'settings':
         return (
           <div className="space-y-6">
+            <APIKeyDiagnostics />
             <OpenAISettings />
             <GeneralSettings />
           </div>
