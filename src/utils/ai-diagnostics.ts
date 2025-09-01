@@ -6,6 +6,7 @@
 import { env } from '@/config/environment';
 import { voiceService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface DiagnosticResult {
   category: string;
@@ -24,7 +25,7 @@ export class AIDiagnostics {
   async runFullDiagnostics(): Promise<DiagnosticResult[]> {
     this.results = [];
     
-    console.log('🔍 Starting AI Provider Diagnostics...');
+    logger.info('Starting AI Provider Diagnostics...', 'Diagnostics');
     
     // 1. Check environment configuration
     await this.checkEnvironmentConfig();
@@ -57,7 +58,7 @@ export class AIDiagnostics {
    * Check environment configuration
    */
   private async checkEnvironmentConfig(): Promise<void> {
-    console.log('📋 Checking environment configuration...');
+    logger.debug('Checking environment configuration...', 'Diagnostics');
     
     // Check if .env file exists
     const hasEnvFile = await this.checkEnvFile();
@@ -133,7 +134,7 @@ export class AIDiagnostics {
    * Check OpenAI configuration and connectivity
    */
   private async checkOpenAIConfig(): Promise<void> {
-    console.log('🤖 Checking OpenAI configuration...');
+    logger.debug('Checking OpenAI configuration...', 'Diagnostics');
     
     if (!env.openai.apiKey || env.openai.apiKey.includes('REPLACE')) {
       this.results.push({
@@ -192,7 +193,7 @@ export class AIDiagnostics {
    * Check Supabase configuration
    */
   private async checkSupabaseConfig(): Promise<void> {
-    console.log('🗄️ Checking Supabase configuration...');
+    logger.debug('Checking Supabase configuration...', 'Diagnostics');
     
     try {
       // Test Supabase connection
@@ -238,7 +239,7 @@ export class AIDiagnostics {
    * Check voice agent configuration
    */
   private async checkVoiceAgentConfig(): Promise<void> {
-    console.log('🎤 Checking voice agent configuration...');
+    logger.debug('Checking voice agent configuration...', 'Diagnostics');
     
     // Check if voice is enabled
     if (!voiceService.isVoiceEnabled()) {
@@ -332,7 +333,7 @@ export class AIDiagnostics {
    * Check database tables
    */
   private async checkDatabaseTables(): Promise<void> {
-    console.log('📊 Checking database tables...');
+    logger.debug('Checking database tables...', 'Diagnostics');
     
     const requiredTables = [
       'voice_agent_configs',
@@ -376,7 +377,7 @@ export class AIDiagnostics {
    * Check network connectivity
    */
   private async checkNetworkConnectivity(): Promise<void> {
-    console.log('🌐 Checking network connectivity...');
+    logger.debug('Checking network connectivity...', 'Diagnostics');
     
     // Check OpenAI endpoint
     try {
@@ -426,7 +427,7 @@ export class AIDiagnostics {
    * Check browser compatibility
    */
   private checkBrowserCompatibility(): void {
-    console.log('🌏 Checking browser compatibility...');
+    logger.debug('Checking browser compatibility...', 'Diagnostics');
     
     const requirements = [
       { feature: 'WebSocket', supported: 'WebSocket' in window },
@@ -461,19 +462,17 @@ export class AIDiagnostics {
     const warnings = this.results.filter(r => r.status === 'warning');
     const successes = this.results.filter(r => r.status === 'success');
     
-    console.log('\n📊 Diagnostic Summary:');
-    console.log(`✅ Success: ${successes.length}`);
-    console.log(`⚠️ Warnings: ${warnings.length}`);
-    console.log(`❌ Errors: ${errors.length}`);
+    logger.info('Diagnostic Summary', 'Diagnostics', {
+      success: successes.length,
+      warnings: warnings.length,
+      errors: errors.length
+    });
     
     if (errors.length > 0) {
-      console.log('\n🔧 Required Fixes:');
-      errors.forEach(error => {
-        console.log(`- ${error.message}`);
-        if (error.fix) {
-          console.log(`  Fix: ${error.fix}`);
-        }
-      });
+      logger.warn('Required Fixes', 'Diagnostics', errors.map(e => ({
+        message: e.message,
+        fix: e.fix
+      })));
     }
     
     this.results.push({
