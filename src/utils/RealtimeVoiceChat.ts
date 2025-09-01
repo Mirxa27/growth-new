@@ -64,18 +64,28 @@ export class RealtimeVoiceChat {
 
       this.ws.onopen = () => {
         this.onMessageCallback({ type: 'connected' });
+        // Send initial session configuration with all required fields
         this.ws?.send(JSON.stringify({
           type: 'session.update',
           session: {
-            type: 'realtime',  // Add the required session.type parameter
             modalities: ['text', 'audio'],
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
+            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful. Help users with meditation, goal setting, and personal development.",
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
             input_audio_transcription: {
               model: 'whisper-1'
-            }
+            },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 500
+            },
+            tools: [],
+            tool_choice: 'auto',
+            temperature: 0.8,
+            max_response_output_tokens: 4096
           }
         }));
       };

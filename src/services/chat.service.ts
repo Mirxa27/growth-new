@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/environment';
 import { openAIConfig } from '@/utils/openai-config';
+import { adaptiveOpenAIService } from './adaptive-openai.service';
 
 export interface ChatMessage {
   id: string;
@@ -80,28 +81,14 @@ class ChatService {
       // Build messages array for OpenAI
       const messages = this.buildOpenAIMessages(message, sessionMessages, options.systemPrompt);
 
-      // Call OpenAI API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-          stream: false,
-        }),
+      // Use adaptive service that automatically chooses direct or proxy mode
+      const data = await adaptiveOpenAIService.createChatCompletion(messages, {
+        model,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to get AI response');
-      }
-
-      const data = await response.json();
       const aiResponse = data.choices?.[0]?.message?.content || '';
 
       if (!aiResponse) {
