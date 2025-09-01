@@ -16,9 +16,12 @@ import {
   Mic,
   ArrowRight,
   FileText,
-  Terminal
+  Terminal,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { aiProviderModelsService } from '@/services/ai-provider-models.service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SetupStep {
   id: string;

@@ -8,6 +8,7 @@ export { assessmentService } from './api/assessment.service';
 export { voiceService } from './api/voice.service';
 export { communityService } from './api/community.service';
 export { adminService } from './api/admin.service';
+export { aiProviderModelsService } from './ai-provider-models.service';
 
 // Export types
 export type {
@@ -54,3 +55,8 @@ export type {
   AdminAnalytics,
   ContentModerationItem,
 } from './api/admin.service';
+
+export type {
+  AIModel,
+  Voice,
+} from './ai-provider-models.service';

@@ -14,7 +14,10 @@ import {
   Server,
   Brain,
   AlertCircle,
-  Eye
+  Eye,
+  RefreshCw,
+  Mic,
+  Volume2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -27,6 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { z } from 'zod';
+import { aiProviderModelsService, type AIModel, type Voice } from '@/services/ai-provider-models.service';
+import { logger } from '@/utils/logger';
 // Import Zod for schema validation
 
 // Define a more specific type for our form data and provider structure
@@ -143,6 +148,10 @@ export const AIProviderSettings: React.FC = () => {
   interface ProviderTestResult { success: boolean; error?: string }
   const [testResults, setTestResults] = useState<Record<string, ProviderTestResult>>({});
   const [isTesting, setIsTesting] = useState<Record<string, boolean>>({});
+  const [fetchedModels, setFetchedModels] = useState<AIModel[]>([]);
+  const [fetchedVoices, setFetchedVoices] = useState<Voice[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [isFetchingVoices, setIsFetchingVoices] = useState(false);
   const { toast } = useToast();
 
   const fetchProviders = useCallback(async () => {
@@ -199,7 +208,99 @@ export const AIProviderSettings: React.FC = () => {
   };
 
   const getProviderModels = (providerType: string): AIModel[] => {
+    // Use fetched models if available, otherwise use defaults
+    if (fetchedModels.length > 0) {
+      return fetchedModels.filter(m => m.provider_type === providerType);
+    }
     return PROVIDER_CONFIGS[providerType]?.models || [];
+  };
+
+  const fetchModelsForCurrentProvider = async () => {
+    const config = formData.configuration as ProviderConfiguration;
+    const apiKey = config?.api_key;
+    
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your API key to fetch available models",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsFetchingModels(true);
+    try {
+      const models = await aiProviderModelsService.fetchModelsForProvider(
+        selectedProviderType,
+        apiKey
+      );
+      setFetchedModels(models);
+      
+      // Auto-select first model if none selected
+      if (models.length > 0 && !config.model) {
+        handleFormConfigurationChange('model', models[0].id);
+      }
+      
+      toast({
+        title: "Models Fetched",
+        description: `Found ${models.length} available models`,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch models', 'AIProviderSettings', error);
+      toast({
+        title: "Failed to fetch models",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  const fetchVoicesForCurrentProvider = async () => {
+    const config = formData.configuration as ProviderConfiguration;
+    const apiKey = config?.api_key;
+    
+    if (selectedProviderType !== 'openai' && selectedProviderType !== 'elevenlabs') {
+      return;
+    }
+
+    if (selectedProviderType === 'elevenlabs' && !apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your ElevenLabs API key to fetch available voices",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsFetchingVoices(true);
+    try {
+      const voices = await aiProviderModelsService.fetchVoicesForProvider(
+        selectedProviderType,
+        apiKey
+      );
+      setFetchedVoices(voices);
+      
+      // Auto-select first voice if none selected
+      if (voices.length > 0 && !config.voice_id) {
+        handleFormConfigurationChange('voice_id', voices[0].id);
+      }
+      
+      toast({
+        title: "Voices Fetched",
+        description: `Found ${voices.length} available voices`,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch voices', 'AIProviderSettings', error);
+      toast({
+        title: "Failed to fetch voices",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingVoices(false);
+    }
   };
 
   const applyPresetConfig = (providerType: string) => {
@@ -620,7 +721,26 @@ export const AIProviderSettings: React.FC = () => {
               </div>
               
               <div>
-                <Label>Model</Label>
+                <Label className="flex items-center justify-between">
+                  Model
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchModelsForCurrentProvider}
+                    disabled={isFetchingModels}
+                    className="h-6 text-xs"
+                  >
+                    {isFetchingModels ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Fetch Models
+                      </>
+                    )}
+                  </Button>
+                </Label>
                 <Select
                   value={(formData.configuration as ProviderConfiguration)?.model || ""}
                   onValueChange={(value) => handleFormConfigurationChange('model', value)}
@@ -631,13 +751,87 @@ export const AIProviderSettings: React.FC = () => {
                   <SelectContent>
                     {getProviderModels(selectedProviderType).map(model => (
                       <SelectItem key={model.id} value={model.id}>
-                        {model.name} - {model.description}
+                        <div className="flex items-center justify-between w-full">
+                          <span>{model.name} - {model.description}</span>
+                          <div className="flex gap-1 ml-2">
+                            {model.supports_voice && <Mic className="h-3 w-3" />}
+                            {model.supports_vision && <Eye className="h-3 w-3" />}
+                          </div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+
+            {/* Voice Selection for OpenAI and ElevenLabs */}
+            {(selectedProviderType === 'openai' || selectedProviderType === 'elevenlabs') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Label className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Volume2 className="h-4 w-4" />
+                      Voice Selection
+                    </span>
+                    {selectedProviderType === 'elevenlabs' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={fetchVoicesForCurrentProvider}
+                        disabled={isFetchingVoices}
+                        className="h-6 text-xs"
+                      >
+                        {isFetchingVoices ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Fetch Voices
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </Label>
+                  <Select
+                    value={(formData.configuration as ProviderConfiguration)?.voice_id || ""}
+                    onValueChange={(value) => handleFormConfigurationChange('voice_id', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(fetchedVoices.length > 0 ? fetchedVoices : 
+                        selectedProviderType === 'openai' ? 
+                          [
+                            { id: 'alloy', name: 'Alloy', description: 'Neutral and balanced' },
+                            { id: 'echo', name: 'Echo', description: 'Warm and engaging' },
+                            { id: 'fable', name: 'Fable', description: 'Expressive and dynamic' },
+                            { id: 'onyx', name: 'Onyx', description: 'Deep and authoritative' },
+                            { id: 'nova', name: 'Nova', description: 'Friendly and conversational' },
+                            { id: 'shimmer', name: 'Shimmer', description: 'Soft and pleasant' }
+                          ] : []
+                      ).map(voice => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{voice.name}</span>
+                            {voice.description && (
+                              <span className="text-xs text-muted-foreground">{voice.description}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedProviderType === 'elevenlabs' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter your API key first, then click "Fetch Voices" to load available voices
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
