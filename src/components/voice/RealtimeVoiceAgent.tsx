@@ -115,7 +115,8 @@ const RealtimeVoiceAgent: React.FC = () => {
 
       // Create WebSocket connection to OpenAI Realtime API
       const wsUrl = `wss://api.openai.com/v1/realtime?model=${sessionData.model}`;
-      wsRef.current = new WebSocket(wsUrl, ['realtime']);
+      // Use insecure subprotocol with client_secret obtained from server function
+      wsRef.current = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
 
       wsRef.current.onopen = () => {
         console.log('Connected to OpenAI Realtime API');

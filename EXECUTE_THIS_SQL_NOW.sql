@@ -63,3 +63,14 @@ SELECT
     'SUCCESS: Tables created!' as status,
     EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'voice_sessions') as voice_sessions_exists,
     EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'voice_agent_configs') as voice_configs_exists;
+
+-- Step 8: Ensure profiles.avatar_url column exists (required by Dashboard)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'avatar_url'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN avatar_url TEXT;
+  END IF;
+END $$;

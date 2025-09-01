@@ -15,6 +15,7 @@ export default defineConfig({
           dest: path.join("dist", "public/assets"),
         },
         { src: "src/assets/*", dest: path.join("dist", "assets") },
+        { src: "extension/**", dest: path.join("dist", "extension") },
       ],
       silent: true,
     }),

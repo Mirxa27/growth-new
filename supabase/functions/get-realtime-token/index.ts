@@ -37,14 +37,28 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')
+    // Try to load active OpenAI provider config; fallback to env var
+    let apiKeyFromDb: string | null = null
+    try {
+      const { data: provider } = await supabaseClient
+        .from('admin_ai_providers')
+        .select('*')
+        .eq('provider_type', 'openai')
+        .eq('is_active', true)
+        .order('priority', { ascending: true })
+        .limit(1)
+        .single()
+      if (provider?.configuration?.api_key) {
+        apiKeyFromDb = String(provider.configuration.api_key)
+      }
+    } catch (_) {}
+
+    const openaiKey = apiKeyFromDb || Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       throw new Error('OpenAI API key not configured')
     }
 
-    // For OpenAI Realtime API, we generate an ephemeral token
-    // Since the API doesn't have a separate token endpoint, we return the API key
-    // in a secure way that the client can use
+    // Return a client secret style token; for now we return the API key
     const ephemeralToken = openaiKey
 
     return new Response(

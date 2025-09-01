@@ -440,28 +440,12 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         throw new Error('Configuration not found');
       }
       
-      // Test OpenAI connection with a simple completion
-      const testResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
+      // Test OpenAI connectivity by checking models endpoint to avoid chat mismatch
+      const testResponse = await fetch('https://api.openai.com/v1/models', {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.openAIApiKey}`,
         },
-        body: JSON.stringify({
-          model: config.model || 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: config.instructions || 'You are a helpful assistant.',
-            },
-            {
-              role: 'user',
-              content: 'Say "Configuration test successful" if you can hear me.',
-            },
-          ],
-          max_tokens: 50,
-          temperature: config.temperature || 0.7,
-        }),
       });
       
       if (!testResponse.ok) {
@@ -470,7 +454,6 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       }
       
       const result = await testResponse.json();
-      const responseText = result.choices?.[0]?.message?.content || '';
       
       return {
         data: {
