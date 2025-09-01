@@ -16,6 +16,7 @@ interface EnvironmentConfig {
     apiKey?: string;
     organizationId?: string;
     model: string;
+    realtimeModel: string;
     maxTokens: number;
     temperature: number;
   };
@@ -80,6 +81,7 @@ class EnvironmentService {
         apiKey: import.meta.env.VITE_OPENAI_API_KEY,
         organizationId: import.meta.env.VITE_OPENAI_ORGANIZATION_ID,
         model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+        realtimeModel: import.meta.env.VITE_OPENAI_REALTIME_MODEL || 'gpt-realtime-2025-08-28',
         maxTokens: parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS || '2000'),
         temperature: parseFloat(import.meta.env.VITE_OPENAI_TEMPERATURE || '0.7'),
       },

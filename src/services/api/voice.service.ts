@@ -92,7 +92,7 @@ class VoiceService extends BaseApiService {
       name: 'Default Assistant',
       provider: 'openai',
       voice: 'alloy',
-      model: env.openai.model,
+      model: env.openai.realtimeModel || 'gpt-realtime-2025-08-28',
       temperature: env.openai.temperature,
       instructions: `You are a helpful life navigation assistant. Your role is to:
 1. Provide thoughtful, empathetic guidance
@@ -258,7 +258,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
       return {
         data: {
           apiKey: this.openAIApiKey!,
-          model: config.model || env.openai.model,
+          model: config.model || env.openai.realtimeModel || 'gpt-realtime-2025-08-28',
           voice: config.voice || 'alloy',
           instructions: config.instructions || '',
           temperature: config.temperature || env.openai.temperature,

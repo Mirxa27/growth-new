@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { chatService, type ChatMessage } from '@/services/chat.service';
+import RealtimeVoiceInterface from '@/components/voice/RealtimeVoiceInterface';
 
 interface Message {
   id: string;
@@ -320,52 +321,8 @@ const Chat = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="voice" className="m-0">
-                <div className="h-[500px] flex flex-col items-center justify-center p-8">
-                  <div className="text-center space-y-6">
-                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${
-                      isRecording 
-                        ? 'bg-red-500/20 border-4 border-red-500 animate-pulse' 
-                        : 'bg-primary/20 border-4 border-primary'
-                    }`}>
-                      {isRecording ? (
-                        <MicOff className="w-16 h-16 text-red-500" />
-                      ) : (
-                        <Mic className="w-16 h-16 text-primary" />
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        {isRecording ? 'Recording...' : 'Voice Chat'}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {isRecording 
-                          ? 'Speak now, tap to stop recording'
-                          : 'Tap the microphone to start voice chat'
-                        }
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={handleVoiceToggle}
-                      size="lg"
-                      className={isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-primary'}
-                    >
-                      {isRecording ? (
-                        <>
-                          <MicOff className="w-5 h-5 mr-2" />
-                          Stop Recording
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-5 h-5 mr-2" />
-                          Start Recording
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+              <TabsContent value="voice" className="m-0 p-4">
+                <RealtimeVoiceInterface />
               </TabsContent>
             </Tabs>
           </CardContent>
