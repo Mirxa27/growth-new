@@ -29,6 +29,7 @@ import { VoicePlayground } from '@/components/admin/VoicePlayground';
 import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
 import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
 import { AdminRealtimeMonitor } from '@/components/admin/AdminRealtimeMonitor';
+import { RealtimeSettingsPanel } from '@/components/admin/RealtimeSettingsPanel';
 import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
@@ -495,6 +496,7 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <AdminRealtimeMonitor />
+              <RealtimeSettingsPanel />
             </div>
           </div>
         );
