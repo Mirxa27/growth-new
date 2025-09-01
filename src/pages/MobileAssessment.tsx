@@ -378,10 +378,10 @@ const MobileAssessment = () => {
 
   if (showResults && results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
-            <Card className="glass-card border-glass mb-8 text-center">
+            <Card className="glass border-card-border mb-8 text-center">
               <CardContent className="p-8">
                 <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
                   <Sparkles className="w-10 h-10 text-white" />
@@ -399,7 +399,7 @@ const MobileAssessment = () => {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <Card className="glass-card border-glass">
+              <Card className="glass border-card-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Brain className="w-5 h-5 text-primary" />
@@ -420,7 +420,7 @@ const MobileAssessment = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card border-glass">
+              <Card className="glass border-card-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Star className="w-5 h-5 text-yellow-500" />
@@ -441,7 +441,7 @@ const MobileAssessment = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <Card className="glass-card border-glass">
+              <Card className="glass border-card-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="w-5 h-5 text-secondary" />
@@ -460,7 +460,7 @@ const MobileAssessment = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card border-glass">
+              <Card className="glass border-card-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-accent" />
@@ -480,7 +480,7 @@ const MobileAssessment = () => {
               </Card>
             </div>
 
-            <Card className="glass-card border-glass text-center">
+            <Card className="glass border-card-border text-center">
               <CardContent className="p-8">
                 <h2 className="text-2xl font-bold mb-4">Ready to Begin Your Journey?</h2>
                 <p className="text-muted-foreground mb-6">
@@ -513,7 +513,7 @@ const MobileAssessment = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
       <div className="container mx-auto px-4 py-4">
         <div className="max-w-md mx-auto">
           {/* Header */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,17 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
   Trash2,
-  Edit,
   Save,
-  X,
-  Eye,
-  EyeOff,
   FileText
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Select not used in this minimal manager
 import { Switch } from '@/components/ui/switch';
 
 // Minimal, robust exploration manager for admin panel.
@@ -42,24 +38,24 @@ export const ExplorationManager: React.FC = () => {
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [saving, setSaving] = useState(false);
 
-  const fetchExplorations = async () => {
+  const fetchExplorations = useCallback(async () => {
     setLoading(true);
     try {
       // cast to any to avoid rigid DB typing issues during cleanup pass
-      const { data, error } = await (supabase as any).from('explorations').select('*').order('created_at', { ascending: false }).limit(200);
+      const { data, error } = await supabase.from('explorations').select('*').order('created_at', { ascending: false }).limit(200);
       if (error) throw error;
       setExplorations((data || []) as ExplorationRow[]);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to load explorations', err);
-      toast({ title: 'Load failed', description: String((err as any)?.message ?? err), variant: 'destructive' });
+      toast({ title: 'Load failed', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchExplorations();
-  }, []);
+  }, [fetchExplorations]);
 
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -73,7 +69,7 @@ export const ExplorationManager: React.FC = () => {
         description: description.trim() || null,
         visibility,
       };
-      const { data, error } = await (supabase as any).from('explorations').insert([payload]).select().single();
+      const { error } = await supabase.from('explorations').insert([payload]);
       if (error) throw error;
       toast({ title: 'Created', description: 'Exploration created' });
       setOpenCreate(false);
@@ -82,9 +78,9 @@ export const ExplorationManager: React.FC = () => {
       setVisibility('private');
       // refresh list
       fetchExplorations();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Create failed', err);
-      toast({ title: 'Create failed', description: String((err as any)?.message ?? err), variant: 'destructive' });
+      toast({ title: 'Create failed', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -93,13 +89,13 @@ export const ExplorationManager: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this exploration?')) return;
     try {
-      const { error } = await (supabase as any).from('explorations').delete().match({ id });
+      const { error } = await supabase.from('explorations').delete().match({ id });
       if (error) throw error;
       toast({ title: 'Deleted', description: 'Exploration removed' });
       setExplorations(prev => prev.filter(e => e.id !== id));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Delete failed', err);
-      toast({ title: 'Delete failed', description: String((err as any)?.message ?? err), variant: 'destructive' });
+      toast({ title: 'Delete failed', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 

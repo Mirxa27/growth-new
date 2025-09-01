@@ -15,7 +15,12 @@
       "Bash(git commit:*)",
       "Bash(vercel:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)",
+      "Bash(npx supabase:*)",
+      "mcp__MCP_DOCKER__list_projects",
+      "mcp__filesystem__create_directory"
     ],
     "deny": [],
     "ask": []

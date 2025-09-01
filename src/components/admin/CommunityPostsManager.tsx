@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +16,20 @@ import {
   Eye
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import type {} from '@/integrations/supabase/types';
+import type { Tables } from '@/integrations/supabase/types';
+import { z } from 'zod';
 
-type CommunityPost = any;
+const postStatusSchema = z.object({
+  p_post_id: z.string().uuid(),
+  p_new_status: z.enum(['active', 'pending', 'removed', 'archived']),
+});
+
+type CommunityPost = Tables<'community_posts'> & {
+  profiles?: { display_name?: string | null } | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  views_count?: number | null;
+};
 
 export const CommunityPostsManager: React.FC = () => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -27,39 +38,43 @@ export const CommunityPostsManager: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const { toast } = useToast();
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('community_posts')
-        .select(`*, profiles (display_name)`)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts((data as any) || []);
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to fetch posts: ${error.message}`, variant: "destructive" });
+      setPosts((data as CommunityPost[]) || []);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error", description: `Failed to fetch posts: ${msg}`, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [fetchPosts]);
 
   const handleUpdateStatus = async (postId: string, status: 'active' | 'pending' | 'removed' | 'archived') => {
     try {
-      const { error } = await supabase.rpc('update_post_status_secure', {
+      const params = postStatusSchema.parse({
         p_post_id: postId,
         p_new_status: status,
       });
+      const { error } = await supabase.rpc('update_post_status_secure', params);
 
       if (error) throw error;
       toast({ title: "Success", description: `Post status updated to ${status}` });
       fetchPosts();
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to update post status: ${error.message}`, variant: "destructive" });
+    } catch (error: unknown) {
+      console.error('Post status update error:', error);
+      const msg = error instanceof Error ? error.message : 'Invalid parameters';
+      toast({ title: "Error", description: `Failed to update post status: ${msg}`, variant: "destructive" });
     }
   };
 

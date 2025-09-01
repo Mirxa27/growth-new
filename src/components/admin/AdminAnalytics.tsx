@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ interface AnalyticsData {
   totalUsers: number;
   activeUsers: number;
   completedExplorations: number;
+  assessmentCompletions: number;
   totalCrystalsEarned: number;
   popularExplorations: Array<{
     id: string;
@@ -35,6 +36,10 @@ interface AnalyticsData {
     count: number;
     avgCompletion: number;
   }>;
+  assessmentTrendData: Array<{
+    date: string;
+    submissions: number;
+  }>;
 }
 
 export const AdminAnalytics = () => {
@@ -42,11 +47,7 @@ export const AdminAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -70,19 +71,26 @@ export const AdminAnalytics = () => {
 
       if (explorationError) throw explorationError;
 
+      // Assessment results count
+      const { count: assessmentCount, error: assessmentErr } = await supabase
+        .from('assessment_results')
+        .select('*', { count: 'exact', head: true });
+      if (assessmentErr) throw assessmentErr;
+
       const totalUsers = userStats?.length || 0;
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
-      const activeUsers = userStats?.filter((user: any) => 
+      const activeUsers = userStats?.filter((user) => 
         user.last_login_at && new Date(user.last_login_at).getTime() > thirtyDaysAgo.getTime()
       ).length || 0;
 
-      const completedExplorations = explorationSessions?.filter((session: any) => 
+      const completedExplorations = explorationSessions?.filter((session) => 
         session.status === 'completed'
       ).length || 0;
 
-      const explorationCounts = (explorationSessions || []).reduce((acc, session: any) => {
+      interface ExplorationCount { id: string; title: string; completions: number; totalRating: number; avgRating: number }
+      const explorationCounts = (explorationSessions || []).reduce((acc: Record<string, ExplorationCount>, session) => {
         if (session.status === 'completed' && session.explorations) {
           const exploration = session.explorations;
           const key = exploration.id;
@@ -101,13 +109,13 @@ export const AdminAnalytics = () => {
           acc[key].avgRating = acc[key].totalRating / acc[key].completions;
         }
         return acc;
-      }, {} as Record<string, any>) || {};
+      }, {}) || {};
 
-      const popularExplorations = Object.values(explorationCounts)
-        .sort((a: any, b: any) => b.completions - a.completions)
+      const popularExplorations = (Object.values(explorationCounts) as ExplorationCount[])
+        .sort((a, b) => b.completions - a.completions)
         .slice(0, 5);
 
-      const categoryStats = (explorationSessions || []).reduce((acc, session: any) => {
+      const categoryStats = (explorationSessions || []).reduce((acc: Record<string, { category: string; count: number; completed: number }>, session) => {
         if (session.explorations) {
           const exploration = session.explorations;
           const category = exploration.category || 'other';
@@ -124,9 +132,9 @@ export const AdminAnalytics = () => {
           }
         }
         return acc;
-      }, {} as Record<string, any>) || {};
+      }, {}) || {};
 
-      const explorationStatsByCategory = Object.values(categoryStats).map((stat: any) => ({
+      const explorationStatsByCategory = (Object.values(categoryStats) as { category: string; count: number; completed: number }[]).map((stat) => ({
         category: stat.category,
         count: stat.count,
         avgCompletion: stat.count > 0 ? (stat.completed / stat.count) * 100 : 0
@@ -137,7 +145,7 @@ export const AdminAnalytics = () => {
         const dayStart = new Date(date.setHours(0, 0, 0, 0)).toISOString();
         const dayEnd = new Date(date.setHours(23, 59, 59, 999)).toISOString();
         
-        const newUsers = userStats?.filter((user: any) => {
+        const newUsers = userStats?.filter((user) => {
           if (!user.created_at) return false;
           const userDate = new Date(user.created_at);
           return userDate >= new Date(dayStart) && userDate <= new Date(dayEnd);
@@ -152,14 +160,35 @@ export const AdminAnalytics = () => {
         };
       });
 
+      // 7-day assessment submissions trend
+      const trendPromises: Promise<{ date: string; submissions: number }>[] = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(now.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
+        const dayStart = new Date(date.setHours(0, 0, 0, 0)).toISOString();
+        const dayEnd = new Date(date.setHours(23, 59, 59, 999)).toISOString();
+        trendPromises.push(
+          (async () => {
+            const { count } = await supabase
+              .from('assessment_results')
+              .select('*', { count: 'exact', head: true })
+              .gte('submitted_at', dayStart)
+              .lte('submitted_at', dayEnd);
+            return { date: dayStart.split('T')[0], submissions: count || 0 };
+          })()
+        );
+      }
+      const assessmentTrendData = await Promise.all(trendPromises);
+
       setAnalytics({
         totalUsers,
         activeUsers,
         completedExplorations,
+        assessmentCompletions: assessmentCount || 0,
         totalCrystalsEarned: completedExplorations * 150,
-        popularExplorations: popularExplorations as any,
+        popularExplorations: popularExplorations,
         userGrowthData,
-        explorationStats: explorationStatsByCategory
+        explorationStats: explorationStatsByCategory,
+        assessmentTrendData,
       });
 
     } catch (error) {
@@ -172,7 +201,11 @@ export const AdminAnalytics = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (
@@ -242,6 +275,19 @@ export const AdminAnalytics = () => {
 
         <Card className="glass-card border-glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Assessment Submissions</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.assessmentCompletions}</div>
+            <p className="text-xs text-muted-foreground">
+              Total results saved
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card border-glass">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Crystals Earned</CardTitle>
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -253,6 +299,31 @@ export const AdminAnalytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Assessment Submissions Trend */}
+      <Card className="glass-card border-glass">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Assessment Submissions (7 days)
+          </CardTitle>
+          <CardDescription>
+            Daily results saved over the last week
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {analytics.assessmentTrendData.map((day) => (
+              <div key={day.date} className="flex items-center justify-between p-3 rounded-lg bg-muted/10">
+                <div className="text-sm font-medium">
+                  {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </div>
+                <div className="text-sm text-muted-foreground">{day.submissions} submissions</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Popular Explorations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

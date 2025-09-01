@@ -5,6 +5,24 @@ import { useNavigate } from "react-router-dom";
 
 export const Features = () => {
   const navigate = useNavigate();
+
+  const handleStartDiscovery = () => {
+    console.log('Navigating to /mobile-assessment-hub');
+    try {
+      navigate("/mobile-assessment-hub");
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
+  const handleAuth = () => {
+    console.log('Navigating to /auth');
+    try {
+      navigate("/auth");
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
   
   const features = [
     {
@@ -82,7 +100,7 @@ export const Features = () => {
               <Button 
                 variant="hero" 
                 size="lg"
-                onClick={() => navigate("/mobile-assessment")}
+                onClick={handleStartDiscovery}
                 className="transform hover:scale-105 transition-all duration-300"
               >
                 Start Free Discovery Session
@@ -91,7 +109,7 @@ export const Features = () => {
                 variant="outline" 
                 size="lg" 
                 className="glass hover:glass-glow transition-all duration-300"
-                onClick={() => navigate("/auth")}
+                onClick={handleAuth}
               >
                 Learn About Pricing
               </Button>

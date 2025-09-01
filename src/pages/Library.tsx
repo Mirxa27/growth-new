@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { z } from 'zod';
 import { 
   BookOpen, 
   Search, 
@@ -25,10 +26,35 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 
+// Zod schemas for validation
+const libraryItemSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  content_type: z.enum(['article', 'video', 'audio', 'assessment']).nullable(),
+  category: z.string().optional(),
+  duration: z.number().optional(),
+  difficulty: z.string().optional(),
+  is_featured: z.boolean().optional(),
+  created_at: z.string().datetime()
+});
+
+const userProgressSchema = z.object({
+  user_id: z.string(),
+  library_item_id: z.string(),
+  is_bookmarked: z.boolean(),
+  is_completed: z.boolean(),
+  progress: z.number().min(0).max(100),
+  updated_at: z.string().datetime()
+});
+
 type LibraryItem = Tables<'library_items'> & {
   isBookmarked: boolean;
   isCompleted: boolean;
   progress?: number;
+  // Optional fields used in UI but may not exist in generated types
+  duration?: number | null;
+  difficulty?: string | null;
 };
 type UserLibraryProgress = Tables<'user_library_progress'>;
 
@@ -58,10 +84,28 @@ const Library = () => {
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error fetching library items:', itemsError);
+        throw new Error('Failed to fetch library items');
+      }
+
+      // Validate fetched items
+      const validatedItems = items?.map(item => {
+        try {
+          return libraryItemSchema.parse(item);
+        } catch (validationError) {
+          console.error(`Validation error for item ${item.id}:`, validationError);
+          return null;
+        }
+      }).filter(Boolean) || [];
 
       // Get current user for progress/bookmarks
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        throw new Error('Failed to fetch user data');
+      }
       
       let userProgress: UserLibraryProgress[] = [];
       if (user) {
@@ -70,13 +114,23 @@ const Library = () => {
           .select('*')
           .eq('user_id', user.id);
         
-        if (!progressError) {
-          userProgress = progressData || [];
+        if (progressError) {
+          console.error('Error fetching user progress:', progressError);
+        } else {
+          // Validate progress data
+          userProgress = (progressData || []).map(progress => {
+            try {
+              return userProgressSchema.parse(progress);
+            } catch (validationError) {
+              console.error(`Validation error for progress ${progress.library_item_id}:`, validationError);
+              return null;
+            }
+          }).filter(Boolean);
         }
       }
 
       // Transform data to match interface
-      const transformedItems: LibraryItem[] = (items || []).map((item) => {
+      const transformedItems: LibraryItem[] = validatedItems.map((item) => {
         const userItemProgress = userProgress.find(p => p.library_item_id === item.id);
         
         return {
@@ -87,42 +141,458 @@ const Library = () => {
         };
       });
 
-      setLibraryItems(transformedItems<dyad-problem-report summary="6 problems">
-<problem file="supabase/functions/submit-result/index.ts" line="1" column="30" code="2307">Cannot find module 'https://esm.sh/@supabase/supabase-js@2.39.6' or its corresponding type declarations.</problem>
-<problem file="supabase/functions/chat-completion/index.ts" line="1" column="23" code="2307">Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.</problem>
-<problem file="supabase/functions/chat-completion/index.ts" line="2" column="30" code="2307">Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.</problem>
-<problem file="supabase/functions/get-realtime-token/index.ts" line="1" column="23" code="2307">Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.</problem>
-<problem file="supabase/functions/get-realtime-token/index.ts" line="2" column="30" code="2307">Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.</problem>
-<problem file="supabase/functions/realtime-voice-session/index.ts" line="2" column="23" code="2307">Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.</problem>
-</dyad-problem-report><think>**Troubleshooting Module Errors**
+      setLibraryItems(transformedItems);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error in fetchLibraryItems:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setLoading(false);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load library items. Please try again later.",
+        variant: "destructive"
+      });
+    }
+  };
 
-I'm currently dealing with TypeScript errors within Supabase Edge Functions. It appears I'm grappling with a `TS2307` error: the dreaded "cannot find module" issue. The problem seems to stem from URL imports, which complicates things further. I'm focusing on debugging module resolution in this context.
+  const handleToggleBookmark = async (itemId: string) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error fetching user:', userError);
+      toast({
+        title: "Error",
+        description: "Failed to verify user authentication.",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to bookmark items.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-**Isolating the Conflict**
+    try {
+      const item = libraryItems.find(i => i.id === itemId);
+      if (!item) {
+        throw new Error('Item not found');
+      }
 
-I've isolated the conflict. The issue stems from the main TypeScript compiler, which is unintentionally type-checking the Supabase functions. This is leading to module resolution errors for URL imports, which are valid in Deno but not in the Node.js context. To fix this, I plan to exclude the 'supabase/functions' directory from the main application's `tsconfig.app.json` file. This should prevent the compiler from attempting to process those Deno-specific modules.
+      const newBookmarkStatus = !item.isBookmarked;
 
+      const progressData = {
+        user_id: user.id,
+        library_item_id: itemId,
+        is_bookmarked: newBookmarkStatus,
+        is_completed: item.isCompleted,
+        progress: item.progress || 0,
+        updated_at: new Date().toISOString()
+      };
 
-**Refining the Exclusion Strategy**
+      // Validate progress data before updating
+      const validatedProgress = userProgressSchema.parse(progressData);
 
-My focus has shifted slightly. I've confirmed the initial diagnosis: the primary compiler is incorrectly parsing Deno-specific code within the Supabase functions directory. The optimal strategy, I believe, lies in refining the exclusion. Simply adding `supabase/functions` to the `exclude` array should resolve all six reported errors, preventing unnecessary type-checking. I've prepared a concise explanation and a code snippet of the modified `tsconfig.app.json` for clarity. This should provide a straightforward and effective solution.
+      // Update in database
+      const { error: updateError } = await supabase
+        .from('user_library_progress')
+        .upsert(validatedProgress);
 
+      if (updateError) {
+        console.error('Error updating bookmark:', updateError);
+        throw new Error('Failed to update bookmark status');
+      }
 
-</think>Of course. I can fix these TypeScript errors for you.
+      // Update local state
+      setLibraryItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, isBookmarked: newBookmarkStatus } : i
+      ));
 
-The problem is that your application's TypeScript compiler is trying to process the code for your Supabase Edge Functions. Since these functions are designed to run in a Deno environment, they use URL imports (`https://...`) which the Vite/Node.js build process doesn't understand.
+      toast({
+        title: newBookmarkStatus ? "Bookmarked" : "Bookmark removed",
+        description: newBookmarkStatus ? "Item added to your bookmarks" : "Item removed from bookmarks"
+      });
+    } catch (error) {
+      console.error('Error in handleToggleBookmark:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update bookmark status",
+        variant: "destructive"
+      });
+    }
+  };
 
-The solution is to tell the application's TypeScript configuration to ignore the `supabase/functions` directory. I will update your `tsconfig.app.json` to do just that.
+  const handleStartContent = async (itemId: string) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error fetching user:', userError);
+      toast({
+        title: "Error",
+        description: "Failed to verify user authentication.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-<dyad-write path="tsconfig.app.json" description="Excluding Supabase functions from the TypeScript build.">
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "jsx": "react-jsx"
-  },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "supabase/functions"]
-}
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to start content.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const item = libraryItems.find(i => i.id === itemId);
+      if (!item) {
+        throw new Error('Content not found');
+      }
+
+      const progressData = {
+        user_id: user.id,
+        library_item_id: itemId,
+        is_bookmarked: item.isBookmarked,
+        is_completed: false,
+        progress: 0,
+        updated_at: new Date().toISOString()
+      };
+
+      // Validate progress data before updating
+      const validatedProgress = userProgressSchema.parse(progressData);
+
+      // Update or create progress entry
+      const { error: progressError } = await supabase
+        .from('user_library_progress')
+        .upsert(validatedProgress);
+
+      if (progressError) {
+        console.error('Error updating content progress:', progressError);
+        throw new Error('Failed to initialize content progress');
+      }
+
+      // Update local state
+      setLibraryItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, progress: 0 } : i
+      ));
+
+      // Navigate to content (implementation depends on your routing setup)
+      // router.push(`/content/${itemId}`);
+
+      toast({
+        title: "Content started",
+        description: "Your progress has been initialized."
+      });
+    } catch (error) {
+      console.error('Error in handleStartContent:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start content",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getTypeIcon = (type: string | null) => {
+    switch(type) {
+      case 'article': return FileText;
+      case 'video': return Video;
+      case 'audio': return Headphones;
+      case 'assessment': return Target;
+      default: return BookOpen;
+    }
+  };
+
+  const filteredItems = libraryItems.filter(item => {
+    const matchesSearch = item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const bookmarkedItems = filteredItems.filter(item => item.isBookmarked);
+  const inProgressItems = filteredItems.filter(item => !item.isCompleted && (item.progress ?? 0) > 0);
+  const completedItems = filteredItems.filter(item => item.isCompleted);
+
+  const categories: string[] = [
+    'all',
+    ...Array.from(
+      new Set(
+        libraryItems
+          .map((item) => item.category)
+          .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      )
+    ),
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
+      <MobileContainer className="py-6 px-4">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Learning Library</h1>
+          <p className="text-muted-foreground">Explore curated content for your growth journey</p>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="mb-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search content..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(category)}
+                className="whitespace-nowrap"
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="browse">Browse</TabsTrigger>
+            <TabsTrigger value="bookmarks">
+              <Bookmark className="w-4 h-4 mr-1" />
+              Saved
+            </TabsTrigger>
+            <TabsTrigger value="progress">Progress</TabsTrigger>
+            <TabsTrigger value="completed">Done</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="browse" className="mt-6">
+            <div className="space-y-4">
+              {loading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : error ? (
+                <Card className="glass border-card-border text-center p-8">
+                  <p className="text-destructive">{error}</p>
+                  <Button onClick={fetchLibraryItems} className="mt-4">
+                    Retry
+                  </Button>
+                </Card>
+              ) : filteredItems.length > 0 ? (
+                <MobileGrid cols={1}>
+                  {filteredItems.map((item) => {
+                    const TypeIcon = getTypeIcon(item.content_type);
+                    return (
+                      <MobileCard key={item.id} className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <TypeIcon className="w-6 h-6 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="font-semibold truncate">{item.title}</h3>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleBookmark(item.id)}
+                                className="flex-shrink-0"
+                              >
+                                <Bookmark 
+                                  className={`w-4 h-4 ${item.isBookmarked ? 'fill-current text-primary' : ''}`} 
+                                />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                              {item.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                              <span>{item.category}</span>
+                              {item.duration && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {item.duration} min
+                                  </span>
+                                </>
+                              )}
+                              {item.difficulty && (
+                                <>
+                                  <span>•</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.difficulty}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            {item.isCompleted ? (
+                              <Badge className="bg-green-500/20 text-green-500">
+                                ✓ Completed
+                              </Badge>
+                            ) : (item.progress ?? 0) > 0 ? (
+                              <div className="space-y-1">
+                                <Progress value={item.progress} className="h-2" />
+                                <p className="text-xs text-muted-foreground">{item.progress}% complete</p>
+                              </div>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => handleStartContent(item.id)}
+                              >
+                                <Play className="w-3 h-3 mr-1" />
+                                Start
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </MobileCard>
+                    );
+                  })}
+                </MobileGrid>
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No content found</h3>
+                  <p className="text-muted-foreground">
+                    Try adjusting your search or filters
+                  </p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bookmarks">
+            <div className="space-y-4">
+              {bookmarkedItems.length > 0 ? (
+                <MobileGrid cols={1}>
+                  {bookmarkedItems.map((item) => {
+                    const TypeIcon = getTypeIcon(item.content_type);
+                    return (
+                      <MobileCard key={item.id} className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <TypeIcon className="w-6 h-6 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{item.title}</h4>
+                            <p className="text-sm text-muted-foreground">{item.category}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleBookmark(item.id)}
+                          >
+                            <Bookmark className="w-4 h-4 fill-current text-primary" />
+                          </Button>
+                        </div>
+                      </MobileCard>
+                    );
+                  })}
+                </MobileGrid>
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Bookmark className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No bookmarks yet</h3>
+                  <p className="text-muted-foreground">
+                    Save content to access it quickly later
+                  </p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="progress">
+            <div className="space-y-4">
+              {inProgressItems.length > 0 ? (
+                <MobileGrid cols={1}>
+                  {inProgressItems.map((item) => {
+                    const TypeIcon = getTypeIcon(item.content_type);
+                    return (
+                      <MobileCard key={item.id} className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                            <TypeIcon className="w-6 h-6 text-yellow-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{item.title}</h4>
+                            <p className="text-sm text-muted-foreground mb-2">{item.category}</p>
+                            <Progress value={item.progress} className="h-2" />
+                            <p className="text-xs text-muted-foreground mt-1">{item.progress}% complete</p>
+                          </div>
+                          <Button size="sm" onClick={() => handleStartContent(item.id)}>
+                            Continue
+                          </Button>
+                        </div>
+                      </MobileCard>
+                    );
+                  })}
+                </MobileGrid>
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No content in progress</h3>
+                  <p className="text-muted-foreground">
+                    Start exploring content to see your progress here
+                  </p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="completed">
+            <div className="space-y-4">
+              {completedItems.length > 0 ? (
+                <MobileGrid cols={1}>
+                  {completedItems.map((item) => {
+                    const TypeIcon = getTypeIcon(item.content_type);
+                    return (
+                      <MobileCard key={item.id} className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                            <TypeIcon className="w-6 h-6 text-green-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{item.title}</h4>
+                            <p className="text-sm text-muted-foreground">{item.category} • Completed</p>
+                          </div>
+                          <Badge className="bg-green-500/20 text-green-500">
+                            ✓ Done
+                          </Badge>
+                        </div>
+                      </MobileCard>
+                    );
+                  })}
+                </MobileGrid>
+              ) : (
+                <Card className="glass border-card-border text-center p-8">
+                  <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No completed items yet</h3>
+                  <p className="text-muted-foreground">
+                    Complete content to build your achievement collection
+                  </p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </MobileContainer>
+    </div>
+  );
+};
+
+export default Library;

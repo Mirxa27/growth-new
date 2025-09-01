@@ -8,12 +8,12 @@ export class RealtimeVoiceChat {
   private audioWorkletNode: AudioWorkletNode | null = null;
   private audioQueue: AudioQueue | null = null;
 
-  private onMessageCallback: (data: any) => void;
+  private onMessageCallback: (data: unknown) => void;
   private onTranscriptCallback: (text: string, isFinal: boolean) => void;
   private onSpeakingChangeCallback: (isSpeaking: boolean) => void;
 
   constructor(
-    onMessage: (data: any) => void,
+    onMessage: (data: unknown) => void,
     onTranscript: (text: string, isFinal: boolean) => void,
     onSpeakingChange: (isSpeaking: boolean) => void
   ) {
@@ -36,16 +36,30 @@ export class RealtimeVoiceChat {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create voice session');
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to create voice session' };
+        }
+        const errorMessage = errorData.error || 'Failed to create voice session';
+        if (response.status === 400 && errorMessage.includes('OpenAI API error')) {
+          throw new Error('Voice chat unavailable: OpenAI API key not configured');
+        }
+        throw new Error(errorMessage);
       }
 
       const sessionData = await response.json();
       
+      if (!sessionData.client_secret) {
+        throw new Error('No client secret received from server');
+      }
+      
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
 
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=${sessionData.model}`;
+      const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
       this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
 
       this.ws.onopen = () => {
@@ -82,7 +96,7 @@ export class RealtimeVoiceChat {
 
     } catch (error) {
       console.error('Connection failed:', error);
-      this.onMessageCallback({ type: 'error', error });
+      this.onMessageCallback({ type: 'error', error } as unknown);
       throw error;
     }
   }
@@ -175,7 +189,13 @@ export class RealtimeVoiceChat {
     }
   }
 
-  private handleRealtimeMessage(data: any): void {
+  // Use a minimally-typed event shape to avoid any
+  private handleRealtimeMessage(data: {
+    type: string;
+    transcript?: string;
+    delta?: { text?: string; audio?: string };
+    error?: unknown;
+  }): void {
     this.onMessageCallback(data);
 
     switch (data.type) {

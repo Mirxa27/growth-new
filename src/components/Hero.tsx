@@ -5,6 +5,24 @@ import { useNavigate } from "react-router-dom";
 export const Hero = () => {
   const navigate = useNavigate();
 
+  const handleStartDiscovery = () => {
+    console.log('Navigating to /mobile-assessment-hub');
+    try {
+      navigate("/mobile-assessment-hub");
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
+  const handleSignIn = () => {
+    console.log('Navigating to /auth');
+    try {
+      navigate("/auth");
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 xl:px-12 pt-20 sm:pt-24 pb-12 sm:pb-16 lg:pb-20 overflow-hidden">
       {/* Floating Elements - Enhanced for better visual hierarchy */}
@@ -48,7 +66,7 @@ export const Hero = () => {
           <Button
             size="lg"
             className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-2xl hover:shadow-primary/25 transform hover:scale-105 transition-all duration-300 group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl font-semibold w-full sm:w-auto min-h-[44px] sm:min-h-[48px] lg:min-h-[56px] rounded-xl sm:rounded-2xl"
-            onClick={() => navigate("/mobile-assessment-hub")}
+            onClick={handleStartDiscovery}
           >
             Start Free Discovery
             <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
@@ -57,7 +75,7 @@ export const Hero = () => {
             size="lg"
             variant="outline"
             className="glass hover:glass-glow border-primary/20 hover:border-primary/40 px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl font-medium w-full sm:w-auto min-h-[44px] sm:min-h-[48px] lg:min-h-[56px] rounded-xl sm:rounded-2xl"
-            onClick={() => navigate("/auth")}
+            onClick={handleSignIn}
           >
             Sign In
           </Button>

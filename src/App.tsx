@@ -23,6 +23,8 @@ import NotFound from "./pages/NotFound";
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
+import AssessmentPage from "./pages/AssessmentPage";
+import ResultsPage from "./pages/ResultsPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,8 @@ const App = () => {
               <Route path="/assessment" element={<PublicAssessment />} />
               <Route path="/mobile-assessment" element={<MobileAssessment />} />
               <Route path="/mobile-assessment-hub" element={<MobileAssessmentHub />} />
+              <Route path="/assessment/:id" element={<AssessmentPage />} />
+              <Route path="/results/:id" element={<ResultsPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

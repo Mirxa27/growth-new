@@ -19,6 +19,17 @@ import {
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tables } from '@/integrations/supabase/types';
+import { z } from 'zod';
+
+const roleUpdateSchema = z.object({
+  target_user_id: z.string().uuid(),
+  new_role: z.enum(['user', 'admin', 'moderator']),
+});
+
+const banUpdateSchema = z.object({
+  target_user_id: z.string().uuid(),
+  new_status: z.boolean(),
+});
 
 type Profile = Tables<'profiles'>;
 
@@ -81,31 +92,35 @@ export const UserManagement: React.FC = () => {
 
   const handleRoleChange = async (profile: Profile, newRole: 'user' | 'admin' | 'moderator') => {
     try {
-      const { error } = await supabase.rpc('update_user_role_secure', {
+      const params = roleUpdateSchema.parse({
         target_user_id: profile.user_id!,
         new_role: newRole,
       });
+      const { error } = await supabase.rpc('update_user_role_secure', params);
 
       if (error) throw error;
       toast({ title: "Success", description: `User role updated to ${newRole}` });
       fetchProfiles();
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to update user role: ${error.message}`, variant: "destructive" });
+      console.error('Role update error:', error);
+      toast({ title: "Error", description: `Failed to update user role: ${error.message || 'Invalid parameters'}`, variant: "destructive" });
     }
   };
 
   const handleBanUser = async (profile: Profile, ban: boolean) => {
     try {
-      const { error } = await supabase.rpc('update_user_ban_status_secure', {
+      const params = banUpdateSchema.parse({
         target_user_id: profile.user_id!,
         new_status: ban,
       });
+      const { error } = await supabase.rpc('update_user_ban_status_secure', params);
 
       if (error) throw error;
       toast({ title: "Success", description: ban ? "User has been banned" : "User ban has been lifted" });
       fetchProfiles();
     } catch (error: any) {
-      toast({ title: "Error", description: `Failed to update ban status: ${error.message}`, variant: "destructive" });
+      console.error('Ban update error:', error);
+      toast({ title: "Error", description: `Failed to update ban status: ${error.message || 'Invalid parameters'}`, variant: "destructive" });
     }
   };
 
@@ -174,7 +189,7 @@ export const UserManagement: React.FC = () => {
       </Card>
 
       <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent className="glass-strong"><DialogHeader><DialogTitle>User Details</DialogTitle></DialogHeader>{selectedProfile && <div className="space-y-4"><div className="flex items-center space-x-4"><div className="h-16 w-16 rounded-full bg-gradient-primary flex items-center justify-center text-white text-2xl font-semibold">{selectedProfile.display_name?.charAt(0) || 'U'}</div><div><h3 className="text-lg font-semibold">{selectedProfile.display_name || 'Unknown User'}</h3><p className="text-sm text-muted-foreground">{selectedProfile.email}</p></div></div><div className="grid grid-cols-2 gap-4"><div><p className="text-xs text-muted-foreground">Role</p><p className="text-sm font-medium">{selectedProfile.role}</p></div><div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm font-medium">{selectedProfile.is_banned ? 'Banned' : 'Active'}</p></div><div><p className="text-xs text-muted-foreground">Joined</p><p className="text-sm font-medium">{selectedProfile.created_at ? new Date(selectedProfile.created_at).toLocaleDateString() : 'N/A'}</p></div><div><p className="text-xs text-muted-foreground">Last Active</p><p className="text-sm font-medium">{selectedProfile.last_login_at ? new Date(selectedProfile.last_login_at).toLocaleDateString() : 'N/A'}</p></div></div>{selectedProfile.bio && <div><p className="text-xs text-muted-foreground">Bio</p><p className="text-sm mt-1">{selectedProfile.bio}</p></div>}</div>}<DialogFooter><Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+        <DialogContent className="glass-strong"><DialogHeader><DialogTitle>User Details</DialogTitle></DialogHeader>{selectedProfile && <div className="space-y-4"><div className="flex items-center space-x-4"><div className="h-16 w-16 rounded-full bg-gradient-primary flex items-center justify-center text-white text-2xl font-semibold">{selectedProfile.display_name?.charAt(0) || 'U'}</div><div><h3 className="text-lg font-semibold">{selectedProfile.display_name || 'Unknown User'}</h3><p className="text-sm text-muted-foreground">{selectedProfile.email}</p></div></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><p className="text-xs text-muted-foreground">Role</p><p className="text-sm font-medium">{selectedProfile.role}</p></div><div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm font-medium">{selectedProfile.is_banned ? 'Banned' : 'Active'}</p></div><div><p className="text-xs text-muted-foreground">Joined</p><p className="text-sm font-medium">{selectedProfile.created_at ? new Date(selectedProfile.created_at).toLocaleDateString() : 'N/A'}</p></div><div><p className="text-xs text-muted-foreground">Last Active</p><p className="text-sm font-medium">{selectedProfile.last_login_at ? new Date(selectedProfile.last_login_at).toLocaleDateString() : 'N/A'}</p></div></div>{selectedProfile.bio && <div><p className="text-xs text-muted-foreground">Bio</p><p className="text-sm mt-1">{selectedProfile.bio}</p></div>}</div>}<DialogFooter><Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
       </Dialog>
     </div>
   );

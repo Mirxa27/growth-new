@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
 import { 
   Sparkles, 
   Brain, 
@@ -19,6 +20,48 @@ import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { Json } from '@/integrations/supabase/types';
+
+// Zod schemas for validation
+const generatedOptionSchema = z.object({
+  option_text: z.string().min(1, 'Option text is required'),
+  is_correct: z.boolean(),
+  position: z.number().int().min(0),
+  feedback: z.string().optional()
+});
+
+const generatedQuestionSchema = z.object({
+  question_text: z.string().min(1, 'Question text is required'),
+  question_type: z.enum(['multiple_choice', 'free_text', 'image']),
+  position: z.number().int().min(0),
+  options: z.array(generatedOptionSchema)
+});
+
+const generatedContentSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+  questions: z.array(generatedQuestionSchema)
+});
+
+const assessmentParamsSchema = z.object({
+  topic: z.string().min(1, 'Topic is required'),
+  type: z.enum(['test', 'personality']),
+  provider: z.string().min(1, 'Provider is required'),
+  model: z.string().min(1, 'Model is required'),
+  questionCount: z.number().int().min(1).max(50),
+  customPrompt: z.string().optional()
+});
+
+const saveAssessmentParamsSchema = z.object({
+  _title: z.string().min(1, 'Title is required'),
+  _description: z.string().min(1, 'Description is required'),
+  _type: z.enum(['quiz', 'personality']),
+  _visibility: z.enum(['public', 'private']),
+  _ai_provider: z.string().min(1, 'AI provider is required'),
+  _ai_model: z.string().min(1, 'AI model is required'),
+  _ai_prompt: z.string().optional(),
+  _questions: z.any(),
+  _created_by: z.string().uuid('Invalid user ID')
+});
 
 interface GeneratedQuestion {
   question_text: string;
@@ -70,25 +113,36 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
     setGeneratedContent(null);
     
     try {
+      const params = {
+        topic,
+        type: 'test',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        questionCount,
+        customPrompt: type === 'personality' 
+          ? 'Generate questions for a personality assessment. Options should not have a correct answer but reflect different traits.'
+          : 'Generate questions for a quiz with one correct answer per question.'
+      };
+
+      // Validate parameters
+      const validatedParams = assessmentParamsSchema.parse(params);
+
       const { data, error } = await supabase.functions.invoke('create-assessment', {
-        body: {
-          topic,
-          type: 'test',
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          questionCount,
-          customPrompt: type === 'personality' 
-            ? 'Generate questions for a personality assessment. Options should not have a correct answer but reflect different traits.'
-            : 'Generate questions for a quiz with one correct answer per question.'
-        }
+        body: validatedParams
       });
 
       if (error) throw error;
       
-      setGeneratedContent(data.generated_content as GeneratedContent);
+      // Validate generated content
+      const validatedContent = generatedContentSchema.parse(data.generated_content);
+      setGeneratedContent(validatedContent);
+      
       toast({ title: "Content generated successfully!" });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error in generateAssessment:', error);
+      const errorMessage = error instanceof z.ZodError 
+        ? 'Invalid assessment parameters or generated content' 
+        : error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ title: "Generation failed", description: errorMessage, variant: "destructive" });
     } finally {
       setIsGenerating(false);
@@ -100,7 +154,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
     setIsSaving(true);
 
     try {
-      const { error } = await supabase.rpc('create_assessment_with_questions', {
+      const params = {
         _title: generatedContent.title,
         _description: generatedContent.description,
         _type: type,
@@ -110,31 +164,45 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
         _ai_prompt: assessmentForm.ai_prompt,
         _questions: generatedContent.questions as unknown as Json,
         _created_by: user.id
-      });
+      };
+
+      // Validate save parameters
+      const validatedParams = saveAssessmentParamsSchema.parse(params);
+
+      const { error } = await supabase.rpc('create_assessment_with_questions', validatedParams);
 
       if (error) throw error;
 
-      await supabase
+      const logEntry = {
+        admin_id: user.id,
+        action: 'AI_CONTENT_GENERATED',
+        details: {
+          assessment_id: null,
+          topic: topic,
+          type: type,
+          provider: assessmentForm.ai_provider,
+          model: assessmentForm.ai_model,
+          question_count: generatedContent.questions?.length || 0
+        }
+      };
+
+      const { error: logError } = await supabase
         .from('admin_logs')
-        .insert([{
-          admin_id: user.id,
-          action: 'AI_CONTENT_GENERATED',
-          details: {
-            assessment_id: null,
-            topic: topic,
-            type: type,
-            provider: assessmentForm.ai_provider,
-            model: assessmentForm.ai_model,
-            question_count: generatedContent.questions?.length || 0
-          }
-        }]);
+        .insert([logEntry]);
+
+      if (logError) {
+        console.error('Error logging assessment creation:', logError);
+      }
 
       toast({ title: "Assessment saved successfully!" });
       setGeneratedContent(null);
       setTopic('');
       onAssessmentCreated?.();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error in saveAssessment:', error);
+      const errorMessage = error instanceof z.ZodError 
+        ? 'Invalid assessment data' 
+        : error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ title: "Save failed", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSaving(false);

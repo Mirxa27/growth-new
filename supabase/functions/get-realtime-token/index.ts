@@ -37,19 +37,17 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-10-01',
-        voice: 'alloy',
-        instructions: `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth. Speak warmly and empathetically, understanding their unique challenges and aspirations. Provide thoughtful, personalized guidance that helps them navigate life's complexities with confidence and grace.`,
-        modalities: ['text', 'audio'],
-        temperature: 0.7,
-        max_tokens: 1000,
+        session: {
+          type: 'realtime',
+          model: 'gpt-4o-realtime-preview-2024-10-01'
+        }
       }),
     })
 
@@ -61,8 +59,8 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({
-        client_secret: data.client_secret,
-        expires_at: data.expires_at,
+        client_secret: data.client_secret?.value ?? '',
+        expires_at: data.client_secret?.expires_at,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -23,6 +23,8 @@ import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
+import MobileAssessmentHub from "./pages/MobileAssessmentHub";
+import AssessmentPage from "./pages/AssessmentPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,8 @@ const AppPreview = () => {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/assessment" element={<PublicAssessment />} />
                   <Route path="/mobile-assessment" element={<MobileAssessment />} />
+                  <Route path="/mobile-assessment-hub" element={<MobileAssessmentHub />} />
+                  <Route path="/assessment/:id" element={<AssessmentPage />} />
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />

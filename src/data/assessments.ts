@@ -11,6 +11,12 @@ export interface AssessmentQuestion {
   category?: string;
 }
 
+export interface AIAnalysis {
+  insights: string[];
+  recommendations: string[];
+  summary: string;
+}
+
 export interface Assessment {
   id: string;
   title: string;
@@ -29,6 +35,7 @@ export interface Assessment {
     summary: string;
     insights: string[];
     recommendations: string[];
+    aiAnalysis?: AIAnalysis;
   };
 }
 

@@ -10,12 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles, Save, Plus, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Assessment } from '@/data/assessments';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+// Removed react-hook-form and zod imports (unused in current implementation)
 
 interface AIAssessmentBuilderProps {
   assessment?: Assessment;
@@ -36,7 +33,21 @@ interface Question {
 interface ScoringConfig {
   type: 'cumulative' | 'categorical' | 'personality';
   categories?: string[];
-  interpretation?: Record<string, any>;
+  interpretation?: Record<string, unknown>;
+}
+
+interface AssessmentResults {
+  summary: string;
+  insights: unknown[];
+  recommendations: unknown[];
+}
+
+interface GeneratedAssessment {
+  title?: string;
+  description?: string;
+  questions?: Question[];
+  scoring?: ScoringConfig;
+  results?: AssessmentResults;
 }
 
 export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
@@ -44,7 +55,6 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   onSave,
   onCancel
 }) => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAILoading] = useState(false);
@@ -57,14 +67,17 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   const [visibility, setVisibility] = useState<'public' | 'users' | 'premium'>(assessment?.visibility || 'public');
   const [estimatedTime, setEstimatedTime] = useState(assessment?.estimatedTime || 10);
   const [questions, setQuestions] = useState<Question[]>(
-    (assessment?.questions?.map((q: any) => ({ ...q, required: q.required ?? true })) as Question[]) || []
+    (assessment?.questions?.map((q: Partial<Question>) => ({
+      ...q,
+      required: q.required ?? true,
+    })) as Question[]) || []
   );
   const [scoring, setScoring] = useState<ScoringConfig>(assessment?.scoring || { type: 'categorical' });
-  const [results, setResults] = useState(assessment?.results || { summary: '', insights: [], recommendations: [] });
+  const [results, setResults] = useState<AssessmentResults>((assessment?.results as unknown as AssessmentResults) || { summary: '', insights: [], recommendations: [] });
   
   // AI generation state
   const [aiPrompt, setAIPrompt] = useState('');
-  const [aiGeneratedContent, setAIGeneratedContent] = useState<any>(null);
+  const [aiGeneratedContent, setAIGeneratedContent] = useState<GeneratedAssessment | null>(null);
 
   const assessmentTypes = [
     'personality', 'career', 'mental-health', 'relationships', 'skills', 'wellness',
@@ -99,12 +112,13 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
       });
 
       if (response.data) {
-        setAIGeneratedContent(response.data);
-        setTitle(response.data.title || title);
-        setDescription(response.data.description || description);
-        setQuestions(response.data.questions || questions);
-        setScoring(response.data.scoring || scoring);
-        setResults(response.data.results || results);
+        const gen = response.data as Partial<GeneratedAssessment>;
+        setAIGeneratedContent(gen as GeneratedAssessment);
+        setTitle((gen.title ?? title) as string);
+        setDescription((gen.description ?? description) as string);
+        setQuestions((gen.questions ?? questions) as Question[]);
+        setScoring((gen.scoring ?? scoring) as ScoringConfig);
+        setResults((gen.results ?? results) as AssessmentResults);
         
         toast({
           title: "AI Assessment Generated",
@@ -240,7 +254,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
           />
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label>Question Type</Label>
             <Select
@@ -299,7 +313,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
         )}
 
         {question.type === 'scale' && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Min Value</Label>
               <Input
@@ -368,7 +382,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
                       />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Type</Label>
                         <Select value={type} onValueChange={setType}>
@@ -398,10 +412,10 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Visibility</Label>
-                        <Select value={visibility} onValueChange={(value) => setVisibility(value as any)}>
+                        <Select value={visibility} onValueChange={(value: 'public' | 'users' | 'premium') => setVisibility(value)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -481,7 +495,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>Type</Label>
                     <Select value={type} onValueChange={setType}>
@@ -498,7 +512,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
                   
                   <div>
                     <Label>Visibility</Label>
-                    <Select value={visibility} onValueChange={(value) => setVisibility(value as any)}>
+                    <Select value={visibility} onValueChange={(value: 'public' | 'users' | 'premium') => setVisibility(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -539,81 +553,3 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
     </div>
   );
 };
-
-const questionSchema = z.object({
-  id: z.string(),
-  text: z.string().min(1, 'Question text is required'),
-  type: z.enum(['single', 'multiple', 'scale', 'text']),
-  options: z.array(z.string().min(1, 'Option text is required')).optional(),
-  scale: z.object({ min: z.number(), max: z.number(), labels: z.array(z.string()) }).optional(),
-  category: z.string().optional(),
-  required: z.boolean(),
-});
-const assessmentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(1, 'Description is required'),
-  type: z.string().min(1, 'Type is required'),
-  category: z.string().min(1, 'Category is required'),
-  visibility: z.enum(['public', 'users', 'premium']),
-  estimatedTime: z.number().min(1).max(60),
-  questions: z.array(questionSchema).min(1, 'At least one question is required'),
-  scoring: z.object({ type: z.enum(['cumulative', 'categorical', 'personality']), categories: z.array(z.string()).optional(), interpretation: z.record(z.any()).optional() }),
-  results: z.object({ summary: z.string(), insights: z.array(z.any()), recommendations: z.array(z.any()) }),
-});
-  const form = useForm<z.infer<typeof assessmentSchema>>({
-    resolver: zodResolver(assessmentSchema),
-    defaultValues: {
-      title: assessment?.title || '',
-      description: assessment?.description || '',
-      type: assessment?.type || 'personality',
-      category: assessment?.category || 'self-discovery',
-      visibility: assessment?.visibility || 'public',
-      estimatedTime: assessment?.estimatedTime || 10,
-      questions: (assessment?.questions?.map((q: any) => ({ ...q, required: q.required ?? true })) as Question[]) || [],
-      scoring: assessment?.scoring || { type: 'categorical' },
-      results: assessment?.results || { summary: '', insights: [], recommendations: [] },
-    },
-  });
-  const { handleSubmit, control, formState: { errors }, setValue, getValues } = form;
-  // Remove individual useState for form fields
-  // ... existing code ...
-  // Update setters to use setValue
-  // For example, in generateAIAssessment, use setValue instead of setTitle, etc.
-  // In saveAssessment, use handleSubmit
-  const saveAssessment = async (data: z.infer<typeof assessmentSchema>) => {
-    setLoading(true);
-    try {
-      const formattedQuestions = data.questions.map((q, index) => ({
-        question_text: q.text,
-        question_type: q.type === 'single' || q.type === 'multiple' ? 'multiple_choice' : q.type === 'scale' ? 'scale' : 'free_text',
-        position: index + 1,
-        options: (q.type === 'single' || q.type === 'multiple') && q.options ? q.options.map((opt, optIndex) => ({
-          option_text: opt,
-          is_correct: false,
-          position: optIndex + 1
-        })) : []
-      }));
-      const { data: rpcData, error } = await supabase.rpc('create_assessment_with_questions', {
-        _title: data.title,
-        _description: data.description,
-        _type: data.type,
-        _visibility: data.visibility,
-        _ai_provider: 'openai',
-        _ai_model: 'gpt-4o-mini',
-        _ai_prompt: aiPrompt || `Manual assessment: ${data.title}`,
-        _questions: formattedQuestions
-      });
-      if (error) throw error;
-      toast({ title: 'Assessment Created', description: 'Your assessment has been successfully created.' });
-      onSave?.(rpcData);
-    } catch (error) {
-      console.error('Save error:', error);
-      toast({ title: 'Save Failed', description: error instanceof Error ? error.message : 'Failed to save assessment', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-  // Refactor form fields to use Controller from react-hook-form
-  // For example, <Controller name="title" control={control} render={({ field }) => <Input {...field} />} />
-  // Do similar for other fields and questions
-  // ... existing code ...

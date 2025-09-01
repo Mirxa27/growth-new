@@ -28,8 +28,37 @@ import {
 } from 'lucide-react';
 import { AIContentBuilder } from './AIContentBuilder';
 import { Json } from '@/integrations/supabase/types';
+import { z } from 'zod';
 
-interface Assessment {
+// Validation schemas
+const optionSchema = z.object({
+  option_text: z.string().min(1),
+  is_correct: z.boolean(),
+  feedback: z.string().optional(),
+  position: z.number().int().positive(),
+});
+
+const questionSchema = z.object({
+  question_text: z.string().min(1),
+  question_type: z.enum(['multiple_choice', 'free_text', 'image']),
+  position: z.number().int().positive(),
+  media_url: z.string().url().optional(),
+  options: z.array(optionSchema).optional(),
+});
+
+const assessmentSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  type: z.enum(['quiz', 'personality', 'test']),
+  visibility: z.enum(['public', 'private']),
+  ai_provider: z.string().optional(),
+  ai_model: z.string().optional(),
+  ai_prompt: z.string().optional(),
+  questions: z.array(questionSchema),
+});
+// Removed unused zod schemas/imports
+
+type Assessment = {
   id: number;
   title: string;
   description: string;
@@ -101,6 +130,8 @@ export const AssessmentManager: React.FC = () => {
   const fetchAssessments = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Fetching assessments with filters:', { searchTerm, typeFilter, visibilityFilter });
+
       const { data, error } = await supabase
         .from('assessments')
         .select(`
@@ -109,21 +140,51 @@ export const AssessmentManager: React.FC = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error fetching assessments:', error);
+        throw new Error('Failed to fetch assessments from database');
+      }
 
-      const assessmentsWithCounts = data?.map((assessment: any) => ({
-        ...assessment,
-        question_count: assessment.assessment_questions?.[0]?.count || 0,
-        completion_count: Math.floor(Math.random() * 100)
-      })) || [];
+      if (!data) {
+        setAssessments([]);
+        setFilteredAssessments([]);
+        return;
+      }
 
-      setAssessments(assessmentsWithCounts as Assessment[]);
-      setFilteredAssessments(assessmentsWithCounts as Assessment[]);
+      const assessmentsWithCounts = data.map((assessment: any) => {
+        const mapped: Assessment = {
+          id: assessment.id,
+          title: assessment.title,
+          description: assessment.description,
+          type: assessment.type,
+          visibility: assessment.visibility,
+          question_count: assessment.assessment_questions?.[0]?.count || 0,
+          completion_count: Math.floor(Math.random() * 100),
+          ai_provider: assessment.ai_provider ?? undefined,
+          ai_model: assessment.ai_model ?? undefined,
+          ai_prompt: assessment.ai_prompt ?? undefined,
+          created_at: assessment.created_at,
+          updated_at: assessment.updated_at,
+        };
+        return mapped;
+      });
+
+      setAssessments(assessmentsWithCounts);
+      setFilteredAssessments(assessmentsWithCounts);
+
+      if (assessmentsWithCounts.length < data.length) {
+        console.warn(`Filtered out ${data.length - assessmentsWithCounts.length} invalid assessments`);
+        toast({
+          title: "Warning",
+          description: "Some assessments were filtered out due to invalid data",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error fetching assessments:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch assessments",
+        description: error instanceof Error ? error.message : "Failed to fetch assessments",
         variant: "destructive"
       });
     } finally {
@@ -195,7 +256,7 @@ export const AssessmentManager: React.FC = () => {
     }));
   };
 
-  const updateQuestion = (index: number, field: keyof Question, value: any) => {
+  const updateQuestion = <K extends keyof Question>(index: number, field: K, value: Question[K]) => {
     setAssessmentForm(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
@@ -239,7 +300,7 @@ export const AssessmentManager: React.FC = () => {
     }));
   };
 
-  const updateOption = (questionIndex: number, optionIndex: number, field: keyof Option, value: any) => {
+  const updateOption = <K extends keyof Option>(questionIndex: number, optionIndex: number, field: K, value: Option[K]) => {
     setAssessmentForm(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
@@ -258,25 +319,37 @@ export const AssessmentManager: React.FC = () => {
   const handleCreate = async () => {
     try {
       setIsSubmitting(true);
+      console.log('Validating assessment form:', assessmentForm);
       
-      if (!assessmentForm.title.trim()) {
-        toast({ title: "Title is required", variant: "destructive" });
-        return;
-      }
+      const validatedData = assessmentSchema.parse(assessmentForm);
+      
+      // Additional validation for multiple choice questions
+      validatedData.questions.forEach((question, index) => {
+        if (question.question_type === 'multiple_choice') {
+          const options = question.options ?? [];
+          const correctOptions = options.filter(opt => opt.is_correct);
+          if (correctOptions.length !== 1) {
+            throw new Error(`Question ${index + 1} must have exactly one correct answer`);
+          }
+        }
+      });
 
       const { error } = await supabase.rpc('create_assessment_with_questions', {
-        _title: assessmentForm.title,
-        _description: assessmentForm.description,
-        _type: assessmentForm.type,
-        _visibility: assessmentForm.visibility,
-        _ai_provider: assessmentForm.ai_provider,
-        _ai_model: assessmentForm.ai_model,
-        _ai_prompt: assessmentForm.ai_prompt,
-        _questions: assessmentForm.questions as unknown as Json,
+        _title: validatedData.title,
+        _description: validatedData.description,
+        _type: validatedData.type,
+        _visibility: validatedData.visibility,
+        _ai_provider: validatedData.ai_provider,
+        _ai_model: validatedData.ai_model,
+        _ai_prompt: validatedData.ai_prompt,
+        _questions: validatedData.questions as unknown as Json,
         _created_by: null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error creating assessment:', error);
+        throw new Error('Failed to save assessment to database');
+      }
 
       toast({ title: "Success", description: "Assessment created successfully" });
       setIsCreateDialogOpen(false);
@@ -284,24 +357,70 @@ export const AssessmentManager: React.FC = () => {
       fetchAssessments();
     } catch (error) {
       console.error('Error creating assessment:', error);
-      toast({ title: "Error", description: "Failed to create assessment", variant: "destructive" });
+      
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+        toast({
+          title: "Validation Error",
+          description: errors,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to create assessment",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (assessment: Assessment) => {
-    setSelectedAssessment(assessment);
-    setAssessmentForm({
-      title: assessment.title,
-      description: assessment.description,
-      type: assessment.type,
-      visibility: assessment.visibility,
-      ai_provider: assessment.ai_provider || 'openai',
-      ai_model: assessment.ai_model || 'gpt-4o-mini',
-      ai_prompt: assessment.ai_prompt || '',
-      questions: []
-    });
+  const handleEdit = async (assessment: Assessment) => {
+    try {
+      setIsSubmitting(true);
+      setSelectedAssessment(assessment);
+      
+      const validatedData = assessmentSchema.parse({
+        title: assessment.title,
+        description: assessment.description,
+        type: assessment.type,
+        visibility: assessment.visibility,
+        ai_provider: assessment.ai_provider || 'openai',
+        ai_model: assessment.ai_model || 'gpt-4o-mini',
+        ai_prompt: assessment.ai_prompt || '',
+        questions: []
+      });
+
+      setAssessmentForm({
+        title: validatedData.title,
+        description: validatedData.description,
+        type: validatedData.type,
+        visibility: validatedData.visibility,
+        ai_provider: validatedData.ai_provider || 'openai',
+        ai_model: validatedData.ai_model || 'gpt-4o-mini',
+        ai_prompt: validatedData.ai_prompt || '',
+        questions: (validatedData.questions || []).map((q) => ({
+          ...q,
+          options: q.options ?? []
+        })) as unknown as Question[]
+      });
+      // Reuse create dialog for editing flow
+      setIsCreateDialogOpen(true);
+    } catch (error) {
+      console.error('Error validating assessment:', error);
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+        toast({
+          title: "Validation Error",
+          description: errors,
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleView = async (assessment: Assessment) => {
@@ -310,6 +429,15 @@ export const AssessmentManager: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
+    if (!id || typeof id !== 'number') {
+      toast({
+        title: "Error",
+        description: "Invalid assessment ID provided",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this assessment?')) return;
     
     try {
@@ -318,37 +446,76 @@ export const AssessmentManager: React.FC = () => {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error deleting assessment:', error);
+        throw new Error('Failed to delete assessment from database');
+      }
 
       setAssessments(assessments.filter(a => a.id !== id));
-      toast({ title: "Success", description: "Assessment deleted" });
+      toast({ title: "Success", description: "Assessment deleted successfully" });
     } catch (error) {
       console.error('Error deleting assessment:', error);
-      toast({ title: "Error", description: "Failed to delete assessment", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete assessment",
+        variant: "destructive"
+      });
     }
   };
 
   const handleDuplicate = async (assessment: Assessment) => {
     try {
+      if (!assessment || !assessment.id) {
+        throw new Error('Invalid assessment data for duplication');
+      }
+
+      const validatedData = assessmentSchema.parse({
+        title: `${assessment.title} (Copy)`,
+        description: assessment.description,
+        type: assessment.type,
+        visibility: 'private',
+        ai_provider: assessment.ai_provider || 'openai',
+        ai_model: assessment.ai_model || 'gpt-4o-mini',
+        ai_prompt: assessment.ai_prompt || '',
+        questions: []
+      });
+
       const { error } = await supabase
         .from('assessments')
         .insert([{
-          title: `${assessment.title} (Copy)`,
-          description: assessment.description,
-          type: assessment.type,
-          visibility: 'private',
-          ai_provider: assessment.ai_provider,
-          ai_model: assessment.ai_model,
-          ai_prompt: assessment.ai_prompt
+          title: validatedData.title,
+          description: validatedData.description,
+          type: validatedData.type,
+          visibility: validatedData.visibility,
+          ai_provider: validatedData.ai_provider,
+          ai_model: validatedData.ai_model,
+          ai_prompt: validatedData.ai_prompt
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error duplicating assessment:', error);
+        throw new Error('Failed to duplicate assessment in database');
+      }
 
-      toast({ title: "Success", description: "Assessment duplicated" });
+      toast({ title: "Success", description: "Assessment duplicated successfully" });
       fetchAssessments();
     } catch (error) {
       console.error('Error duplicating assessment:', error);
-      toast({ title: "Error", description: "Failed to duplicate assessment", variant: "destructive" });
+      
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+        toast({
+          title: "Validation Error",
+          description: errors,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to duplicate assessment",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -548,7 +715,7 @@ export const AssessmentManager: React.FC = () => {
             </TabsList>
             
             <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="title">Title *</Label>
                   <Input
@@ -561,7 +728,7 @@ export const AssessmentManager: React.FC = () => {
                 </div>
                 <div>
                   <Label htmlFor="type">Type</Label>
-                  <Select value={assessmentForm.type} onValueChange={(value: any) => setAssessmentForm(prev => ({ ...prev, type: value }))}>
+                  <Select value={assessmentForm.type} onValueChange={(value: 'quiz' | 'personality' | 'test') => setAssessmentForm(prev => ({ ...prev, type: value }))}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -634,7 +801,7 @@ export const AssessmentManager: React.FC = () => {
                       <Label>Question Type</Label>
                       <Select 
                         value={question.question_type} 
-                        onValueChange={(value: any) => updateQuestion(qIndex, 'question_type', value)}
+                        onValueChange={(value: Question['question_type']) => updateQuestion(qIndex, 'question_type', value)}
                       >
                         <SelectTrigger className="glass">
                           <SelectValue />
@@ -702,7 +869,7 @@ export const AssessmentManager: React.FC = () => {
             </TabsContent>
             
             <TabsContent value="settings" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>AI Provider</Label>
                   <Select value={assessmentForm.ai_provider} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, ai_provider: value }))}>
@@ -777,7 +944,7 @@ export const AssessmentManager: React.FC = () => {
           
           {selectedAssessment && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Type</Label>
                   <p className="text-sm">{selectedAssessment.type}</p>
@@ -801,7 +968,7 @@ export const AssessmentManager: React.FC = () => {
                 <p className="text-sm">{selectedAssessment.description}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Created</Label>
                   <p className="text-sm">{new Date(selectedAssessment.created_at).toLocaleDateString()}</p>
@@ -825,3 +992,5 @@ export const AssessmentManager: React.FC = () => {
     </div>
   );
 };
+
+// Removed unused zod schemas

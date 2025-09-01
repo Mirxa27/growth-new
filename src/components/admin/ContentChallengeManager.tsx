@@ -186,7 +186,7 @@ export const ContentChallengeManager: React.FC = () => {
               <Label>Description</Label>
               <Textarea value={formData.description || ''} onChange={e => setFormData(p => ({...p, description: e.target.value}))} className="glass-input" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Challenge Type</Label>
                 <Select value={formData.challenge_type} onValueChange={(v: any) => setFormData(p => ({...p, challenge_type: v}))}>

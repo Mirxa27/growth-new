@@ -217,7 +217,7 @@ const PublicAssessment = () => {
 
   if (showResults && results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <Card className="glass border-card-border mb-8 text-center">
@@ -352,7 +352,7 @@ const PublicAssessment = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           {/* Header */}

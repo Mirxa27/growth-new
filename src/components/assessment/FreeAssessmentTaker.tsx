@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Assessment } from '@/data/assessments';
+import { useToast } from '@/hooks/use-toast';
 
 interface FreeAssessmentTakerProps {
   assessment: Assessment;
@@ -35,6 +36,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
   onComplete,
   onBack
 }) => {
+  const { toast } = useToast();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,72 +81,72 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
     }
   };
 
-  
+  const getOrCreateVisitorSessionId = () => {
+    try {
+      const key = 'visitor_session_id';
+      let id = (typeof localStorage !== 'undefined') ? localStorage.getItem(key) : null;
+      if (!id) {
+        const rand = crypto?.getRandomValues?.(new Uint8Array(16));
+        const hex = rand ? Array.from(rand).map(b => b.toString(16).padStart(2, '0')).join('') : Math.random().toString(36).slice(2);
+        id = `visitor_${hex}`;
+        if (typeof localStorage !== 'undefined') localStorage.setItem(key, id);
+      }
+      return id;
+    } catch {
+      return `visitor_${Date.now()}`;
+    }
+  };
 
   const handleSubmit = async () => {
     if (answers.length < questions.length) {
-      alert("Please answer all questions before submitting.");
+      toast({ title: 'Incomplete', description: 'Please answer all questions before submitting.', variant: 'destructive' });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Build payload expected by the submit-result Edge Function
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id ?? null;
+      const visitor_session_id = userId ? null : getOrCreateVisitorSessionId();
+
       const payload = {
         assessment_id: assessment.id,
+        client_questions: (assessment.questions || []).map(q => ({
+          id: String(q.id),
+          text: q.text,
+          type: q.type as 'single' | 'multiple' | 'scale' | 'text',
+          options: q.options,
+          scale: q.scale
+        })),
         answers: answers.map(a => ({
           question_id: a.questionId,
           value: a.answer
         })),
+        user_id: userId,
+        visitor_session_id,
         time_taken_seconds: Math.floor((new Date().getTime() - startTime.getTime()) / 1000),
         meta: {
-          source: 'web-free-assessment'
+          source: 'web-free-assessment',
+          assessment_title: assessment.title,
+          assessment_type: assessment.type,
         }
       };
 
-      // Prefer using Supabase Functions client; fallback to fetch if unavailable
-      let responseData: any = null;
-      try {
-        // supabase.functions.invoke returns { data, error } in the client library
-        // Use invoke to call the Edge Function named "submit-result"
-        // @ts-ignore - functions might not be typed in all environments
-        const fn = (supabase as any).functions?.invoke
-          ? await (supabase as any).functions.invoke('submit-result', { body: JSON.stringify(payload) })
-          : null;
-
-        if (fn && fn.data) {
-          responseData = typeof fn.data === 'string' ? JSON.parse(fn.data) : fn.data;
-        } else if (fn && fn.error) {
-          throw fn.error;
-        } else {
-          // Fallback: call the direct Supabase Functions URL
-          const SUPABASE_URL = (supabase as any).url || '';
-          const SUPABASE_KEY = (supabase as any).anonKey || '';
-          const resp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/submit-result`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: SUPABASE_KEY
-            },
-            body: JSON.stringify(payload)
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(`Function call failed: ${resp.status} ${text}`);
-          }
-          responseData = await resp.json();
-        }
-      } catch (fnErr) {
-        console.error('Function invocation failed, attempting direct DB insert as fallback:', fnErr);
-        throw new Error('Failed to process assessment results on server.');
+      const { data, error } = await supabase.functions.invoke('submit-result', { body: payload });
+      if (error) {
+        throw error;
       }
 
-      // Normalize and pass to onComplete
-      onComplete(responseData);
+      const totalQuestions = questions.length;
+      const answeredQuestions = answers.length;
+      const completionTime = payload.time_taken_seconds;
+
+      onComplete({ ...data, totalQuestions, answeredQuestions, completionTime });
+      toast({ title: 'Assessment Complete', description: 'Your results are ready.', duration: 2500 });
     } catch (error) {
       console.error('Submission error:', error);
-      alert('Failed to submit assessment. Please try again later.');
+      toast({ title: 'Submission failed', description: 'Please try again later.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -156,13 +158,13 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
     const currentAnswer = getCurrentAnswer(currentQuestion.id);
 
     return (
-      <Card className="w-full max-w-2xl mx-auto shadow-lg">
+      <Card className="w-full max-w-2xl mx-auto glass-card border-card-border">
         <CardHeader>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               Question {currentQuestionIndex + 1} of {questions.length}
             </span>
-            <span className="text-sm text-gray-500 flex items-center">
+            <span className="text-sm text-muted-foreground flex items-center">
               <Clock className="w-4 h-4 mr-1" />
               {assessment.estimatedTime} min
             </span>
@@ -176,9 +178,9 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
               onValueChange={(value) => handleAnswer(currentQuestion.id, value)}
             >
               {currentQuestion.options?.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <div key={index} className="flex items-center space-x-3 mb-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
                   <RadioGroupItem value={option} id={`option-${index}`} />
-                  <Label htmlFor={`option-${index}`} className="cursor-pointer text-sm">
+                  <Label htmlFor={`option-${index}`} className="cursor-pointer text-sm text-foreground">
                     {option}
                   </Label>
                 </div>
@@ -189,7 +191,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
           {currentQuestion.type === 'multiple' && (
             <div className="space-y-3">
               {currentQuestion.options?.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <div key={index} className="flex items-center space-x-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
                   <Checkbox
                     id={`multi-${index}`}
                     checked={currentAnswer?.includes(option) || false}
@@ -201,7 +203,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
                       handleAnswer(currentQuestion.id, newAnswers);
                     }}
                   />
-                  <Label htmlFor={`multi-${index}`} className="cursor-pointer text-sm">
+                  <Label htmlFor={`multi-${index}`} className="cursor-pointer text-sm text-foreground">
                     {option}
                   </Label>
                 </div>
@@ -212,20 +214,28 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
           {currentQuestion.type === 'scale' && (
             <div className="space-y-4">
               <Slider
-                value={[currentAnswer || 3]}
+                value={[currentAnswer || (currentQuestion.scale?.min ?? 1)]}
                 onValueChange={(value) => handleAnswer(currentQuestion.id, value[0])}
-                min={1}
-                max={5}
+                min={currentQuestion.scale?.min ?? 1}
+                max={currentQuestion.scale?.max ?? 5}
                 step={1}
                 className="w-full"
               />
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Strongly Disagree</span>
-                <span>Neutral</span>
-                <span>Strongly Agree</span>
-              </div>
+              {currentQuestion.scale?.labels && currentQuestion.scale.labels.length > 0 ? (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{currentQuestion.scale.labels[0] || ''}</span>
+                  <span>{currentQuestion.scale.labels[Math.floor((currentQuestion.scale.labels.length - 1)/2)] || ''}</span>
+                  <span>{currentQuestion.scale.labels[currentQuestion.scale.labels.length - 1] || ''}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Low</span>
+                  <span>Medium</span>
+                  <span>High</span>
+                </div>
+              )}
               <div className="text-center">
-                <span className="text-lg font-semibold">{currentAnswer || 3}</span>
+                <span className="text-lg font-semibold">{currentAnswer || (currentQuestion.scale?.min ?? 1)}</span>
               </div>
             </div>
           )}
@@ -236,7 +246,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
               onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
               placeholder="Share your thoughts..."
               rows={4}
-              className="w-full text-sm"
+              className="w-full text-sm glass-input"
             />
           )}
         </CardContent>
@@ -246,11 +256,11 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
 
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4 flex items-center justify-center">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background p-4 flex items-center justify-center">
+        <Card className="w-full max-w-md glass-card border-card-border">
           <CardContent className="text-center py-8">
             <div className="text-destructive text-lg mb-2">No Questions Found</div>
-            <p className="text-gray-600 mb-4">This assessment doesn't have any questions yet.</p>
+            <p className="text-muted-foreground mb-4">This assessment doesn't have any questions yet.</p>
             <Button variant="outline" onClick={onBack}>
               Back to Assessments
             </Button>
@@ -261,7 +271,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -277,9 +287,9 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-6">
+        <div className="mb-6 glass-subtle p-3 rounded-xl border border-card-border">
           <Progress value={progress} className="w-full" />
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
+          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
             <span>{currentQuestionIndex + 1} / {questions.length}</span>
             <span>{Math.round(progress)}% Complete</span>
           </div>

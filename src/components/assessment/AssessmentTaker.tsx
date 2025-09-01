@@ -26,6 +26,7 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [startTime] = useState(new Date());
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -83,24 +84,35 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
     
     setSubmitting(true);
     setError(null);
-    // Submit via Edge Function
-    if (userId && assessment) {
-      const { data, error } = await supabase.functions.invoke('submit-result', {
-        body: { assessmentId, answers }
-      });
+    try {
+      // Transform answers map to array expected by Edge Function
+      const answerArray = Object.entries(answers).map(([qid, val]) => ({
+        question_id: Number(qid),
+        value: val
+      }));
+
+      const payload = {
+        assessment_id: assessmentId,
+        answers: answerArray,
+        user_id: userId ?? null,
+        time_taken_seconds: Math.floor((Date.now() - startTime.getTime()) / 1000),
+        meta: { source: 'web-user-assessment' }
+      };
+
+      const { data, error } = await supabase.functions.invoke('submit-result', { body: payload });
       if (error) {
-        setError(error.message);
-        setSubmitting(false);
-        return;
+        throw error;
       }
-      // Assuming the function returns the processed results
-      const { score } = data; // Adjust based on actual response
-    }
-    
-    if (onComplete) {
-      onComplete({ answers, assessment_id: assessmentId, user_id: userId });
-    } else {
-      setSubmitted(true);
+
+      if (onComplete) {
+        onComplete({ ...data, assessment_id: assessmentId });
+      } else {
+        setSubmitted(true);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Submission failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 

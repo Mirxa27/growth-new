@@ -10,12 +10,25 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
 import { Save, AlertCircle, Mic, Settings } from 'lucide-react';
-import { ValidationError } from '@/utils/validation';
+import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
 
 type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 
 const VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
+
+const voiceAgentConfigSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  provider: z.string().default('openai'),
+  voice: z.enum(VOICES, { errorMap: () => ({ message: 'Invalid voice selection' }) }),
+  model: z.string().min(3, 'Model name is required'),
+  temperature: z.number().min(0).max(1, 'Temperature must be between 0 and 1'),
+  instructions: z.string().optional(),
+  is_active: z.boolean().default(true)
+});
+
+type VoiceAgentConfig = z.infer<typeof voiceAgentConfigSchema>;
 
 export const VoiceAgentConfigManager: React.FC = () => {
   const { configs, loading, error: fetchError } = useVoiceAgentConfig();
@@ -23,54 +36,90 @@ export const VoiceAgentConfigManager: React.FC = () => {
   
   const activeConfig = useMemo(() => configs?.find(c => c.is_active) ?? configs?.[0] ?? null, [configs]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<VoiceAgentConfig>({
     id: '', name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-mini', temperature: 0.7, instructions: '', is_active: true
   });
   
   useEffect(() => {
     if (activeConfig) {
-      setForm({
-        id: activeConfig.id,
-        name: activeConfig.name,
-        provider: activeConfig.provider,
-        voice: activeConfig.voice,
-        model: activeConfig.model,
-        temperature: activeConfig.temperature,
-        instructions: activeConfig.instructions ?? '',
-        is_active: activeConfig.is_active
-      });
+      try {
+        const validatedConfig = voiceAgentConfigSchema.parse({
+          id: activeConfig.id,
+          name: activeConfig.name,
+          provider: activeConfig.provider,
+          voice: activeConfig.voice,
+          model: activeConfig.model,
+          temperature: activeConfig.temperature,
+          instructions: activeConfig.instructions ?? '',
+          is_active: activeConfig.is_active
+        });
+        setForm(validatedConfig);
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          console.error('Invalid config from database:', e.errors);
+          toast({
+            title: "Warning",
+            description: "The configuration from the database is invalid. Using default values.",
+            variant: "destructive"
+          });
+        }
+      }
     }
-  }, [activeConfig]);
+  }, [activeConfig, toast]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const validate = (data: typeof form) => {
-    if (!data.name || data.name.trim().length < 2) throw new ValidationError('Name must be at least 2 characters', 'name');
-    if (!data.voice || !VOICES.includes(data.voice as typeof VOICES[number])) throw new ValidationError('Invalid voice', 'voice');
-    if (!data.model || data.model.trim().length < 3) throw new ValidationError('Model is required', 'model');
-    if (typeof data.temperature !== 'number' || data.temperature < 0 || data.temperature > 1) throw new ValidationError('Temperature must be between 0 and 1', 'temperature');
+    return voiceAgentConfigSchema.parse(data);
   };
 
   const handleSave = async () => {
     setErrors({});
+    console.log('Saving voice agent config:', form);
     try {
-      validate(form);
+      const validatedConfig = validate(form);
       setIsSaving(true);
       
-      if (form.is_active) {
-        await supabase.from('voice_agent_configs').update({ is_active: false }).neq('id', form.id as string);
+      if (validatedConfig.is_active) {
+        const { error: deactivateError } = await supabase
+          .from('voice_agent_configs')
+          .update({ is_active: false })
+          .neq('id', validatedConfig.id || '');
+
+        if (deactivateError) {
+          console.error('Error deactivating other configs:', deactivateError);
+          throw new Error('Failed to update active configuration status');
+        }
       }
 
-      const { error } = await supabase.from('voice_agent_configs').upsert([form as VoiceAgentConfigInsert]);
+      const { error: upsertError } = await supabase
+        .from('voice_agent_configs')
+        .upsert([validatedConfig]);
 
-      if (error) throw error;
+      if (upsertError) {
+        console.error('Error upserting config:', upsertError);
+        throw new Error('Failed to save configuration');
+      }
+
       toast({ title: "Success", description: "Configuration saved successfully." });
-    } catch (e: any) {
-      if (e instanceof ValidationError) {
-        setErrors({ [e.field!]: e.message });
+    } catch (e: unknown) {
+      if (e instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        e.errors.forEach(err => {
+          if (err.path.length > 0) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setErrors(errors);
       } else {
-        toast({ title: "Error", description: e.message, variant: "destructive" });
+        const error = e as Error;
+        console.error('Error saving config:', error);
+        toast({ 
+          title: "Error", 
+          description: error.message || 'An unexpected error occurred', 
+          variant: "destructive" 
+        });
       }
     } finally {
       setIsSaving(false);
@@ -98,7 +147,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="voice">Voice</Label>
-              <Select value={form.voice} onValueChange={(v) => setForm(p => ({ ...p, voice: v as any }))}>
+              <Select value={form.voice} onValueChange={(v: typeof VOICES[number]) => setForm(p => ({ ...p, voice: v }))}>
                 <SelectTrigger className="glass"><SelectValue placeholder="Select voice" /></SelectTrigger>
                 <SelectContent>
                   {VOICES.map(v => <SelectItem key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>)}
@@ -150,7 +199,28 @@ export const VoiceAgentConfigManager: React.FC = () => {
                     <p className="font-medium">{c.name}</p>
                     <p className="text-sm text-muted-foreground">{c.model} - {c.voice}</p>
                   </div>
-                  <Button variant={c.is_active ? "default" : "outline"} size="sm" onClick={() => setForm({ ...c, instructions: c.instructions ?? '' })}>
+                  <Button
+                    variant={c.is_active ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      try {
+                        const parsed = voiceAgentConfigSchema.parse({
+                          id: c.id,
+                          name: c.name,
+                          provider: c.provider,
+                          voice: c.voice,
+                          model: c.model,
+                          temperature: typeof c.temperature === 'number' ? c.temperature : 0.7,
+                          instructions: c.instructions ?? '',
+                          is_active: !!c.is_active,
+                        });
+                        setForm(parsed);
+                      } catch (e) {
+                        console.warn('Invalid config when loading selection:', e);
+                        toast({ title: 'Invalid config', description: 'Could not load configuration', variant: 'destructive' });
+                      }
+                    }}
+                  >
                     {c.is_active ? 'Active' : 'Load'}
                   </Button>
                 </div>
