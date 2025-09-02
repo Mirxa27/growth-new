@@ -8,6 +8,7 @@ export { assessmentService } from './api/assessment.service';
 export { voiceService } from './api/voice.service';
 export { communityService } from './api/community.service';
 export { adminService } from './api/admin.service';
+export { paymentService } from './api/payment.service';
 export { aiProviderModelsService } from './ai-provider-models.service';
 
 // API Client
@@ -29,8 +30,12 @@ export { cache, cacheUtils, Cacheable } from './cache/cache.service';
 // Performance Monitoring
 export { performanceMonitor, measurePerformance } from './monitoring/performance.service';
 
+// Notification Service
+export { notificationService, notifications, NotificationType, NotificationChannel } from './notification/notification.service';
+
 // Validation
 export * from './validation/schemas';
+export * from './validation/payment.schemas';
 
 // Export types
 export type {
@@ -86,3 +91,18 @@ export type {
 export type { 
   AIProvider 
 } from './ai/unified-ai.service';
+
+export type {
+  SubscriptionPlan,
+  Subscription,
+  UserSubscription,
+  Payment,
+  PaymentConfig,
+  SubscriptionWithPlan,
+  PaymentIntent,
+  CheckoutSession,
+} from './api/payment.service';
+
+export type {
+  Notification,
+} from './notification/notification.service';
