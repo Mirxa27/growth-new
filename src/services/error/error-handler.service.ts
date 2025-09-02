@@ -1,9 +1,9 @@
 /**
- * Error Handler Service
- * Comprehensive error handling and logging for production
+ * Comprehensive Error Handling Service
+ * Provides centralized error handling, logging, and recovery mechanisms
  */
 
-import { env } from '@/config/environment';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export enum ErrorSeverity {
@@ -17,80 +17,95 @@ export enum ErrorCategory {
   AUTHENTICATION = 'authentication',
   AUTHORIZATION = 'authorization',
   VALIDATION = 'validation',
-  DATABASE = 'database',
-  API = 'api',
   NETWORK = 'network',
+  DATABASE = 'database',
   BUSINESS_LOGIC = 'business_logic',
-  SYSTEM = 'system',
+  EXTERNAL_API = 'external_api',
   UNKNOWN = 'unknown',
 }
 
 export interface ErrorContext {
   userId?: string;
-  sessionId?: string;
   action?: string;
+  module?: string;
   metadata?: Record<string, any>;
   stackTrace?: string;
-  userAgent?: string;
-  url?: string;
+  timestamp?: string;
 }
 
-export interface ErrorReport {
-  id: string;
-  timestamp: Date;
+export interface ErrorRecord {
+  id?: string;
   message: string;
-  category: ErrorCategory;
+  code?: string;
   severity: ErrorSeverity;
+  category: ErrorCategory;
   context: ErrorContext;
-  resolved: boolean;
+  isHandled: boolean;
+  retryCount?: number;
+  createdAt?: string;
+}
+
+export interface ErrorRecoveryStrategy {
+  shouldRetry: boolean;
+  retryDelay?: number;
+  maxRetries?: number;
+  fallbackAction?: () => void;
+  userMessage?: string;
 }
 
 class ErrorHandlerService {
-  private errorQueue: ErrorReport[] = [];
-  private isOnline: boolean = navigator.onLine;
-  private maxRetries: number = 3;
-  private retryDelay: number = 1000; // ms
+  private static instance: ErrorHandlerService;
+  private errorQueue: ErrorRecord[] = [];
+  private isOnline = navigator.onLine;
 
-  constructor() {
-    this.setupErrorListeners();
-    this.setupNetworkListeners();
+  private constructor() {
+    this.setupEventListeners();
+    this.startErrorQueueProcessor();
+  }
+
+  static getInstance(): ErrorHandlerService {
+    if (!ErrorHandlerService.instance) {
+      ErrorHandlerService.instance = new ErrorHandlerService();
+    }
+    return ErrorHandlerService.instance;
   }
 
   /**
-   * Setup global error listeners
+   * Setup global error event listeners
    */
-  private setupErrorListeners(): void {
-    // Catch unhandled errors
+  private setupEventListeners() {
+    // Handle uncaught errors
     window.addEventListener('error', (event) => {
       this.handleError(new Error(event.message), {
-        category: ErrorCategory.SYSTEM,
         severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.UNKNOWN,
         context: {
-          url: event.filename,
-          stackTrace: event.error?.stack,
+          action: 'uncaught_error',
+          metadata: {
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+          },
         },
       });
     });
 
-    // Catch unhandled promise rejections
+    // Handle unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
-      this.handleError(new Error(event.reason), {
-        category: ErrorCategory.SYSTEM,
+      this.handleError(new Error(event.reason?.message || 'Unhandled Promise Rejection'), {
         severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.UNKNOWN,
         context: {
-          stackTrace: event.reason?.stack,
+          action: 'unhandled_rejection',
+          metadata: { reason: event.reason },
         },
       });
     });
-  }
 
-  /**
-   * Setup network status listeners
-   */
-  private setupNetworkListeners(): void {
+    // Monitor network status
     window.addEventListener('online', () => {
       this.isOnline = true;
-      this.flushErrorQueue();
+      this.processErrorQueue();
     });
 
     window.addEventListener('offline', () => {
@@ -99,410 +114,329 @@ class ErrorHandlerService {
   }
 
   /**
-   * Main error handler
+   * Main error handling method
    */
-  public handleError(
+  handleError(
     error: Error | unknown,
     options?: {
-      category?: ErrorCategory;
       severity?: ErrorSeverity;
+      category?: ErrorCategory;
       context?: ErrorContext;
-      showToUser?: boolean;
-      retry?: boolean;
+      showToast?: boolean;
+      recoveryStrategy?: ErrorRecoveryStrategy;
     }
-  ): ErrorReport {
-    // Parse error
-    const errorMessage = this.getErrorMessage(error);
+  ): ErrorRecord {
+    const errorRecord = this.createErrorRecord(error, options);
+    
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[ErrorHandler]', errorRecord);
+    }
+
+    // Show user-friendly toast if requested
+    if (options?.showToast !== false) {
+      this.showErrorToast(errorRecord, options?.recoveryStrategy);
+    }
+
+    // Queue for logging
+    this.queueError(errorRecord);
+
+    // Apply recovery strategy if provided
+    if (options?.recoveryStrategy) {
+      this.applyRecoveryStrategy(errorRecord, options.recoveryStrategy);
+    }
+
+    return errorRecord;
+  }
+
+  /**
+   * Create a structured error record
+   */
+  private createErrorRecord(
+    error: Error | unknown,
+    options?: {
+      severity?: ErrorSeverity;
+      category?: ErrorCategory;
+      context?: ErrorContext;
+    }
+  ): ErrorRecord {
+    const isError = error instanceof Error;
+    const message = isError ? error.message : String(error);
+    const code = this.extractErrorCode(error);
     const category = options?.category || this.categorizeError(error);
-    const severity = options?.severity || this.assessSeverity(category, error);
-    
-    // Get user context
-    const context = this.enrichContext(options?.context || {}, error);
-    
-    // Create error report
-    const report: ErrorReport = {
-      id: this.generateErrorId(),
-      timestamp: new Date(),
-      message: errorMessage,
-      category,
+    const severity = options?.severity || this.assessSeverity(category, code);
+
+    return {
+      message,
+      code,
       severity,
-      context,
-      resolved: false,
+      category,
+      context: {
+        ...options?.context,
+        stackTrace: isError ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      },
+      isHandled: true,
+      retryCount: 0,
+      createdAt: new Date().toISOString(),
     };
-
-    // Log based on environment
-    this.logError(report);
-
-    // Send to monitoring service
-    if (this.shouldReportError(severity)) {
-      this.reportError(report);
-    }
-
-    // Handle user notification
-    if (options?.showToUser) {
-      this.notifyUser(errorMessage, severity);
-    }
-
-    // Retry logic for recoverable errors
-    if (options?.retry && this.isRecoverable(category)) {
-      this.scheduleRetry(error, options);
-    }
-
-    return report;
   }
 
   /**
-   * Get error message from various error types
+   * Extract error code from various error types
    */
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-      return error.message;
-    }
-    
-    if (typeof error === 'string') {
-      return error;
-    }
-    
-    if (error && typeof error === 'object' && 'message' in error) {
-      return String(error.message);
-    }
-    
-    return 'An unexpected error occurred';
+  private extractErrorCode(error: any): string | undefined {
+    if (error?.code) return String(error.code);
+    if (error?.response?.status) return `HTTP_${error.response.status}`;
+    if (error?.statusCode) return `STATUS_${error.statusCode}`;
+    return undefined;
   }
 
   /**
-   * Categorize error based on type and content
+   * Categorize error based on its characteristics
    */
-  private categorizeError(error: unknown): ErrorCategory {
-    const message = this.getErrorMessage(error).toLowerCase();
-    
-    if (message.includes('auth') || message.includes('login') || message.includes('token')) {
+  private categorizeError(error: any): ErrorCategory {
+    const message = error?.message?.toLowerCase() || '';
+    const code = error?.code?.toLowerCase() || '';
+
+    if (message.includes('auth') || code.includes('auth')) {
       return ErrorCategory.AUTHENTICATION;
     }
-    
-    if (message.includes('permission') || message.includes('forbidden') || message.includes('unauthorized')) {
+    if (message.includes('permission') || message.includes('forbidden')) {
       return ErrorCategory.AUTHORIZATION;
     }
-    
-    if (message.includes('validation') || message.includes('invalid') || message.includes('required')) {
+    if (message.includes('validation') || message.includes('invalid')) {
       return ErrorCategory.VALIDATION;
     }
-    
-    if (message.includes('database') || message.includes('sql') || message.includes('postgres')) {
-      return ErrorCategory.DATABASE;
-    }
-    
-    if (message.includes('api') || message.includes('fetch') || message.includes('request')) {
-      return ErrorCategory.API;
-    }
-    
-    if (message.includes('network') || message.includes('offline') || message.includes('connection')) {
+    if (message.includes('network') || message.includes('fetch')) {
       return ErrorCategory.NETWORK;
     }
-    
+    if (message.includes('database') || code.includes('pgrst')) {
+      return ErrorCategory.DATABASE;
+    }
+    if (error?.response || error?.request) {
+      return ErrorCategory.EXTERNAL_API;
+    }
+
     return ErrorCategory.UNKNOWN;
   }
 
   /**
-   * Assess error severity
+   * Assess error severity based on category and code
    */
-  private assessSeverity(category: ErrorCategory, error: unknown): ErrorSeverity {
-    // Critical categories
-    if ([ErrorCategory.AUTHENTICATION, ErrorCategory.SYSTEM].includes(category)) {
+  private assessSeverity(category: ErrorCategory, code?: string): ErrorSeverity {
+    // Critical errors
+    if (category === ErrorCategory.AUTHENTICATION && code === 'SESSION_EXPIRED') {
       return ErrorSeverity.CRITICAL;
     }
-    
-    // High severity categories
-    if ([ErrorCategory.DATABASE, ErrorCategory.AUTHORIZATION].includes(category)) {
+    if (category === ErrorCategory.DATABASE && code?.startsWith('5')) {
       return ErrorSeverity.HIGH;
     }
-    
-    // Check for specific error codes
-    if (error instanceof Error) {
-      const code = (error as any).code;
-      if (code === 'PGRST301' || code === '23505') { // Database constraint violations
-        return ErrorSeverity.HIGH;
-      }
+
+    // High severity
+    if (category === ErrorCategory.AUTHORIZATION) {
+      return ErrorSeverity.HIGH;
     }
-    
-    // Medium severity for business logic and API errors
-    if ([ErrorCategory.BUSINESS_LOGIC, ErrorCategory.API].includes(category)) {
+
+    // Medium severity
+    if (category === ErrorCategory.VALIDATION) {
       return ErrorSeverity.MEDIUM;
     }
-    
+    if (category === ErrorCategory.NETWORK && !this.isOnline) {
+      return ErrorSeverity.MEDIUM;
+    }
+
+    // Default to low
     return ErrorSeverity.LOW;
   }
 
   /**
-   * Enrich error context with additional information
+   * Show user-friendly error toast
    */
-  private enrichContext(context: ErrorContext, error: unknown): ErrorContext {
-    const enrichedContext = { ...context };
+  private showErrorToast(error: ErrorRecord, recoveryStrategy?: ErrorRecoveryStrategy) {
+    const userMessage = recoveryStrategy?.userMessage || this.getUserFriendlyMessage(error);
     
-    // Add user information
-    const user = supabase.auth.getUser();
-    if (user) {
-      enrichedContext.userId = (user as any).data?.user?.id;
-    }
-    
-    // Add browser information
-    enrichedContext.userAgent = navigator.userAgent;
-    enrichedContext.url = window.location.href;
-    
-    // Add stack trace
-    if (error instanceof Error && error.stack) {
-      enrichedContext.stackTrace = error.stack;
-    }
-    
-    // Add timestamp
-    enrichedContext.metadata = {
-      ...enrichedContext.metadata,
-      timestamp: new Date().toISOString(),
-      environment: env.app.environment,
-    };
-    
-    return enrichedContext;
-  }
-
-  /**
-   * Log error based on environment and severity
-   */
-  private logError(report: ErrorReport): void {
-    if (!env.logging.enabled) return;
-    
-    const logData = {
-      id: report.id,
-      message: report.message,
-      category: report.category,
-      severity: report.severity,
-      context: report.context,
-    };
-    
-    switch (report.severity) {
-      case ErrorSeverity.CRITICAL:
-      case ErrorSeverity.HIGH:
-        console.error('[ERROR]', logData);
-        break;
-      case ErrorSeverity.MEDIUM:
-        console.warn('[WARNING]', logData);
-        break;
-      case ErrorSeverity.LOW:
-        if (env.logging.level === 'debug') {
-          console.log('[INFO]', logData);
-        }
-        break;
-    }
-  }
-
-  /**
-   * Report error to monitoring service
-   */
-  private async reportError(report: ErrorReport): Promise<void> {
-    if (!this.isOnline) {
-      this.errorQueue.push(report);
-      return;
-    }
-    
-    try {
-      // In production, send to error monitoring service (e.g., Sentry, LogRocket)
-      if (env.isProduction()) {
-        // Store critical errors in database
-        if (report.severity === ErrorSeverity.CRITICAL) {
-          await supabase.from('error_logs').insert({
-            error_id: report.id,
-            message: report.message,
-            category: report.category,
-            severity: report.severity,
-            context: report.context,
-            timestamp: report.timestamp,
-          });
-        }
-        
-        // Send to external monitoring (implement based on your service)
-        // await sendToSentry(report);
-        // await sendToLogRocket(report);
-      }
-    } catch (error) {
-      // Fallback: store in local storage
-      this.storeErrorLocally(report);
-    }
-  }
-
-  /**
-   * Check if error should be reported
-   */
-  private shouldReportError(severity: ErrorSeverity): boolean {
-    if (env.isDevelopment()) {
-      return severity === ErrorSeverity.CRITICAL;
-    }
-    
-    return [ErrorSeverity.CRITICAL, ErrorSeverity.HIGH, ErrorSeverity.MEDIUM].includes(severity);
-  }
-
-  /**
-   * Notify user about error
-   */
-  private notifyUser(message: string, severity: ErrorSeverity): void {
-    // Get user-friendly message
-    const userMessage = this.getUserFriendlyMessage(message);
-    
-    // Dispatch custom event for UI components to handle
-    window.dispatchEvent(new CustomEvent('app:error', {
-      detail: {
-        message: userMessage,
-        severity,
-      },
-    }));
+    toast({
+      title: 'Something went wrong',
+      description: userMessage,
+      variant: 'destructive',
+      action: recoveryStrategy?.fallbackAction ? {
+        label: 'Try Again',
+        onClick: recoveryStrategy.fallbackAction,
+      } : undefined,
+    });
   }
 
   /**
    * Get user-friendly error message
    */
-  private getUserFriendlyMessage(message: string): string {
-    const messageMap: Record<string, string> = {
-      'network': 'Connection issue. Please check your internet connection.',
-      'auth': 'Authentication failed. Please sign in again.',
-      'permission': 'You don\'t have permission to perform this action.',
-      'validation': 'Please check your input and try again.',
-      'database': 'We\'re experiencing technical difficulties. Please try again later.',
-      'not found': 'The requested resource was not found.',
-      'timeout': 'The request took too long. Please try again.',
+  private getUserFriendlyMessage(error: ErrorRecord): string {
+    const messages: Record<ErrorCategory, string> = {
+      [ErrorCategory.AUTHENTICATION]: 'Please sign in to continue.',
+      [ErrorCategory.AUTHORIZATION]: 'You don\'t have permission to perform this action.',
+      [ErrorCategory.VALIDATION]: 'Please check your input and try again.',
+      [ErrorCategory.NETWORK]: 'Connection issue. Please check your internet.',
+      [ErrorCategory.DATABASE]: 'Unable to save your data. Please try again.',
+      [ErrorCategory.BUSINESS_LOGIC]: 'Unable to process your request.',
+      [ErrorCategory.EXTERNAL_API]: 'External service is temporarily unavailable.',
+      [ErrorCategory.UNKNOWN]: 'An unexpected error occurred. Please try again.',
     };
-    
-    const lowerMessage = message.toLowerCase();
-    for (const [key, friendlyMessage] of Object.entries(messageMap)) {
-      if (lowerMessage.includes(key)) {
-        return friendlyMessage;
-      }
-    }
-    
-    return 'Something went wrong. Please try again.';
+
+    return messages[error.category] || messages[ErrorCategory.UNKNOWN];
   }
 
   /**
-   * Check if error is recoverable
+   * Queue error for batch logging
    */
-  private isRecoverable(category: ErrorCategory): boolean {
-    return [
-      ErrorCategory.NETWORK,
-      ErrorCategory.API,
-      ErrorCategory.DATABASE,
-    ].includes(category);
-  }
-
-  /**
-   * Schedule retry for recoverable errors
-   */
-  private scheduleRetry(
-    error: unknown,
-    options: any,
-    retryCount: number = 0
-  ): void {
-    if (retryCount >= this.maxRetries) {
-      this.handleError(new Error('Max retries exceeded'), {
-        ...options,
-        retry: false,
-        severity: ErrorSeverity.HIGH,
-      });
-      return;
-    }
+  private queueError(error: ErrorRecord) {
+    this.errorQueue.push(error);
     
-    setTimeout(() => {
-      // Retry the original operation
-      // This would need to be implemented based on your specific retry logic
-      console.log(`Retrying operation (attempt ${retryCount + 1}/${this.maxRetries})`);
-    }, this.retryDelay * Math.pow(2, retryCount)); // Exponential backoff
-  }
-
-  /**
-   * Store error locally for later reporting
-   */
-  private storeErrorLocally(report: ErrorReport): void {
-    try {
-      const errors = JSON.parse(localStorage.getItem('error_queue') || '[]');
-      errors.push(report);
-      
-      // Keep only last 50 errors
-      if (errors.length > 50) {
-        errors.shift();
-      }
-      
-      localStorage.setItem('error_queue', JSON.stringify(errors));
-    } catch (error) {
-      console.error('Failed to store error locally:', error);
+    // Process immediately if online, otherwise wait
+    if (this.isOnline) {
+      this.processErrorQueue();
     }
   }
 
   /**
-   * Flush error queue when back online
+   * Process error queue - send to logging service
    */
-  private async flushErrorQueue(): Promise<void> {
-    if (this.errorQueue.length === 0) return;
-    
+  private async processErrorQueue() {
+    if (this.errorQueue.length === 0 || !this.isOnline) return;
+
     const errors = [...this.errorQueue];
     this.errorQueue = [];
-    
-    for (const error of errors) {
-      await this.reportError(error);
-    }
-    
-    // Also flush locally stored errors
+
     try {
-      const localErrors = JSON.parse(localStorage.getItem('error_queue') || '[]');
-      for (const error of localErrors) {
-        await this.reportError(error);
+      // Log to Supabase error_logs table
+      const { error } = await supabase
+        .from('error_logs')
+        .insert(errors.map(e => ({
+          message: e.message,
+          code: e.code,
+          severity: e.severity,
+          category: e.category,
+          context: e.context,
+          user_id: e.context.userId,
+          created_at: e.createdAt,
+        })));
+
+      if (error) {
+        // If logging fails, put errors back in queue
+        this.errorQueue.unshift(...errors);
+        console.error('Failed to log errors:', error);
       }
-      localStorage.removeItem('error_queue');
-    } catch (error) {
-      console.error('Failed to flush local error queue:', error);
+    } catch (err) {
+      // Put errors back in queue for retry
+      this.errorQueue.unshift(...errors);
+      console.error('Error logging failed:', err);
     }
   }
 
   /**
-   * Generate unique error ID
+   * Start periodic error queue processor
    */
-  private generateErrorId(): string {
-    return `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  private startErrorQueueProcessor() {
+    setInterval(() => {
+      if (this.isOnline && this.errorQueue.length > 0) {
+        this.processErrorQueue();
+      }
+    }, 30000); // Process every 30 seconds
   }
 
   /**
-   * Clear error history
+   * Apply recovery strategy for an error
    */
-  public clearErrors(): void {
-    this.errorQueue = [];
-    localStorage.removeItem('error_queue');
+  private applyRecoveryStrategy(error: ErrorRecord, strategy: ErrorRecoveryStrategy) {
+    if (!strategy.shouldRetry) {
+      if (strategy.fallbackAction) {
+        strategy.fallbackAction();
+      }
+      return;
+    }
+
+    const maxRetries = strategy.maxRetries || 3;
+    const retryDelay = strategy.retryDelay || 1000;
+
+    if ((error.retryCount || 0) < maxRetries) {
+      setTimeout(() => {
+        error.retryCount = (error.retryCount || 0) + 1;
+        if (strategy.fallbackAction) {
+          strategy.fallbackAction();
+        }
+      }, retryDelay * Math.pow(2, error.retryCount || 0)); // Exponential backoff
+    }
   }
 
   /**
-   * Get error statistics
+   * Get default recovery strategy for error category
    */
-  public getErrorStats(): {
-    total: number;
-    byCategory: Record<ErrorCategory, number>;
-    bySeverity: Record<ErrorSeverity, number>;
-  } {
-    const errors = [
-      ...this.errorQueue,
-      ...JSON.parse(localStorage.getItem('error_queue') || '[]'),
-    ];
-    
-    const stats = {
-      total: errors.length,
-      byCategory: {} as Record<ErrorCategory, number>,
-      bySeverity: {} as Record<ErrorSeverity, number>,
+  getDefaultRecoveryStrategy(category: ErrorCategory): ErrorRecoveryStrategy {
+    const strategies: Record<ErrorCategory, ErrorRecoveryStrategy> = {
+      [ErrorCategory.AUTHENTICATION]: {
+        shouldRetry: false,
+        fallbackAction: () => window.location.href = '/auth',
+        userMessage: 'Please sign in to continue.',
+      },
+      [ErrorCategory.AUTHORIZATION]: {
+        shouldRetry: false,
+        userMessage: 'You don\'t have permission for this action.',
+      },
+      [ErrorCategory.VALIDATION]: {
+        shouldRetry: false,
+        userMessage: 'Please check your input and try again.',
+      },
+      [ErrorCategory.NETWORK]: {
+        shouldRetry: true,
+        retryDelay: 2000,
+        maxRetries: 3,
+        userMessage: 'Connection issue. Retrying...',
+      },
+      [ErrorCategory.DATABASE]: {
+        shouldRetry: true,
+        retryDelay: 1000,
+        maxRetries: 2,
+        userMessage: 'Unable to save. Retrying...',
+      },
+      [ErrorCategory.BUSINESS_LOGIC]: {
+        shouldRetry: false,
+        userMessage: 'Unable to complete this action.',
+      },
+      [ErrorCategory.EXTERNAL_API]: {
+        shouldRetry: true,
+        retryDelay: 3000,
+        maxRetries: 2,
+        userMessage: 'External service issue. Retrying...',
+      },
+      [ErrorCategory.UNKNOWN]: {
+        shouldRetry: false,
+        userMessage: 'An unexpected error occurred.',
+      },
     };
-    
-    for (const error of errors) {
-      stats.byCategory[error.category] = (stats.byCategory[error.category] || 0) + 1;
-      stats.bySeverity[error.severity] = (stats.bySeverity[error.severity] || 0) + 1;
-    }
-    
-    return stats;
+
+    return strategies[category] || strategies[ErrorCategory.UNKNOWN];
+  }
+
+  /**
+   * Clear error queue
+   */
+  clearErrorQueue() {
+    this.errorQueue = [];
+  }
+
+  /**
+   * Get current error queue size
+   */
+  getErrorQueueSize(): number {
+    return this.errorQueue.length;
   }
 }
 
 // Export singleton instance
-export const errorHandler = new ErrorHandlerService();
+export const errorHandler = ErrorHandlerService.getInstance();
 
-// Export types
-export type { ErrorReport, ErrorContext };
+// Export convenience functions
+export const handleError = (error: Error | unknown, options?: Parameters<typeof errorHandler.handleError>[1]) => 
+  errorHandler.handleError(error, options);
+
+export const getRecoveryStrategy = (category: ErrorCategory) => 
+  errorHandler.getDefaultRecoveryStrategy(category);

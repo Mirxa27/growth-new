@@ -17,6 +17,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           "focus:glass-glow focus:border-input/40",
           "disabled:cursor-not-allowed disabled:opacity-50",
           "md:text-sm transition-all duration-200",
+          // Mobile-specific enhancements
+          "touch-manipulation", // Disable double-tap zoom
+          "[font-size:16px]", // Prevent zoom on iOS
+          "supports-[height:100dvh]:min-h-[80px]", // Dynamic viewport height support
+          "scroll-py-2", // Scroll padding for better UX
           className
         )}
         ref={ref}

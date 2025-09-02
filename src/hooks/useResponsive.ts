@@ -1,266 +1,138 @@
 /**
- * Responsive Design Hooks
- * Custom React hooks for responsive behavior
+ * Responsive Hook
+ * Provides utilities for responsive design and mobile detection
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface ResponsiveState {
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+  isLandscape: boolean;
+  isTouch: boolean;
+  viewport: {
+    width: number;
+    height: number;
+  };
+  breakpoint: 'mobile' | 'tablet' | 'desktop';
+}
 
 // Breakpoint definitions
-export const BREAKPOINTS = {
-  xs: 0,
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-  '2xl': 1536,
+const BREAKPOINTS = {
+  mobile: 640,
+  tablet: 1024,
+  desktop: 1280,
 } as const;
 
-export type Breakpoint = keyof typeof BREAKPOINTS;
-
-/**
- * Hook to get current breakpoint
- */
-export function useBreakpoint(): Breakpoint {
-  const [breakpoint, setBreakpoint] = useState<Breakpoint>(() => {
-    if (typeof window === 'undefined') return 'xs';
-    return getCurrentBreakpoint(window.innerWidth);
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      const newBreakpoint = getCurrentBreakpoint(window.innerWidth);
-      setBreakpoint(newBreakpoint);
-    };
-
-    // Debounce resize events
-    let timeoutId: NodeJS.Timeout;
-    const debouncedResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleResize, 150);
-    };
-
-    window.addEventListener('resize', debouncedResize);
-    handleResize(); // Initial check
-
-    return () => {
-      window.removeEventListener('resize', debouncedResize);
-      clearTimeout(timeoutId);
-    };
-  }, []);
-
-  return breakpoint;
-}
-
-/**
- * Hook to check if screen is at least a certain breakpoint
- */
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia(query).matches;
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(query);
+export const useResponsive = (): ResponsiveState => {
+  const [state, setState] = useState<ResponsiveState>(() => {
+    // Initial state (SSR safe)
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const height = typeof window !== 'undefined' ? window.innerHeight : 0;
     
-    const handleChange = (e: MediaQueryListEvent) => {
-      setMatches(e.matches);
-    };
-
-    // Modern browsers
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    } 
-    // Legacy browsers
-    else {
-      mediaQuery.addListener(handleChange);
-      return () => mediaQuery.removeListener(handleChange);
-    }
-  }, [query]);
-
-  return matches;
-}
-
-/**
- * Hook to check if device is mobile
- */
-export function useIsMobile(): boolean {
-  return !useMediaQuery(`(min-width: ${BREAKPOINTS.md}px)`);
-}
-
-/**
- * Hook to check if device is tablet
- */
-export function useIsTablet(): boolean {
-  const isAtLeastTablet = useMediaQuery(`(min-width: ${BREAKPOINTS.md}px)`);
-  const isDesktop = useMediaQuery(`(min-width: ${BREAKPOINTS.lg}px)`);
-  return isAtLeastTablet && !isDesktop;
-}
-
-/**
- * Hook to check if device is desktop
- */
-export function useIsDesktop(): boolean {
-  return useMediaQuery(`(min-width: ${BREAKPOINTS.lg}px)`);
-}
-
-/**
- * Hook to get viewport dimensions
- */
-export function useViewport() {
-  const [viewport, setViewport] = useState(() => {
-    if (typeof window === 'undefined') {
-      return { width: 0, height: 0 };
-    }
     return {
-      width: window.innerWidth,
-      height: window.innerHeight,
+      isMobile: width < BREAKPOINTS.mobile,
+      isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
+      isDesktop: width >= BREAKPOINTS.tablet,
+      isLandscape: width > height,
+      isTouch: typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+      viewport: { width, height },
+      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' : 
+                  width < BREAKPOINTS.tablet ? 'tablet' : 'desktop',
     };
   });
 
-  useEffect(() => {
-    const handleResize = () => {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+  const updateState = useCallback(() => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    setState({
+      isMobile: width < BREAKPOINTS.mobile,
+      isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
+      isDesktop: width >= BREAKPOINTS.tablet,
+      isLandscape: width > height,
+      isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      viewport: { width, height },
+      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' : 
+                  width < BREAKPOINTS.tablet ? 'tablet' : 'desktop',
+    });
   }, []);
 
-  return viewport;
-}
-
-/**
- * Hook to detect device orientation
- */
-export function useOrientation(): 'portrait' | 'landscape' {
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(() => {
-    if (typeof window === 'undefined') return 'portrait';
-    return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-  });
-
   useEffect(() => {
-    const handleOrientationChange = () => {
-      setOrientation(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+    // Update on mount
+    updateState();
+
+    // Debounced resize handler
+    let timeoutId: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateState, 150);
     };
 
-    window.addEventListener('resize', handleOrientationChange);
-    window.addEventListener('orientationchange', handleOrientationChange);
+    // Listen for resize and orientation change
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', updateState);
 
     return () => {
-      window.removeEventListener('resize', handleOrientationChange);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', updateState);
     };
-  }, []);
+  }, [updateState]);
 
-  return orientation;
-}
+  return state;
+};
 
 /**
- * Hook to detect touch device
+ * Hook for viewport height fix (100vh issues on mobile)
  */
-export function useIsTouchDevice(): boolean {
-  const [isTouch, setIsTouch] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  });
+export const useViewportHeight = () => {
+  useEffect(() => {
+    const setViewportHeight = () => {
+      // Calculate real viewport height
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    // Set on mount
+    setViewportHeight();
+
+    // Update on resize
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
+};
+
+/**
+ * Hook for detecting iOS device
+ */
+export const useIsIOS = (): boolean => {
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    const checkTouch = () => {
-      setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    const checkIOS = () => {
+      const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      const isIPadOS = navigator.userAgent.includes('Mac') && 'ontouchend' in document;
+      return isIOSDevice || isIPadOS;
     };
 
-    // Check on mount and when device capabilities might change
-    checkTouch();
+    setIsIOS(checkIOS());
   }, []);
 
-  return isTouch;
-}
+  return isIOS;
+};
 
 /**
- * Hook for responsive values based on breakpoint
+ * Hook for safe area insets
  */
-export function useResponsiveValue<T>(values: Partial<Record<Breakpoint, T>>): T | undefined {
-  const breakpoint = useBreakpoint();
-  
-  return useMemo(() => {
-    const breakpointOrder: Breakpoint[] = ['2xl', 'xl', 'lg', 'md', 'sm', 'xs'];
-    const currentIndex = breakpointOrder.indexOf(breakpoint);
-    
-    // Find the value for current or smaller breakpoint
-    for (let i = currentIndex; i < breakpointOrder.length; i++) {
-      const bp = breakpointOrder[i];
-      if (values[bp] !== undefined) {
-        return values[bp];
-      }
-    }
-    
-    return undefined;
-  }, [breakpoint, values]);
-}
-
-/**
- * Hook for responsive grid columns
- */
-export function useGridColumns(
-  defaultColumns: number = 1,
-  tablet: number = 2,
-  desktop: number = 3,
-  large: number = 4
-): number {
-  const breakpoint = useBreakpoint();
-  
-  return useMemo(() => {
-    switch (breakpoint) {
-      case '2xl':
-      case 'xl':
-        return large;
-      case 'lg':
-        return desktop;
-      case 'md':
-      case 'sm':
-        return tablet;
-      case 'xs':
-      default:
-        return defaultColumns;
-    }
-  }, [breakpoint, defaultColumns, tablet, desktop, large]);
-}
-
-/**
- * Hook for container width
- */
-export function useContainerWidth(): string {
-  const breakpoint = useBreakpoint();
-  
-  return useMemo(() => {
-    switch (breakpoint) {
-      case '2xl':
-        return '1536px';
-      case 'xl':
-        return '1280px';
-      case 'lg':
-        return '1024px';
-      case 'md':
-        return '768px';
-      case 'sm':
-        return '640px';
-      case 'xs':
-      default:
-        return '100%';
-    }
-  }, [breakpoint]);
-}
-
-/**
- * Hook for safe area insets (for mobile devices with notches)
- */
-export function useSafeAreaInsets() {
-  const [insets, setInsets] = useState({
+export const useSafeArea = () => {
+  const [safeArea, setSafeArea] = useState({
     top: 0,
     right: 0,
     bottom: 0,
@@ -268,90 +140,88 @@ export function useSafeAreaInsets() {
   });
 
   useEffect(() => {
-    const updateInsets = () => {
-      const styles = getComputedStyle(document.documentElement);
-      setInsets({
-        top: parseInt(styles.getPropertyValue('--safe-area-inset-top') || '0'),
-        right: parseInt(styles.getPropertyValue('--safe-area-inset-right') || '0'),
-        bottom: parseInt(styles.getPropertyValue('--safe-area-inset-bottom') || '0'),
-        left: parseInt(styles.getPropertyValue('--safe-area-inset-left') || '0'),
+    const updateSafeArea = () => {
+      const style = getComputedStyle(document.documentElement);
+      setSafeArea({
+        top: parseInt(style.getPropertyValue('--safe-area-inset-top') || '0'),
+        right: parseInt(style.getPropertyValue('--safe-area-inset-right') || '0'),
+        bottom: parseInt(style.getPropertyValue('--safe-area-inset-bottom') || '0'),
+        left: parseInt(style.getPropertyValue('--safe-area-inset-left') || '0'),
       });
     };
 
-    updateInsets();
-    window.addEventListener('resize', updateInsets);
-    
-    return () => window.removeEventListener('resize', updateInsets);
+    updateSafeArea();
+    window.addEventListener('resize', updateSafeArea);
+
+    return () => window.removeEventListener('resize', updateSafeArea);
   }, []);
 
-  return insets;
-}
+  return safeArea;
+};
 
 /**
- * Hook for detecting scroll position
+ * Hook for keyboard visibility on mobile
  */
-export function useScrollPosition() {
-  const [scrollPosition, setScrollPosition] = useState({
-    x: 0,
-    y: 0,
-  });
+export const useKeyboardVisible = () => {
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrollPosition({
-        x: window.scrollX,
-        y: window.scrollY,
-      });
+    if (typeof window === 'undefined') return;
+
+    const handleViewportChange = () => {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.clientHeight;
+      const isVisible = windowHeight < documentHeight * 0.75; // Keyboard is likely visible if viewport is less than 75% of original
+      
+      setIsKeyboardVisible(isVisible);
+      setKeyboardHeight(isVisible ? documentHeight - windowHeight : 0);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Initial position
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return scrollPosition;
-}
-
-/**
- * Hook for sticky header behavior
- */
-export function useStickyHeader(threshold: number = 100) {
-  const [isSticky, setIsSticky] = useState(false);
-  const { y } = useScrollPosition();
-
-  useEffect(() => {
-    setIsSticky(y > threshold);
-  }, [y, threshold]);
-
-  return isSticky;
-}
-
-// Helper function to get current breakpoint
-function getCurrentBreakpoint(width: number): Breakpoint {
-  if (width >= BREAKPOINTS['2xl']) return '2xl';
-  if (width >= BREAKPOINTS.xl) return 'xl';
-  if (width >= BREAKPOINTS.lg) return 'lg';
-  if (width >= BREAKPOINTS.md) return 'md';
-  if (width >= BREAKPOINTS.sm) return 'sm';
-  return 'xs';
-}
-
-// Export utility function for conditional rendering
-export function responsiveRender<T>(
-  breakpoint: Breakpoint,
-  renders: Partial<Record<Breakpoint, T>>
-): T | null {
-  const breakpointOrder: Breakpoint[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl'];
-  const currentIndex = breakpointOrder.indexOf(breakpoint);
-  
-  // Find the render for current or larger breakpoint
-  for (let i = currentIndex; i >= 0; i--) {
-    const bp = breakpointOrder[i];
-    if (renders[bp] !== undefined) {
-      return renders[bp];
+    // Visual viewport API (better support for mobile keyboards)
+    if ('visualViewport' in window) {
+      window.visualViewport?.addEventListener('resize', handleViewportChange);
+      window.visualViewport?.addEventListener('scroll', handleViewportChange);
+    } else {
+      window.addEventListener('resize', handleViewportChange);
     }
-  }
-  
-  return null;
-}
+
+    return () => {
+      if ('visualViewport' in window) {
+        window.visualViewport?.removeEventListener('resize', handleViewportChange);
+        window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+      } else {
+        window.removeEventListener('resize', handleViewportChange);
+      }
+    };
+  }, []);
+
+  return { isKeyboardVisible, keyboardHeight };
+};
+
+/**
+ * Hook for scroll lock (useful for modals on mobile)
+ */
+export const useScrollLock = (isLocked: boolean) => {
+  useEffect(() => {
+    if (!isLocked) return;
+
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    const scrollY = window.scrollY;
+
+    // Lock scroll
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      // Unlock scroll
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = originalStyle;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isLocked]);
+};
