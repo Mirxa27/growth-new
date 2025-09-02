@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '@/services/api/client.service';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PerformanceMetric {
   name: string;
@@ -323,16 +324,22 @@ class PerformanceMonitoringService {
     this.metrics = [];
     
     try {
-      // In production, send to your analytics endpoint
-      await apiClient.post('/api/analytics/performance', {
-        metrics: metricsToSend,
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-        timestamp: Date.now(),
-      });
+      // Send to Supabase edge function or store in database
+      const { error } = await supabase.from('performance_metrics').insert(
+        metricsToSend.map(metric => ({
+          ...metric,
+          user_agent: navigator.userAgent,
+          url: window.location.href,
+          session_id: this.sessionId,
+        }))
+      );
+      
+      if (error) throw error;
     } catch (error) {
-      // Re-queue metrics on failure
-      this.metrics.unshift(...metricsToSend);
+      // Re-queue metrics on failure (but limit queue size)
+      if (this.metrics.length < 1000) {
+        this.metrics.unshift(...metricsToSend.slice(0, 100));
+      }
       console.error('Failed to send performance metrics:', error);
     }
   }

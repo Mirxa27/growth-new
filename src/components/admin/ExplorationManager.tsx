@@ -144,6 +144,9 @@ export const ExplorationManager: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Exploration</DialogTitle>
+            <DialogDescription>
+              Create a new guided exploration journey for personal growth.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">

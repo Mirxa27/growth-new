@@ -275,8 +275,15 @@ class ApiClient {
    * Circuit breaker pattern implementation
    */
   private getCircuitKey(url: string, method: string): string {
-    const urlObj = new URL(url);
-    return `${method}:${urlObj.origin}${urlObj.pathname}`;
+    try {
+      // Handle relative URLs by making them absolute
+      const absoluteUrl = url.startsWith('http') ? url : `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      const urlObj = new URL(absoluteUrl);
+      return `${method}:${urlObj.origin}${urlObj.pathname}`;
+    } catch (error) {
+      // Fallback for invalid URLs
+      return `${method}:${url}`;
+    }
   }
 
   private isCircuitOpen(key: string): boolean {
