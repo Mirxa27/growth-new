@@ -1,118 +1,166 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FreeAssessmentResults } from '@/components/assessment/FreeAssessmentResults';
-import { getAssessmentById, Assessment } from '@/data/assessments';
+import { AssessmentResults } from '@/components/assessments/AssessmentResults';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-const ResultsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+interface AssessmentResult {
+  id: string;
+  score: number;
+  total_points: number;
+  percentage: number;
+  answers: any;
+  assessment: {
+    id: number;
+    title: string;
+    type: string;
+  };
+}
+
+const ResultsPage = () => {
+  const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [result, setResult] = useState<AssessmentResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<any | null>(null);
-  const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<string[]>([]);
 
   useEffect(() => {
-    const run = async () => {
-      if (!id) {
-        setError('Missing result id');
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('assessment_results')
-          .select('id, result_data')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-
-        const rd = (data as any)?.result_data || {};
-        const ai = rd?.ai_enrichment || {};
-
-        // Prepare results object compatible with FreeAssessmentResults normalization
-        const shapedResults = {
-          result_id: data.id,
-          summary: ai.summary,
-          insights: ai.insights,
-          recommendations: ai.recommendations,
-          persisted: {
-            id: data.id,
-            assessment_results: rd,
-            ai_insights: ai,
-          },
-        };
-        setResults(shapedResults);
-
-        // Resolve assessment for header display
-        const aid = String(rd.assessment_id ?? '');
-        const local = aid ? getAssessmentById(aid) : null;
-        if (local) {
-          setAssessment(local);
-        } else {
-          // Fallback to a minimal Assessment-like object based on stored data
-          const minimal: Assessment = {
-            id: aid || 'unknown',
-            title: rd.assessment_title || 'Assessment Results',
-            description: '',
-            type: rd.assessment_type || 'public',
-            category: 'general',
-            visibility: 'public',
-            estimatedTime: rd.time_taken_seconds ? Math.ceil(Number(rd.time_taken_seconds) / 60) : 0,
-            questions: [],
-            scoring: { type: 'cumulative' },
-            results: { summary: '', insights: [], recommendations: [] },
-          };
-          setAssessment(minimal);
-        }
-      } catch (e: any) {
-        console.error('Failed to load result:', e);
-        setError(e?.message || 'Unable to load result');
-      } finally {
-        setLoading(false);
-      }
-    };
-    run();
+    if (id?.startsWith('temp-')) {
+      // Handle temporary results from public assessments
+      handleTempResults();
+    } else {
+      loadResults();
+    }
   }, [id]);
+
+  const handleTempResults = () => {
+    const state = location.state as any;
+    if (!state?.assessment || !state?.answers) {
+      toast({
+        title: "Error",
+        description: "Results not found. Please take the assessment again.",
+        variant: "destructive"
+      });
+      navigate('/mobile-assessment-hub');
+      return;
+    }
+
+    // Calculate temporary results
+    const tempResult: AssessmentResult = {
+      id: id!,
+      score: 0,
+      total_points: state.questions.length,
+      percentage: 75, // Default for explorations
+      answers: state.answers,
+      assessment: state.assessment
+    };
+
+    setResult(tempResult);
+    generateInsights(tempResult);
+    setLoading(false);
+  };
+
+  const loadResults = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('assessment_results')
+        .select(`
+          *,
+          assessment:assessments (
+            id,
+            title,
+            type
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setResult(data);
+      generateInsights(data);
+    } catch (error) {
+      console.error('Error loading results:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load results. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateInsights = (resultData: AssessmentResult) => {
+    // Generate insights based on assessment type and score
+    const score = resultData.percentage;
+    
+    const baseInsights = [
+      "Your responses show a thoughtful approach to personal growth.",
+      "You demonstrate self-awareness in key areas of development.",
+      "There are exciting opportunities for continued growth ahead."
+    ];
+
+    const baseRecommendations = [
+      "Continue with daily self-reflection practices to deepen insights.",
+      "Consider joining our community to connect with like-minded individuals.",
+      "Explore our guided meditations for enhanced self-awareness.",
+      "Track your progress by retaking this assessment in 30 days."
+    ];
+
+    if (score >= 80) {
+      baseInsights.push("You're showing exceptional strength in this area!");
+      baseRecommendations.unshift("Focus on sharing your wisdom with others who can benefit.");
+    } else if (score >= 60) {
+      baseInsights.push("You're on a positive trajectory with room for growth.");
+      baseRecommendations.unshift("Consider our advanced workshops to accelerate your progress.");
+    } else {
+      baseInsights.push("This is a wonderful starting point for transformation.");
+      baseRecommendations.unshift("Start with our beginner-friendly resources and practices.");
+    }
+
+    setInsights(baseInsights);
+    setRecommendations(baseRecommendations);
+  };
+
+  const handleRetake = () => {
+    if (result?.assessment.id) {
+      navigate(`/assessment/${result.assessment.id}`);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
-  if (error || !results || !assessment) {
+  if (!result) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
-            <div className="text-destructive mb-2 font-medium">{error || 'Result not found'}</div>
-            <Button variant="outline" onClick={() => navigate('/mobile-assessment-hub')}>Back to Hub</Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Results not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background p-4">
-      <div className="max-w-4xl mx-auto">
-        <FreeAssessmentResults
-          results={results}
-          assessment={assessment}
-          onRetake={() => navigate(`/assessment/${assessment.id}`)}
-          onNewAssessment={() => navigate('/mobile-assessment-hub')}
-        />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20">
+      <AssessmentResults
+        assessmentTitle={result.assessment.title}
+        score={result.score}
+        totalPoints={result.total_points}
+        percentage={result.percentage}
+        insights={insights}
+        recommendations={recommendations}
+        onRetake={handleRetake}
+      />
     </div>
   );
 };
 
 export default ResultsPage;
-

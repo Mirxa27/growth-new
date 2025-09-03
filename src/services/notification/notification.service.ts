@@ -63,7 +63,7 @@ const NotificationSchema = z.object({
   type: z.nativeEnum(NotificationType),
   title: z.string().min(1).max(100),
   message: z.string().min(1).max(500),
-  data: z.record(z.any()).optional(),
+  data: z.record(z.string(), z.any()).optional(),
   channels: z.array(z.nativeEnum(NotificationChannel)).min(1),
   expiresAt: z.string().datetime().optional(),
   actionUrl: z.string().url().optional(),
