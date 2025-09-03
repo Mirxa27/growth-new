@@ -703,12 +703,22 @@ class AdminService extends BaseApiService {
    */
   private async estimateDatabaseSize(): Promise<number> {
     try {
+      // Try to get dynamic table statistics via RPC
+      const { data: tableStats, error } = await this.supabase
+        .rpc('get_table_row_stats'); // This RPC should return [{ name, total_size, row_count }]
+      
+      if (tableStats && Array.isArray(tableStats) && tableStats.length > 0) {
+        // Sum up the total sizes from the stats
+        return tableStats.reduce((sum, table) => sum + (table.total_size || 0), 0);
+      }
+      
+      // Fallback: use configurable average sizes from environment variables
       const tables = [
-        { name: 'profiles', avgSize: 1024 }, // 1KB average per profile
-        { name: 'assessments', avgSize: 4096 }, // 4KB average per assessment
-        { name: 'assessment_responses', avgSize: 2048 }, // 2KB average per response
-        { name: 'community_posts', avgSize: 2048 }, // 2KB average per post
-        { name: 'library_items', avgSize: 8192 }, // 8KB average per item
+        { name: 'profiles', avgSize: Number(process.env.PROFILES_AVG_SIZE) || 1024 },
+        { name: 'assessments', avgSize: Number(process.env.ASSESSMENTS_AVG_SIZE) || 4096 },
+        { name: 'assessment_responses', avgSize: Number(process.env.ASSESSMENT_RESPONSES_AVG_SIZE) || 2048 },
+        { name: 'community_posts', avgSize: Number(process.env.COMMUNITY_POSTS_AVG_SIZE) || 2048 },
+        { name: 'library_items', avgSize: Number(process.env.LIBRARY_ITEMS_AVG_SIZE) || 8192 },
       ];
       
       let totalSize = 0;
