@@ -1,4 +1,32 @@
 // AudioWorkletProcessor for real-time voice processing
+
+// Base64 encoding function for AudioWorklet context (btoa not available)
+function uint8ArrayToBase64(uint8Array) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i;
+  
+  for (i = 0; i < uint8Array.length - 2; i += 3) {
+    result += chars[uint8Array[i] >> 2];
+    result += chars[((uint8Array[i] & 3) << 4) | (uint8Array[i + 1] >> 4)];
+    result += chars[((uint8Array[i + 1] & 15) << 2) | (uint8Array[i + 2] >> 6)];
+    result += chars[uint8Array[i + 2] & 63];
+  }
+  
+  if (i === uint8Array.length - 2) {
+    result += chars[uint8Array[i] >> 2];
+    result += chars[((uint8Array[i] & 3) << 4) | (uint8Array[i + 1] >> 4)];
+    result += chars[(uint8Array[i + 1] & 15) << 2];
+    result += '=';
+  } else if (i === uint8Array.length - 1) {
+    result += chars[uint8Array[i] >> 2];
+    result += chars[(uint8Array[i] & 3) << 4];
+    result += '==';
+  }
+  
+  return result;
+}
+
 class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -42,11 +70,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           
           // Convert to base64 for transmission
           const bytes = new Uint8Array(pcm16.buffer);
-          let binary = '';
-          for (let j = 0; j < bytes.length; j++) {
-            binary += String.fromCharCode(bytes[j]);
-          }
-          const base64Audio = btoa(binary);
+          const base64Audio = uint8ArrayToBase64(bytes);
           
           this.port.postMessage({
             type: 'audio-data',
