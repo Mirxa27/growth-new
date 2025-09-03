@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { openaiService } from '@/services/ai/openai.service';
 import { anthropicService } from '@/services/ai/anthropic.service';
 import { googleAIService } from '@/services/ai/google.service';
+import { getAllOpenAIModels, getRealtimeModels, OPENAI_VOICES } from '@/services/ai/openai-models-fix';
 
 export interface AIModel {
   id: string;
@@ -35,75 +36,83 @@ class AIProviderModelsService {
    */
   async fetchOpenAIModels(apiKey: string): Promise<AIModel[]> {
     try {
-      // Set the API key temporarily for this request
-      const originalKey = openaiService.getApiKey();
-      openaiService.setApiKey(apiKey);
-      
-      try {
-        const openAIModels = await openaiService.getModels();
-        const models: AIModel[] = [];
+      // Use the fixed models list to ensure all models are available
+      const fixedModels = getAllOpenAIModels();
+      const models: AIModel[] = [];
 
-        // Add realtime models that might not be in the list
-        const realtimeModels = [
-          {
-            id: 'gpt-4o-realtime-preview-2024-10-01',
-            name: 'GPT-4o Realtime Preview (October 2024)',
-            description: 'Realtime voice conversations with GPT-4'
-          },
-          {
-            id: 'gpt-4o-realtime-preview-2024-12-17',
-            name: 'GPT-4o Realtime Preview (December 2024)',
-            description: 'Latest realtime model with improved capabilities'
-          },
-          {
-            id: 'gpt-4o-realtime-preview',
-            name: 'GPT-4o Realtime Preview',
-            description: 'Current realtime model for voice interactions'
-          }
-        ];
-
-        // Add realtime models
-        for (const rtModel of realtimeModels) {
-          models.push({
-            id: rtModel.id,
-            name: rtModel.name,
-            description: rtModel.description,
-            provider_type: 'openai',
-            max_tokens: 4096,
-            supports_voice: true,
-            supports_vision: true,
-            cost_per_1k_tokens: 0.015
-          });
-        }
-
-        // Filter and map relevant models
-        const relevantModels = ['gpt-4', 'gpt-4-turbo', 'gpt-4-turbo-preview', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4o-mini'];
-        
-        for (const model of openAIModels) {
-          if (relevantModels.some(m => model.id.includes(m)) && !model.id.includes('instruct')) {
-            models.push({
-              id: model.id,
-              name: this.formatModelName(model.id),
-              description: this.getModelDescription(model.id),
-              provider_type: 'openai',
-              max_tokens: this.getMaxTokens(model.id),
-              supports_voice: model.id.includes('realtime'),
-              supports_vision: model.id.includes('vision') || model.id.includes('gpt-4'),
-              cost_per_1k_tokens: this.getModelCost(model.id)
-            });
-          }
-        }
-
-        return models;
-      } finally {
-        // Restore original key
-        if (originalKey) {
-          openaiService.setApiKey(originalKey);
-        }
+      // Add all models from the fixed list
+      for (const model of fixedModels) {
+        models.push({
+          id: model.id,
+          name: model.name || this.formatModelName(model.id),
+          description: model.description || this.getModelDescription(model.id),
+          provider_type: 'openai',
+          max_tokens: model.max_tokens || this.getMaxTokens(model.id),
+          supports_voice: model.supports_voice || false,
+          supports_vision: model.supports_vision || false,
+          cost_per_1k_tokens: model.cost_per_1k_tokens || this.getModelCost(model.id)
+        });
       }
+
+      // Try to fetch from API as well (but don't fail if it doesn't work)
+      try {
+        // Set the API key temporarily for this request
+        const originalKey = openaiService.getApiKey();
+        openaiService.setApiKey(apiKey);
+        
+        try {
+          const apiModels = await openaiService.getModels();
+          
+          // Add any models from API that aren't in our fixed list
+          for (const apiModel of apiModels) {
+            if (!models.find(m => m.id === apiModel.id)) {
+              models.push({
+                id: apiModel.id,
+                name: this.formatModelName(apiModel.id),
+                description: this.getModelDescription(apiModel.id),
+                provider_type: 'openai',
+                max_tokens: this.getMaxTokens(apiModel.id),
+                supports_voice: false,
+                supports_vision: apiModel.id.includes('vision') || apiModel.id.includes('gpt-4o'),
+                cost_per_1k_tokens: this.getModelCost(apiModel.id)
+              });
+            }
+          }
+        } finally {
+          // Restore original API key
+          if (originalKey) {
+            openaiService.setApiKey(originalKey);
+          }
+        }
+      } catch (apiError) {
+        // Log but don't throw - we have the fixed models as fallback
+        logger.warn('Failed to fetch models from OpenAI API, using fixed list', 'AIProviderModelsService', apiError);
+      }
+
+      return models.sort((a, b) => {
+        // Sort by: realtime first, then gpt-4 variants, then gpt-3.5, then others
+        const order = ['realtime', 'gpt-4o', 'gpt-4', 'gpt-3.5', 'whisper', 'tts', 'embedding'];
+        const getOrder = (id: string) => {
+          for (let i = 0; i < order.length; i++) {
+            if (id.includes(order[i])) return i;
+          }
+          return order.length;
+        };
+        return getOrder(a.id) - getOrder(b.id);
+      });
     } catch (error) {
       logger.error('Failed to fetch OpenAI models', 'AIProviderModelsService', error);
-      throw error;
+      // Return the fixed models list as fallback
+      return getAllOpenAIModels().map(model => ({
+        id: model.id,
+        name: model.name || this.formatModelName(model.id),
+        description: model.description || this.getModelDescription(model.id),
+        provider_type: 'openai',
+        max_tokens: model.max_tokens || this.getMaxTokens(model.id),
+        supports_voice: model.supports_voice || false,
+        supports_vision: model.supports_vision || false,
+        cost_per_1k_tokens: model.cost_per_1k_tokens || this.getModelCost(model.id)
+      }));
     }
   }
 
