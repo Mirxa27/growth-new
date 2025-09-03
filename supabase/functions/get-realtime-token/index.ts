@@ -72,13 +72,41 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create a temporary session token for the realtime API
-    // In production, you might want to create a more secure token
-    const sessionToken = {
-      client_secret: openaiApiKey,
-      user_id: user.id,
-      expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour
+    // Generate an ephemeral client secret with OpenAI Realtime API
+    const model = 'gpt-realtime';
+
+    const ephemeralResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        session: {
+          type: 'realtime',
+          model
+        }
+      })
+    });
+
+    if (!ephemeralResp.ok) {
+      const errText = await ephemeralResp.text();
+      return new Response(
+        JSON.stringify({ error: `OpenAI ephemeral key error: ${errText}` }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
+
+    const ephemeralData = await ephemeralResp.json();
+    const responseBody = {
+      session_id: crypto.randomUUID(),
+      client_secret: ephemeralData?.client_secret?.value,
+      model,
+      expires_at: ephemeralData?.client_secret?.expires_at
+    };
 
     // Log the session creation (optional)
     await supabase
@@ -88,14 +116,14 @@ Deno.serve(async (req) => {
         session_token: 'realtime_session',
         status: 'active',
         metadata: {
-          model: 'gpt-4o-realtime-preview',
+          model,
           created_at: new Date().toISOString()
         }
       })
 
     return new Response(
-      JSON.stringify(sessionToken),
-      { 
+      JSON.stringify(responseBody),
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }

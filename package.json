@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:pg": "node scripts/run_migrations_pg.mjs"
   },
   "devDependencies": {
     "@dyad-sh/react-vite-component-tagger": "latest",
@@ -101,6 +102,7 @@
     "events": "^3.3.0",
     "openai": "^4.28.0",
     "@anthropic-ai/sdk": "^0.20.0",
-    "@google/generative-ai": "^0.7.0"
+    "@google/generative-ai": "^0.7.0",
+    "pg": "^8.11.5"
   }
 }
