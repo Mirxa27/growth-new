@@ -33,6 +33,11 @@ export { performanceMonitor, measurePerformance } from './monitoring/performance
 // Notification Service
 export { notificationService, notifications, NotificationType, NotificationChannel } from './notification/notification.service';
 
+// Supabase Services
+export { authService } from './supabase/auth.service';
+export { realtimeService } from './supabase/realtime.service';
+export { storageService } from './supabase/storage.service';
+
 // Validation
 export * from './validation/schemas';
 export * from './validation/payment.schemas';
@@ -106,3 +111,19 @@ export type {
 export type {
   Notification,
 } from './notification/notification.service';
+
+// Supabase service types
+export type {
+  AuthProfile,
+  AuthState
+} from './supabase/auth.service';
+
+export type {
+  RealtimeEvent,
+  RealtimeSubscription
+} from './supabase/realtime.service';
+
+export type {
+  UploadOptions,
+  DownloadOptions
+} from './supabase/storage.service';
