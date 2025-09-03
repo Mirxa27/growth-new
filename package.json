@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
     "@dyad-sh/react-vite-component-tagger": "latest",
     "@eslint/js": "latest",
     "@tailwindcss/typography": "latest",
@@ -38,6 +39,17 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@capacitor/camera": "^7.0.2",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/geolocation": "^7.1.5",
+    "@capacitor/ios": "^7.4.3",
+    "@capacitor/keyboard": "^7.0.2",
+    "@capacitor/local-notifications": "^7.0.2",
+    "@capacitor/push-notifications": "^7.0.2",
+    "@capacitor/splash-screen": "^7.0.2",
+    "@capacitor/status-bar": "^7.0.2",
+    "@google/generative-ai": "^0.7.0",
     "@kombai/react-error-boundary": "latest",
     "@openai/agents-realtime": "latest",
     "@radix-ui/react-accordion": "latest",
@@ -77,10 +89,12 @@
     "dompurify": "latest",
     "dotenv": "^17.2.1",
     "embla-carousel-react": "latest",
+    "events": "^3.3.0",
     "framer-motion": "latest",
     "input-otp": "latest",
     "lucide-react": "latest",
     "next-themes": "latest",
+    "openai": "^4.28.0",
     "postcss": "latest",
     "postcss-import": "latest",
     "postcss-preset-env": "latest",
@@ -97,10 +111,6 @@
     "tailwindcss": "latest",
     "validator": "latest",
     "vaul": "latest",
-    "zod": "^4.1.5",
-    "events": "^3.3.0",
-    "openai": "^4.28.0",
-    "@anthropic-ai/sdk": "^0.20.0",
-    "@google/generative-ai": "^0.7.0"
+    "zod": "^4.1.5"
   }
 }

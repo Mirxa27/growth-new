@@ -1,320 +1,254 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6';
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-interface CreateAssessmentPayload {
-  topic: string;
-  type: 'quiz' | 'test' | 'exploration' | 'course';
-  provider: 'openai' | 'anthropic';
-  model: string;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  questionCount?: number;
-  category?: string;
-  visibility?: 'public' | 'private';
-  customPrompt?: string;
-  targetAudience?: string;
 }
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+interface AssessmentParams {
+  topic: string
+  type: 'quiz' | 'test' | 'exploration' | 'course'
+  provider: string
+  model: string
+  questionCount: number
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  category?: string
+  customPrompt?: string
+}
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+interface GeneratedContent {
+  title: string
+  description: string
+  questions: Array<{
+    question_text: string
+    question_type: 'multiple_choice' | 'free_text' | 'image'
+    position: number
+    points?: number
+    explanation?: string
+    options?: Array<{
+      option_text: string
+      is_correct: boolean
+      position: number
+      score_value?: number
+      feedback?: string
+    }>
+  }>
+}
+
+async function generateWithOpenAI(apiKey: string, params: AssessmentParams): Promise<GeneratedContent> {
+  const systemPrompt = `You are an expert assessment creator specializing in women's personal development and growth. Create high-quality, engaging content that is supportive, empowering, and transformative.`
+  
+  const userPrompt = params.customPrompt || getDefaultPrompt(params.type, params.topic, params.questionCount, params.difficulty)
+  
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: params.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.statusText}`)
   }
 
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { 
-      status: 405,
-      headers: corsHeaders 
-    });
+  const data = await response.json()
+  return JSON.parse(data.choices[0].message.content)
+}
+
+async function generateWithAnthropic(apiKey: string, params: AssessmentParams): Promise<GeneratedContent> {
+  const systemPrompt = `You are an expert assessment creator specializing in women's personal development and growth. Create high-quality, engaging content that is supportive, empowering, and transformative. Always respond with valid JSON.`
+  
+  const userPrompt = params.customPrompt || getDefaultPrompt(params.type, params.topic, params.questionCount, params.difficulty)
+  
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: params.model,
+      max_tokens: 4096,
+      messages: [
+        { role: 'user', content: `${systemPrompt}\n\n${userPrompt}\n\nRespond only with valid JSON.` }
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Anthropic API error: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  return JSON.parse(data.content[0].text)
+}
+
+async function generateWithGoogle(apiKey: string, params: AssessmentParams): Promise<GeneratedContent> {
+  const prompt = params.customPrompt || getDefaultPrompt(params.type, params.topic, params.questionCount, params.difficulty)
+  
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{
+          text: `You are an expert assessment creator. ${prompt}\n\nRespond only with valid JSON.`
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      }
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Google AI API error: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  return JSON.parse(data.candidates[0].content.parts[0].text)
+}
+
+function getDefaultPrompt(type: string, topic: string, questionCount: number, difficulty?: string): string {
+  const difficultyText = difficulty ? ` at ${difficulty} level` : ''
+  
+  switch (type) {
+    case 'quiz':
+      return `Create a quiz about "${topic}"${difficultyText} with exactly ${questionCount} multiple-choice questions. Each question should have 4 options with only one correct answer. Include explanations for each question and feedback for each option. Format as JSON with structure: { "title": "...", "description": "...", "questions": [...] }`
+      
+    case 'test':
+      return `Create a comprehensive assessment test about "${topic}"${difficultyText} with exactly ${questionCount} questions. Mix multiple-choice and free-text questions. Include point values and explanations. Format as JSON with structure: { "title": "...", "description": "...", "questions": [...] }`
+      
+    case 'exploration':
+      return `Create a deep personal exploration journey about "${topic}"${difficultyText} with exactly ${questionCount} open-ended, reflective questions. These should prompt deep self-reflection and personal insights. Use only free_text question types. Format as JSON with structure: { "title": "...", "description": "...", "questions": [...] }`
+      
+    case 'course':
+      return `Create a learning module about "${topic}"${difficultyText} with ${questionCount} lessons/activities. Include a mix of educational content and assessment questions. Structure it as a progressive learning experience. Format as JSON with structure: { "title": "...", "description": "...", "questions": [...] }`
+      
+    default:
+      return `Create content about "${topic}" with ${questionCount} items.`
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const auth = req.headers.get('Authorization');
-    if (!auth) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    const token = auth.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Get the request body
+    const params: AssessmentParams = await req.json()
     
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Validate required parameters
+    if (!params.topic || !params.type || !params.provider || !params.model || !params.questionCount) {
+      throw new Error('Missing required parameters')
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const payload: CreateAssessmentPayload = await req.json();
-
-    if (!payload.topic || !payload.type || !payload.provider || !payload.model) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: topic, type, provider, model' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const questionCount = payload.questionCount || 10;
-    const difficulty = payload.difficulty || 'intermediate';
-    const category = payload.category || 'general';
-    const targetAudience = payload.targetAudience || 'Women seeking personal growth';
-
-    let systemPrompt = '';
-    let expectedFormat = '';
-
-    switch (payload.type) {
-      case 'quiz':
-        systemPrompt = `You are an expert quiz creator specializing in personal growth and wellness for women. Create an engaging, educational quiz about "${payload.topic}" with ${questionCount} multiple-choice questions.
-
-Target Audience: ${targetAudience}
-Difficulty Level: ${difficulty}
-Category: ${category}
-
-Guidelines:
-- Questions should be thought-provoking and relevant to women's personal development
-- Include a mix of knowledge-based and reflection-based questions
-- Provide clear, concise answer options
-- Include explanations for correct answers that offer insights or learning opportunities
-- Make the content empowering and supportive
-
-${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''}`;
-
-        expectedFormat = `Return a JSON object with this exact structure:
-{
-  "title": "Engaging quiz title",
-  "description": "Brief, compelling description (2-3 sentences)",
-  "questions": [
-    {
-      "question_text": "Question text here",
-      "question_type": "multiple_choice",
-      "position": 1,
-      "points": 1,
-      "explanation": "Why this answer is correct and what it means",
-      "options": [
-        {
-          "option_text": "Option A text",
-          "is_correct": false,
-          "position": 1,
-          "score_value": 0
-        },
-        {
-          "option_text": "Option B text", 
-          "is_correct": true,
-          "position": 2,
-          "score_value": 1
-        }
-      ]
-    }
-  ]
-}`;
-        break;
-
-      case 'test':
-        systemPrompt = `You are an expert test creator specializing in personal growth assessment for women. Create a comprehensive test about "${payload.topic}" with ${questionCount} questions that accurately measure understanding and growth.
-
-Target Audience: ${targetAudience}
-Difficulty Level: ${difficulty}
-Category: ${category}
-
-Guidelines:
-- Create questions that assess both knowledge and practical application
-- Include varied question types (multiple choice, true/false, scenario-based)
-- Ensure questions are progressive in difficulty
-- Provide detailed explanations for all answers
-- Focus on actionable insights and self-awareness
-
-${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''}`;
-
-        expectedFormat = `Return a JSON object with the same structure as quiz format.`;
-        break;
-
-      case 'exploration':
-        systemPrompt = `You are an expert in creating transformative self-discovery explorations for women. Create a guided exploration about "${payload.topic}" with ${questionCount} reflective questions and activities.
-
-Target Audience: ${targetAudience}
-Difficulty Level: ${difficulty}
-Category: ${category}
-
-Guidelines:
-- Focus on deep self-reflection and personal insights
-- Include both questions and suggested activities
-- Create a journey that builds understanding progressively
-- Encourage vulnerability and authentic self-expression
-- Provide gentle guidance and support throughout
-
-${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''}`;
-
-        expectedFormat = `Return a JSON object with this structure:
-{
-  "title": "Exploration title",
-  "description": "Compelling description of the exploration journey",
-  "questions": [
-    {
-      "question_text": "Reflective question or activity prompt",
-      "question_type": "free_text",
-      "position": 1,
-      "explanation": "Guidance for reflection or activity instructions"
-    }
-  ]
-}`;
-        break;
-
-      case 'course':
-        systemPrompt = `You are an expert course designer specializing in women's personal development. Create a comprehensive course about "${payload.topic}" with multiple modules and learning activities.
-
-Target Audience: ${targetAudience}
-Difficulty Level: ${difficulty}
-Category: ${category}
-
-Guidelines:
-- Structure content into logical learning modules
-- Include theoretical knowledge and practical applications
-- Create engaging activities and assessments
-- Build skills progressively throughout the course
-- Provide actionable takeaways for real-world application
-
-${payload.customPrompt ? `Additional Instructions: ${payload.customPrompt}` : ''}`;
-
-        expectedFormat = `Return a JSON object with this structure:
-{
-  "title": "Course title",
-  "description": "Comprehensive course description",
-  "modules": [
-    {
-      "title": "Module title",
-      "description": "Module overview",
-      "lessons": ["Lesson 1", "Lesson 2"],
-      "activities": ["Activity description"],
-      "assessment": {
-        "title": "Module assessment",
-        "questions": []
-      }
-    }
-  ]
-}`;
-        break;
-    }
-
-    let generatedContent;
+    // Get the appropriate API key
+    let apiKey: string | undefined
     
-    if (payload.provider === 'openai') {
-      const openaiKey = Deno.env.get('OPENAI_API_KEY');
-      if (!openaiKey) {
-        throw new Error('OpenAI API key not configured');
-      }
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: payload.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: expectedFormat }
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.7,
-          max_tokens: 4000,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      generatedContent = JSON.parse(data.choices[0].message.content);
-    } else {
-      throw new Error(`Provider ${payload.provider} not yet implemented`);
+    switch (params.provider) {
+      case 'openai':
+        apiKey = Deno.env.get('OPENAI_API_KEY')
+        break
+      case 'anthropic':
+        apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+        break
+      case 'google':
+        apiKey = Deno.env.get('GOOGLE_API_KEY')
+        break
+      default:
+        throw new Error(`Unsupported provider: ${params.provider}`)
     }
 
-    const { data: assessmentId, error: saveError } = await supabase
-      .rpc('create_assessment_with_questions', {
-        _title: generatedContent.title,
-        _description: generatedContent.description,
-        _type: payload.type,
-        _visibility: payload.visibility || 'private',
-        _difficulty: difficulty,
-        _category: category,
-        _ai_provider: payload.provider,
-        _ai_model: payload.model,
-        _ai_prompt: systemPrompt,
-        _questions: generatedContent.questions || [],
-        _created_by: user.id
-      });
-
-    if (saveError) {
-      console.error('Database save error:', saveError);
-      throw new Error(`Failed to save assessment: ${saveError.message}`);
+    if (!apiKey) {
+      throw new Error(`API key not configured for provider: ${params.provider}`)
     }
 
-    await supabase
-      .from('admin_logs')
-      .insert({
-        admin_id: user.id,
-        action: 'AI_CONTENT_GENERATED',
-        details: {
-          assessment_id: assessmentId,
-          topic: payload.topic,
-          type: payload.type,
-          provider: payload.provider,
-          model: payload.model,
-          question_count: generatedContent.questions?.length || 0
-        }
-      });
+    // Generate content based on provider
+    let generatedContent: GeneratedContent
+    
+    switch (params.provider) {
+      case 'openai':
+        generatedContent = await generateWithOpenAI(apiKey, params)
+        break
+      case 'anthropic':
+        generatedContent = await generateWithAnthropic(apiKey, params)
+        break
+      case 'google':
+        generatedContent = await generateWithGoogle(apiKey, params)
+        break
+      default:
+        throw new Error(`Unsupported provider: ${params.provider}`)
+    }
+
+    // Validate the generated content
+    if (!generatedContent.title || !generatedContent.description || !Array.isArray(generatedContent.questions)) {
+      throw new Error('Invalid content structure generated')
+    }
+
+    // Ensure questions have required fields and proper structure
+    generatedContent.questions = generatedContent.questions.map((q, index) => ({
+      ...q,
+      position: q.position || index + 1,
+      question_type: q.question_type || (params.type === 'exploration' ? 'free_text' : 'multiple_choice'),
+      points: q.points || 1,
+      options: q.options?.map((opt, optIndex) => ({
+        ...opt,
+        position: opt.position || optIndex + 1,
+        is_correct: opt.is_correct || false,
+        score_value: opt.score_value || (opt.is_correct ? 1 : 0)
+      }))
+    }))
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        assessment_id: assessmentId,
-        title: generatedContent.title,
-        question_count: generatedContent.questions?.length || 0,
-        generated_content: generatedContent
+      JSON.stringify({ 
+        success: true, 
+        generated_content: generatedContent,
+        metadata: {
+          provider: params.provider,
+          model: params.model,
+          type: params.type,
+          question_count: generatedContent.questions.length
+        }
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
       }
-    );
-
+    )
   } catch (error) {
-    console.error('Assessment creation error:', error);
+    console.error('Error in create-assessment function:', error)
     return new Response(
-      JSON.stringify({
-        error: error.message || 'Failed to create assessment',
-        details: error.stack
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'An unexpected error occurred'
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400 
       }
-    );
+    )
   }
-});
+})
