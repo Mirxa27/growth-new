@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single()
 
-    setIsAdmin(data?.role === 'admin')
+    setIsAdmin((data as any)?.role === 'admin')
   }
 
   const signIn = async (email: string, password: string) => {
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('profiles').insert({
           id: data.user.id,
           full_name: fullName,
-        })
+        } as any)
       }
 
       toast.success('Account created successfully! Please check your email to verify.')

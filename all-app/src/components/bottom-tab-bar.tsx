@@ -28,7 +28,7 @@ export function BottomTabBar() {
               href={tab.href}
               className={`flex flex-col items-center justify-center space-y-1 ${
                 isActive
-                  ? 'text-primary'
+                  ? 'text-blue-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

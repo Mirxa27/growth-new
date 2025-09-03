@@ -20,7 +20,15 @@ export function VoiceAgent() {
     
     try {
       // Dynamically import the Realtime API SDK
-      const { RealtimeAgent, RealtimeSession } = await import('@openai/agents')
+      const agentsModule = await import('@openai/agents')
+      const realtimeModule = await import('@openai/agents-realtime')
+      
+      const RealtimeAgent = realtimeModule.RealtimeAgent || agentsModule.realtime?.RealtimeAgent
+      const RealtimeSession = realtimeModule.RealtimeSession || agentsModule.realtime?.RealtimeSession
+      
+      if (!RealtimeAgent || !RealtimeSession) {
+        throw new Error('Failed to import Realtime API components')
+      }
       
       // Create the agent
       agentRef.current = new RealtimeAgent({
@@ -119,8 +127,8 @@ export function VoiceAgent() {
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-100 rounded-full mb-4">
-            <Volume2 className="w-10 h-10 text-primary-600" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
+            <Volume2 className="w-10 h-10 text-blue-600" />
           </div>
           <h3 className="text-2xl font-semibold text-gray-900 mb-2">
             AI Voice Assistant
@@ -150,7 +158,7 @@ export function VoiceAgent() {
             disabled={isLoading}
             className={`p-4 rounded-full transition-all ${
               isListening 
-                ? 'bg-primary-600 text-white hover:bg-primary-700' 
+                ? 'bg-blue-600 text-white hover:bg-blue-700' 
                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >

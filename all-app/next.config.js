@@ -5,10 +5,10 @@ const nextConfig = {
   images: {
     domains: ['ufgqmqoykddaotdbwteg.supabase.co'],
   },
-  // For Capacitor
-  output: 'export',
-  distDir: 'out',
-  trailingSlash: true,
+  // Comment out for development, uncomment for Capacitor build
+  // output: 'export',
+  // distDir: 'out',
+  // trailingSlash: true,
 }
 
 module.exports = nextConfig

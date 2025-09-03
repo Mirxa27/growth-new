@@ -21,7 +21,7 @@ export function MobileNav() {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-primary hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+        className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
       >
         <span className="sr-only">Open main menu</span>
         {isOpen ? (
@@ -41,7 +41,7 @@ export function MobileNav() {
         
         <nav className="relative flex flex-col h-full w-64 bg-white shadow-xl">
           <div className="flex items-center justify-between h-16 px-4 border-b">
-            <Link href="/" className="text-xl font-bold text-primary">
+            <Link href="/" className="text-xl font-bold text-blue-600">
               All-App
             </Link>
             <button
@@ -58,7 +58,7 @@ export function MobileNav() {
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
               >
                 <item.icon className="mr-3 h-5 w-5" />
                 {item.name}
@@ -71,8 +71,8 @@ export function MobileNav() {
               <div className="space-y-3">
                 <div className="flex items-center px-3 py-2">
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                      <span className="text-primary-600 font-medium">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 font-medium">
                         {user.email?.[0].toUpperCase()}
                       </span>
                     </div>
@@ -86,7 +86,7 @@ export function MobileNav() {
                     signOut()
                     setIsOpen(false)
                   }}
-                  className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50"
+                  className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 >
                   Sign Out
                 </button>
@@ -96,14 +96,14 @@ export function MobileNav() {
                 <Link
                   href="/auth/signin"
                   onClick={() => setIsOpen(false)}
-                  className="block w-full text-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50"
+                  className="block w-full text-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/auth/signup"
                   onClick={() => setIsOpen(false)}
-                  className="block w-full text-center px-3 py-2 rounded-md text-base font-medium text-white bg-primary hover:bg-primary-600"
+                  className="block w-full text-center px-3 py-2 rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
                 >
                   Sign Up
                 </Link>

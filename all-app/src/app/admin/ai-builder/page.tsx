@@ -60,7 +60,7 @@ export default function AIBuilderPage() {
         generated_content: data.content,
         status: 'completed',
         created_by: user?.id,
-      })
+      } as any)
 
       if (error) throw error
 
@@ -86,7 +86,7 @@ export default function AIBuilderPage() {
           category_id: generatedContent.category_id,
           difficulty,
           created_by: user?.id,
-        })
+        } as any)
 
         if (error) throw error
 
@@ -131,7 +131,7 @@ export default function AIBuilderPage() {
                     onClick={() => setContentType(type)}
                     className={`p-3 rounded-lg border-2 transition ${
                       contentType === type
-                        ? 'border-primary bg-primary-50 text-primary'
+                        ? 'border-blue-600 bg-blue-50 text-blue-600'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -228,7 +228,7 @@ export default function AIBuilderPage() {
 
           {isGenerating ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
               <p className="text-gray-600">AI is generating your content...</p>
               <p className="text-sm text-gray-500 mt-2">This may take a moment</p>
             </div>

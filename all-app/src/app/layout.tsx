@@ -12,13 +12,19 @@ export const metadata: Metadata = {
   description: 'Comprehensive platform for assessments, quizzes, and courses with AI-powered content generation',
   keywords: 'assessments, quizzes, courses, learning, education, AI',
   authors: [{ name: 'All-App Team' }],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'All-App',
   },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({

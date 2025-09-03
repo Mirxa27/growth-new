@@ -107,7 +107,7 @@ export default function FreeAssessmentPage() {
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -272,10 +272,10 @@ function ResultsView({ assessment, answers }: {
             </p>
           </div>
 
-          <div className="bg-primary-50 rounded-lg p-6 mb-8">
+          <div className="bg-blue-50 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
             <div className="text-center">
-              <div className="text-4xl font-bold text-primary mb-2">{score}%</div>
+              <div className="text-4xl font-bold text-blue-600 mb-2">{score}%</div>
               <p className="text-gray-600">Overall Score</p>
             </div>
           </div>

@@ -70,18 +70,18 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold text-primary">
+              <Link href="/" className="text-2xl font-bold text-blue-600">
                 All-App
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="/assessments" className="text-gray-700 hover:text-primary transition">
+              <Link href="/assessments" className="text-gray-700 hover:text-blue-600 transition">
                 Assessments
               </Link>
-              <Link href="/courses" className="text-gray-700 hover:text-primary transition">
+              <Link href="/courses" className="text-gray-700 hover:text-blue-600 transition">
                 Courses
               </Link>
-              <Link href="/about" className="text-gray-700 hover:text-primary transition">
+              <Link href="/about" className="text-gray-700 hover:text-blue-600 transition">
                 About
               </Link>
             </div>

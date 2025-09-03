@@ -73,14 +73,14 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link href="/" className="flex justify-center">
-          <h1 className="text-3xl font-bold text-primary">All-App</h1>
+          <h1 className="text-3xl font-bold text-blue-600">All-App</h1>
         </Link>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/auth/signin" className="font-medium text-primary hover:text-primary-600">
+          <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-700">
             Sign in
           </Link>
         </p>
@@ -184,15 +184,15 @@ export default function SignUpPage() {
                 name="terms"
                 type="checkbox"
                 required
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                 I agree to the{' '}
-                <Link href="/terms" className="text-primary hover:text-primary-600">
+                <Link href="/terms" className="text-blue-600 hover:text-blue-700">
                   Terms and Conditions
                 </Link>{' '}
                 and{' '}
-                <Link href="/privacy" className="text-primary hover:text-primary-600">
+                <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
                   Privacy Policy
                 </Link>
               </label>

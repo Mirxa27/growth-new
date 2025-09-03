@@ -20,11 +20,11 @@ export function AssessmentCard({ assessment }: AssessmentCardProps) {
         <div className="card-header">
           <div className="flex items-center justify-between">
             <span className="text-4xl">{assessment.icon}</span>
-            <span className="text-sm text-muted-foreground bg-primary-100 text-primary-700 px-2 py-1 rounded-full">
+            <span className="text-sm text-gray-500 bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
               Free
             </span>
           </div>
-          <h3 className="card-title mt-4 group-hover:text-primary transition-colors">
+          <h3 className="card-title mt-4 group-hover:text-blue-600 transition-colors">
             {assessment.title}
           </h3>
           <p className="card-description mt-2">
@@ -32,7 +32,7 @@ export function AssessmentCard({ assessment }: AssessmentCardProps) {
           </p>
         </div>
         <div className="card-content">
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
               <span>{assessment.duration} min</span>
@@ -44,7 +44,7 @@ export function AssessmentCard({ assessment }: AssessmentCardProps) {
           </div>
         </div>
         <div className="card-footer">
-          <span className="text-primary font-medium group-hover:underline">
+          <span className="text-blue-600 font-medium group-hover:underline">
             Start Assessment →
           </span>
         </div>
