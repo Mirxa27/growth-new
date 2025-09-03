@@ -59,7 +59,7 @@ export class RealtimeVoiceChat {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
 
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
+      const wsUrl = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(sessionData.model || 'gpt-4o-realtime-preview-2024-10-01')}`;
       this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
 
       this.ws.onopen = () => {

@@ -126,24 +126,22 @@ const RealtimeVoiceAgent: React.FC = () => {
       });
 
       // Create WebSocket connection to OpenAI Realtime API
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=${sessionData.model}`;
-      wsRef.current = new WebSocket(wsUrl, ['realtime']);
+      const wsUrl = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(sessionData.model)}`;
+      // Use OpenAI ephemeral client secret via subprotocol auth
+      wsRef.current = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
 
       wsRef.current.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
         
-        // Send authentication
         wsRef.current?.send(JSON.stringify({
           type: 'session.update',
           session: {
-            model: sessionData.model,
+            modalities: ['text', 'audio'],
             instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: 'whisper-1'
-            }
+            input_audio_transcription: { model: 'whisper-1' }
           }
         }));
 
