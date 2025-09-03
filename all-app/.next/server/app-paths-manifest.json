@@ -1,0 +1,11 @@
+{
+  "/_not-found": "app/_not-found.js",
+  "/api/realtime-token/route": "app/api/realtime-token/route.js",
+  "/api/ai-generate/route": "app/api/ai-generate/route.js",
+  "/assessments/free/[category]/page": "app/assessments/free/[category]/page.js",
+  "/auth/signup/page": "app/auth/signup/page.js",
+  "/auth/signin/page": "app/auth/signin/page.js",
+  "/page": "app/page.js",
+  "/admin/ai-builder/page": "app/admin/ai-builder/page.js",
+  "/admin/page": "app/admin/page.js"
+}

@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -13,14 +13,14 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
-        { 
+        {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
-    // Create Supabase client with the user's token
+    // Create a Supabase client with the user's token
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -36,17 +36,16 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { 
+        {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
-    // Get the OpenAI API key from environment or database
+    // Get the OpenAI API key from environment variables or the database
     let openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    
-    // If not in environment, check if user has a custom API key
+
     if (!openaiApiKey) {
       const { data: provider } = await supabase
         .from('admin_ai_providers')
@@ -62,67 +61,93 @@ Deno.serve(async (req) => {
 
     if (!openaiApiKey) {
       return new Response(
-        JSON.stringify({ 
-          error: 'OpenAI API key not configured. Please add your API key in the admin settings.' 
+        JSON.stringify({
+          error: 'OpenAI API key not configured. Please add your API key in the admin settings.'
         }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
-    // Load realtime settings (model/voice) from platform settings if available
-    let model = 'gpt-4o-realtime-preview-2024-12-17'
+    // Fetch active voice agent configuration for model/voice
+    let model = 'gpt-4o-realtime-preview-2024-10-01' // Default model
     try {
-      const { data: settingsRow } = await supabase
-        .from('platform_settings')
-        .select('setting_value')
-        .eq('setting_key', 'realtime_settings')
-        .maybeSingle()
-      const settings = (settingsRow?.setting_value || {}) as Record<string, unknown>
-      if (typeof settings?.model === 'string' && settings.model) {
-        model = settings.model as string
+      const { data: cfg } = await supabase
+        .from('voice_agent_configs')
+        .select('model')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (cfg?.model) {
+        model = cfg.model
       }
-    } catch (_) {
-      // ignore and use default
+    } catch (err) {
+      console.warn("Could not fetch voice agent config, using default model.", err.message)
     }
 
-    // Create a temporary session token for the realtime API
-    // In production, you might want to create a more secure token
-    const sessionToken = {
-      session_id: `realtime_${user.id}_${Date.now()}`,
-      client_secret: openaiApiKey,
-      user_id: user.id,
-      model,
-      expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour
+    // Create an ephemeral client secret via OpenAI for the browser to use with Realtime API
+    const ephemResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session: {
+          type: 'realtime',
+          model,
+        }
+      })
+    })
+
+    if (!ephemResp.ok) {
+      const txt = await ephemResp.text()
+      throw new Error(`Failed to create ephemeral token: ${ephemResp.status} ${txt}`)
     }
+
+    const ephem = await ephemResp.json()
+    const clientSecret = ephem?.client_secret?.value || ephem?.client_secret
+    const expiresAt = ephem?.client_secret?.expires_at || (Date.now() + (60 * 60 * 1000)) // Default to 1 hour expiry
 
     // Log the session creation (optional)
-    await supabase
+    const { error: logError } = await supabase
       .from('voice_sessions')
       .insert({
         user_id: user.id,
-        session_token: 'realtime_session',
+        session_token: 'realtime_session', // Using a placeholder as the actual token is client-side
         status: 'active',
         metadata: {
-          model,
-          created_at: new Date().toISOString()
+          model: model,
+          created_at: new Date().toISOString(),
+          expires_at: new Date(expiresAt).toISOString()
         }
       })
+    
+    if (logError) {
+        console.error("Failed to log voice session:", logError.message)
+        // Decide if this should be a critical error. For now, we'll just log it.
+    }
 
+    // Return the client secret and model details to the client
     return new Response(
-      JSON.stringify(sessionToken),
-      { 
+      JSON.stringify({
+        client_secret: clientSecret,
+        model,
+        expires_at: expiresAt,
+      }),
+      {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
   } catch (error) {
     console.error('Error in get-realtime-token:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }

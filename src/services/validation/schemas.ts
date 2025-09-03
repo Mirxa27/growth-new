@@ -19,7 +19,7 @@ export const UpdateProfileSchema = z.object({
   display_name: z.string().min(2).max(50).optional(),
   bio: z.string().max(500).optional(),
   avatar_url: z.string().url().optional().nullable(),
-  preferences: z.record(z.any()).optional(),
+  preferences: z.record(z.string(), z.any()).optional(),
 });
 
 /**
@@ -90,7 +90,7 @@ export const CreateLibraryItemSchema = z.object({
   difficulty_level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   estimated_duration: z.number().int().positive().optional(),
   is_public: z.boolean().default(true),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 /**
