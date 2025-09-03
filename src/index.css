@@ -116,6 +116,12 @@
     border-color: hsl(var(--border));
   }
 
+  /* Prevent scrolling issues on iOS */
+  html {
+    height: 100%;
+    height: -webkit-fill-available;
+  }
+  
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -125,6 +131,7 @@
     overflow-x: hidden;
     font-family: var(--font-body);
     min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 
   /* Fixed Background with Glassmorphic Blur */
@@ -139,10 +146,24 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed;
+    /* Fix for iOS Safari - use fixed positioning instead of background-attachment */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
     opacity: 0.3;
     z-index: -2;
     pointer-events: none;
+  }
+  
+  /* Mobile-specific background fixes */
+  @media (max-width: 768px) {
+    body::before {
+      /* Ensure background stays fixed on mobile */
+      position: fixed;
+      height: 100vh;
+      height: -webkit-fill-available;
+      background-attachment: scroll; /* Better performance on mobile */
+    }
   }
 
   body::after {

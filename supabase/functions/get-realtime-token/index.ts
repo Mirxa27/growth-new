@@ -1,81 +1,98 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.1'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // Get the authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('No authorization header')
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
+    // Create a Supabase client with the user's token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
       }
-    )
+    })
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
-
+    // Verify the user is authenticated
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
-      throw new Error('Unauthorized')
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
-    // Try to load active OpenAI provider config; fallback to env var
-    let apiKeyFromDb: string | null = null
-    try {
-      const { data: provider } = await supabaseClient
+    // Get the OpenAI API key from environment variables or the database
+    let openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+
+    if (!openaiApiKey) {
+      const { data: provider } = await supabase
         .from('admin_ai_providers')
-        .select('*')
+        .select('configuration')
         .eq('provider_type', 'openai')
         .eq('is_active', true)
-        .order('priority', { ascending: true })
-        .limit(1)
-        .single()
-      if (provider?.configuration?.api_key) {
-        apiKeyFromDb = String(provider.configuration.api_key)
-      }
-    } catch (_) {}
+        .maybeSingle()
 
-    const openaiKey = apiKeyFromDb || Deno.env.get('OPENAI_API_KEY')
-    if (!openaiKey) {
-      throw new Error('OpenAI API key not configured')
+      if (provider?.configuration?.api_key) {
+        openaiApiKey = provider.configuration.api_key
+      }
     }
 
-    // Fetch active voice agent config for model/voice
-    let model = 'gpt-4o-realtime-preview-2024-10-01'
+    if (!openaiApiKey) {
+      return new Response(
+        JSON.stringify({
+          error: 'OpenAI API key not configured. Please add your API key in the admin settings.'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Fetch active voice agent configuration for model/voice
+    let model = 'gpt-4o-realtime-preview-2024-10-01' // Default model
     try {
-      const { data: cfg } = await supabaseClient
+      const { data: cfg } = await supabase
         .from('voice_agent_configs')
         .select('model')
         .eq('is_active', true)
         .order('updated_at', { ascending: false })
         .limit(1)
         .single()
-      if (cfg?.model) model = cfg.model
-    } catch (_) {}
+      if (cfg?.model) {
+        model = cfg.model
+      }
+    } catch (err) {
+      console.warn("Could not fetch voice agent config, using default model.", err.message)
+    }
 
-    // Create an ephemeral client secret via OpenAI for the browser to use with Realtime
+    // Create an ephemeral client secret via OpenAI for the browser to use with Realtime API
     const ephemResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -93,8 +110,28 @@ serve(async (req) => {
 
     const ephem = await ephemResp.json()
     const clientSecret = ephem?.client_secret?.value || ephem?.client_secret
-    const expiresAt = ephem?.client_secret?.expires_at || (Date.now() + (60 * 60 * 1000))
+    const expiresAt = ephem?.client_secret?.expires_at || (Date.now() + (60 * 60 * 1000)) // Default to 1 hour expiry
 
+    // Log the session creation (optional)
+    const { error: logError } = await supabase
+      .from('voice_sessions')
+      .insert({
+        user_id: user.id,
+        session_token: 'realtime_session', // Using a placeholder as the actual token is client-side
+        status: 'active',
+        metadata: {
+          model: model,
+          created_at: new Date().toISOString(),
+          expires_at: new Date(expiresAt).toISOString()
+        }
+      })
+    
+    if (logError) {
+        console.error("Failed to log voice session:", logError.message)
+        // Decide if this should be a critical error. For now, we'll just log it.
+    }
+
+    // Return the client secret and model details to the client
     return new Response(
       JSON.stringify({
         client_secret: clientSecret,
@@ -102,17 +139,17 @@ serve(async (req) => {
         expires_at: expiresAt,
       }),
       {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
   } catch (error) {
-    console.error('Error generating voice token:', error)
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error('Error in get-realtime-token:', error)
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error.message || 'Internal server error' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }

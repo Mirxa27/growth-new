@@ -1,33 +1,62 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { viteStaticCopy } from "vite-plugin-static-copy";
-import path from "path";
-import dyadComponentTagger from '@dyad-sh/react-vite-component-tagger';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { resolve } from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [dyadComponentTagger(), 
+  plugins: [
     react(),
-    viteStaticCopy({
-      targets: [
-        { src: "./assets/*", dest: "assets" },
-        {
-          src: "./public/assets/{*,}",
-          dest: path.join("dist", "public/assets"),
-        },
-        { src: "src/assets/*", dest: path.join("dist", "assets") },
-        { src: "extension/**", dest: path.join("dist", "extension") },
-      ],
-      silent: true,
-    }),
+    tsconfigPaths()
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': resolve(__dirname, './src'),
     },
   },
   build: {
-    outDir: "dist",
-    emptyOutDir: true,
+    outDir: 'dist',
     sourcemap: true,
+    minify: 'esbuild',
+    target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip'
+          ],
+          'supabase': ['@supabase/supabase-js'],
+          'ai-services': ['openai'],
+          'utils': ['date-fns', 'clsx', 'zod']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@supabase/supabase-js',
+      'openai'
+    ]
+  },
+  server: {
+    port: 5173,
+    host: true,
+    cors: true
+  },
+  preview: {
+    port: 4173,
+    host: true
+  },
+  define: {
+    'process.env': {}
+  }
 });

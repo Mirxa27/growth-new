@@ -1,0 +1,43 @@
+{
+  "auth": {
+    "site_url": "https://newomen.me",
+    "redirect_urls": [
+      "https://newomen.me/auth/callback",
+      "https://newomen.me/auth/reset-password",
+      "https://newomen.me/auth/verify",
+      "https://newomen.me/auth/update-password"
+    ],
+    "external_providers": {
+      "google": {
+        "enabled": true,
+        "client_id": "",
+        "secret": ""
+      },
+      "github": {
+        "enabled": true,
+        "client_id": "",
+        "secret": ""
+      },
+      "facebook": {
+        "enabled": false,
+        "client_id": "",
+        "secret": ""
+      }
+    },
+    "email": {
+      "enable_signup": true,
+      "enable_email_signin": true,
+      "enable_email_confirmation": true,
+      "enable_magic_link": true,
+      "template": {
+        "subject": "Welcome to NewoMen Life Navigation System",
+        "from_name": "NewoMen",
+        "from_email": "noreply@newomen.me"
+      }
+    },
+    "sms": {
+      "enable_signup": false,
+      "enable_phone_signin": false
+    }
+  }
+}

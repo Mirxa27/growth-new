@@ -6,6 +6,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/environment';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { z } from 'zod';
+import { validateDTO, formatValidationErrors } from '@/services/validation/schemas';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -368,5 +370,105 @@ export abstract class BaseApiService {
       this.logError('exists', error);
       return false;
     }
+  }
+
+  /**
+   * Validate data against a schema with detailed error handling
+   */
+  protected validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
+    const result = validateDTO(schema, data);
+    
+    if (!result.success) {
+      const errorMessage = result.errors
+        .map(err => `${err.field}: ${err.message}`)
+        .join(', ');
+      
+      throw new Error(`Validation failed: ${errorMessage}`);
+    }
+    
+    return result.data;
+  }
+
+  /**
+   * Validate data and return ApiResponse
+   */
+  protected async validateAndExecute<T, R>(
+    schema: z.ZodSchema<T>,
+    data: unknown,
+    executor: (validData: T) => Promise<R>
+  ): Promise<ApiResponse<R>> {
+    try {
+      const validData = this.validate(schema, data);
+      const result = await executor(validData);
+      
+      return {
+        data: result,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error: this.handleError(error),
+      };
+    }
+  }
+
+  /**
+   * Batch validate multiple items
+   */
+  protected validateBatch<T>(schema: z.ZodSchema<T>, items: unknown[]): T[] {
+    const results: T[] = [];
+    const errors: string[] = [];
+    
+    items.forEach((item, index) => {
+      try {
+        results.push(this.validate(schema, item));
+      } catch (error) {
+        errors.push(`Item ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
+    
+    if (errors.length > 0) {
+      throw new Error(`Batch validation failed:\n${errors.join('\n')}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Sanitize user input to prevent XSS and injection attacks
+   */
+  protected sanitizeInput(input: string): string {
+    // Remove any script tags
+    let sanitized = input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
+    // Remove any event handlers
+    sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Trim whitespace
+    sanitized = sanitized.trim();
+    
+    return sanitized;
+  }
+
+  /**
+   * Validate and sanitize query parameters
+   */
+  protected validateQueryParams(params: Record<string, any>): Record<string, any> {
+    const sanitized: Record<string, any> = {};
+    
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === 'string') {
+        sanitized[key] = this.sanitizeInput(value);
+      } else if (Array.isArray(value)) {
+        sanitized[key] = value.map(v => 
+          typeof v === 'string' ? this.sanitizeInput(v) : v
+        );
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    
+    return sanitized;
   }
 }

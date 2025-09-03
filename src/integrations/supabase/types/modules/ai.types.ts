@@ -505,6 +505,19 @@ export type AiTables = {
       instructions: string | null
       is_active: boolean
       created_at: string
+      enable_realtime: boolean | null
+      use_proxy: boolean | null
+      proxy_url: string | null
+      input_audio_transcription_model: string | null
+      input_audio_format: string | null
+      output_audio_format: string | null
+      turn_detection_type: string | null
+      turn_detection_threshold: number | null
+      turn_detection_prefix_padding_ms: number | null
+      turn_detection_silence_duration_ms: number | null
+      language: string | null
+      arabic_support: boolean | null
+      emotion_detection: boolean | null
     }
     Insert: {
       id?: string
@@ -516,6 +529,19 @@ export type AiTables = {
       instructions?: string | null
       is_active?: boolean
       created_at?: string
+      enable_realtime?: boolean | null
+      use_proxy?: boolean | null
+      proxy_url?: string | null
+      input_audio_transcription_model?: string | null
+      input_audio_format?: string | null
+      output_audio_format?: string | null
+      turn_detection_type?: string | null
+      turn_detection_threshold?: number | null
+      turn_detection_prefix_padding_ms?: number | null
+      turn_detection_silence_duration_ms?: number | null
+      language?: string | null
+      arabic_support?: boolean | null
+      emotion_detection?: boolean | null
     }
     Update: {
       id?: string
@@ -527,6 +553,19 @@ export type AiTables = {
       instructions?: string | null
       is_active?: boolean
       created_at?: string
+      enable_realtime?: boolean | null
+      use_proxy?: boolean | null
+      proxy_url?: string | null
+      input_audio_transcription_model?: string | null
+      input_audio_format?: string | null
+      output_audio_format?: string | null
+      turn_detection_type?: string | null
+      turn_detection_threshold?: number | null
+      turn_detection_prefix_padding_ms?: number | null
+      turn_detection_silence_duration_ms?: number | null
+      language?: string | null
+      arabic_support?: boolean | null
+      emotion_detection?: boolean | null
     }
     Relationships: []
   }
@@ -579,27 +618,33 @@ export type AiTables = {
       id: string;
       user_id: string;
       session_id: string;
+      session_token: string | null;
       model: string;
       voice: string;
       status: string;
+      metadata: Json | null;
       created_at: string;
     };
     Insert: {
       id?: string;
       user_id: string;
-      session_id: string;
-      model: string;
-      voice: string;
+      session_id?: string;
+      session_token?: string | null;
+      model?: string;
+      voice?: string;
       status?: string;
+      metadata?: Json | null;
       created_at?: string;
     };
     Update: {
       id?: string;
       user_id?: string;
       session_id?: string;
+      session_token?: string | null;
       model?: string;
       voice?: string;
       status?: string;
+      metadata?: Json | null;
       created_at?: string;
     };
     Relationships: [];

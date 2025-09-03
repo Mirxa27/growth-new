@@ -6,6 +6,7 @@
 import { BaseApiService, type ApiResponse } from './base.service';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { CreateAssessmentSchema, AssessmentResponseSchema } from '@/services/validation/schemas';
 
 export type Assessment = Tables<'assessments'>;
 export type AssessmentInsert = TablesInsert<'assessments'>;
@@ -149,6 +150,15 @@ class AssessmentService extends BaseApiService {
    */
   async submitAssessment(result: AssessmentResult): Promise<ApiResponse<UserAssessmentResult>> {
     try {
+      // Validate the assessment result data
+      const validatedData = this.validate(AssessmentResponseSchema, {
+        assessment_id: result.assessmentId,
+        answers: result.responses.reduce((acc, r) => ({
+          ...acc,
+          [r.questionId]: r.optionId,
+        }), {}),
+      });
+      
       // Start a transaction
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
