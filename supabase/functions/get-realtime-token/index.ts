@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         .select('configuration')
         .eq('provider_type', 'openai')
         .eq('is_active', true)
-        .single()
+        .maybeSingle()
 
       if (provider?.configuration?.api_key) {
         openaiApiKey = provider.configuration.api_key

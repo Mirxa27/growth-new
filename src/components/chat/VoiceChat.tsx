@@ -123,8 +123,8 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const baseUrl = 'https://api.openai.com/v1/realtime/calls';
-      const model = 'gpt-4o-realtime-preview';
+      const baseUrl = 'https://api.openai.com/v1/realtime';
+      const model = 'gpt-4o-realtime-preview-2024-12-17';
       const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
         method: 'POST',
         body: offer.sdp,

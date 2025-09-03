@@ -329,17 +329,41 @@ class NotificationService {
     if (cached) return cached;
 
     try {
-      const { data } = await supabase
+      // Try to get preferences from the database
+      const { data, error } = await supabase
         .from('notification_preferences')
-        .select('*')
+        .select('preferences')
         .eq('user_id', targetUserId)
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Failed to fetch notification preferences:', error);
+        
+        // If table doesn't exist or other error, try to create default preferences
+        if (error.code === '42P01' || error.code === 'PGRST116') {
+          const defaultPrefs = this.getDefaultPreferences();
+          
+          // Try to insert default preferences
+          await supabase
+            .from('notification_preferences')
+            .insert({
+              user_id: targetUserId,
+              preferences: defaultPrefs
+            })
+            .select()
+            .single()
+            .catch(() => null); // Ignore errors
+          
+          return defaultPrefs;
+        }
+      }
 
       const preferences = data?.preferences || this.getDefaultPreferences();
       cache.set(cacheKey, preferences, { ttl: 300000 }); // 5 minutes
 
       return preferences;
     } catch (error) {
+      console.error('Error getting notification preferences:', error);
       return this.getDefaultPreferences();
     }
   }

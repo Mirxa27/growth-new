@@ -47,13 +47,18 @@ class AIProviderModelsService {
         const realtimeModels = [
           {
             id: 'gpt-4o-realtime-preview-2024-10-01',
-            name: 'GPT 4 Omni Realtime Preview 2024 10 01',
+            name: 'GPT-4o Realtime Preview (October 2024)',
             description: 'Realtime voice conversations with GPT-4'
           },
           {
-            id: 'gpt-4o-realtime-preview-2024-12-06',
-            name: 'GPT 4 Omni Realtime Preview 2025 06 03',
+            id: 'gpt-4o-realtime-preview-2024-12-17',
+            name: 'GPT-4o Realtime Preview (December 2024)',
             description: 'Latest realtime model with improved capabilities'
+          },
+          {
+            id: 'gpt-4o-realtime-preview',
+            name: 'GPT-4o Realtime Preview',
+            description: 'Current realtime model for voice interactions'
           }
         ];
 

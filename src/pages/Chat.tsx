@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { VoiceChat } from '@/components/chat/VoiceChat';
+import { VoiceChatWebSocket } from '@/components/chat/VoiceChatWebSocket';
 
 interface Message {
   id: string;
