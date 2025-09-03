@@ -9,7 +9,7 @@ export const CreatePaymentSchema = z.object({
   currency: z.string().length(3, 'Currency must be 3 characters'),
   paymentMethodId: z.string().min(1, 'Payment method is required'),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const UpdateSubscriptionSchema = z.object({
@@ -73,7 +73,7 @@ export const WebhookPayloadSchema = z.object({
     amount: z.number().optional(),
     currency: z.string().optional(),
     status: z.string().optional(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   }),
   created: z.number(),
 });

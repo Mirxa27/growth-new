@@ -1,10 +1,10 @@
 
+/* Import Responsive Design System */
+@import './styles/responsive.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import Responsive Design System */
-@import './styles/responsive.css';
 
 /* Newomen Design System - Liquid Glassmorphism */
 

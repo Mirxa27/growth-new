@@ -43,19 +43,21 @@ const generatedContentSchema = z.object({
   questions: z.array(generatedQuestionSchema)
 });
 
-const assessmentParamsSchema = z.object({
-  topic: z.string().min(1, 'Topic is required'),
-  type: z.enum(['test', 'personality']),
-  provider: z.string().min(1, 'Provider is required'),
-  model: z.string().min(1, 'Model is required'),
-  questionCount: z.number().int().min(1).max(50),
-  customPrompt: z.string().optional()
-});
+  const assessmentParamsSchema = z.object({
+    topic: z.string().min(1, 'Topic is required'),
+    type: z.enum(['quiz', 'test', 'exploration', 'course']),
+    provider: z.string().min(1, 'Provider is required'),
+    model: z.string().min(1, 'Model is required'),
+    questionCount: z.number().int().min(1).max(50),
+    customPrompt: z.string().optional(),
+    difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+    category: z.string().optional()
+  });
 
 const saveAssessmentParamsSchema = z.object({
   _title: z.string().min(1, 'Title is required'),
   _description: z.string().min(1, 'Description is required'),
-  _type: z.enum(['quiz', 'personality']),
+  _type: z.enum(['quiz', 'test', 'exploration', 'course']),
   _visibility: z.enum(['public', 'private']),
   _ai_provider: z.string().min(1, 'AI provider is required'),
   _ai_model: z.string().min(1, 'AI model is required'),
@@ -92,8 +94,13 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
   const { toast } = useToast();
   const { user } = useAuth();
   const [topic, setTopic] = useState('');
-  const [type, setType] = useState<'quiz' | 'personality'>('personality');
+  const [type, setType] = useState<'quiz' | 'test' | 'exploration' | 'course'>('quiz');
   const [questionCount, setQuestionCount] = useState(10);
+  const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [category, setCategory] = useState('general');
+  const [selectedProvider, setSelectedProvider] = useState('openai');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -120,10 +127,25 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
   const [courseContentJson, setCourseContentJson] = useState<string>('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
 
+  const getDefaultPrompt = (contentType: string) => {
+    switch (contentType) {
+      case 'quiz':
+        return 'Generate quiz questions with one correct answer per question. Include explanations.';
+      case 'test':
+        return 'Generate test questions to assess knowledge and understanding. Mix question types.';
+      case 'exploration':
+        return 'Generate open-ended, reflective questions for deep personal exploration.';
+      case 'course':
+        return 'Generate a structured learning module with lessons, exercises, and assessments.';
+      default:
+        return '';
+    }
+  };
+
   const assessmentForm = {
-    ai_provider: 'openai',
-    ai_model: 'gpt-4o-mini',
-    ai_prompt: '',
+    ai_provider: selectedProvider,
+    ai_model: selectedModel,
+    ai_prompt: customPrompt,
   };
 
   const generateAssessment = async () => {
@@ -137,13 +159,19 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
     try {
       const params = {
         topic,
+
         type: 'test',
         provider,
         model,
+
+        type,
+        provider: selectedProvider,
+        model: selectedModel,
+
         questionCount,
-        customPrompt: type === 'personality' 
-          ? 'Generate questions for a personality assessment. Options should not have a correct answer but reflect different traits.'
-          : 'Generate questions for a quiz with one correct answer per question.'
+        difficulty,
+        category,
+        customPrompt: customPrompt || getDefaultPrompt(type)
       };
 
       // Validate parameters
@@ -426,14 +454,70 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
               </div>
               <div>
                 <Label>Type</Label>
-                <select value={type} onChange={e => setType(e.target.value as 'quiz' | 'personality')} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass" aria-label="Assessment type">
-                  <option value="personality">Personality Assessment</option>
+                <select value={type} onChange={e => setType(e.target.value as 'quiz' | 'test' | 'exploration' | 'course')} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass" aria-label="Content type">
                   <option value="quiz">Quiz (with correct answers)</option>
+                  <option value="test">Test/Assessment</option>
+                  <option value="exploration">Exploration (open-ended)</option>
+                  <option value="course">Course Module</option>
                 </select>
               </div>
               <div>
-                <Label>Number of Questions</Label>
-                <Input type="number" value={questionCount} onChange={e => setQuestionCount(Number(e.target.value))} />
+                <Label>Difficulty Level</Label>
+                <select value={difficulty} onChange={e => setDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass">
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g., wellness, relationships, career" />
+              </div>
+              <div>
+                <Label>AI Provider</Label>
+                <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value)} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="google">Google</option>
+                </select>
+              </div>
+              <div>
+                <Label>AI Model</Label>
+                <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="w-full px-3 py-2 border rounded-md bg-background glass border-glass">
+                  {selectedProvider === 'openai' && (
+                    <>
+                      <option value="gpt-4o-mini">GPT-4 Mini</option>
+                      <option value="gpt-4">GPT-4</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    </>
+                  )}
+                  {selectedProvider === 'anthropic' && (
+                    <>
+                      <option value="claude-3-opus">Claude 3 Opus</option>
+                      <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                      <option value="claude-3-haiku">Claude 3 Haiku</option>
+                    </>
+                  )}
+                  {selectedProvider === 'google' && (
+                    <>
+                      <option value="gemini-pro">Gemini Pro</option>
+                      <option value="gemini-ultra">Gemini Ultra</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
+                <Label>Number of Questions/Items</Label>
+                <Input type="number" value={questionCount} onChange={e => setQuestionCount(Number(e.target.value))} min="1" max="50" />
+              </div>
+              <div>
+                <Label>Custom Prompt (Optional)</Label>
+                <textarea 
+                  value={customPrompt} 
+                  onChange={e => setCustomPrompt(e.target.value)} 
+                  placeholder="Add specific instructions for content generation..."
+                  className="w-full px-3 py-2 border rounded-md bg-background glass border-glass min-h-[80px]"
+                />
               </div>
               <Button onClick={generateAssessment} disabled={isGenerating} className="w-full bg-gradient-primary">
                 {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
@@ -475,6 +559,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
           </Card>
         </div>
       </TabsContent>
+
 
       <TabsContent value="exploration">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -648,6 +733,39 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
             </CardContent>
           </Card>
         </div>
+
+      
+      <TabsContent value="exploration">
+        <Card className="glass-card border-glass">
+          <CardHeader>
+            <CardTitle>AI-Powered Exploration Builder</CardTitle>
+            <CardDescription>Create deep, reflective explorations for personal growth and self-discovery.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Compass className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Exploration builder uses the same interface as assessments.</p>
+              <p className="text-sm mt-2">Select "Exploration" as the type in the Assessment tab.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+      
+      <TabsContent value="course">
+        <Card className="glass-card border-glass">
+          <CardHeader>
+            <CardTitle>AI-Powered Course Builder</CardTitle>
+            <CardDescription>Design comprehensive learning experiences with modules, lessons, and assessments.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Course builder uses the same interface as assessments.</p>
+              <p className="text-sm mt-2">Select "Course" as the type in the Assessment tab.</p>
+            </div>
+          </CardContent>
+        </Card>
+
       </TabsContent>
     </Tabs>
   );
