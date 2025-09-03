@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from '@/utils/event-emitter';
 import { errorHandler, ErrorCategory, ErrorSeverity } from '@/services/error/error-handler.service';
 
 export interface WebRTCConfig {
