@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "vercel-build": "npm install --legacy-peer-deps && npm run build"
+    "vercel-build": "npm install --legacy-peer-deps && npm run build",
+    "postbuild": "node scripts/optimize-build.js || true"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
