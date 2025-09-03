@@ -58,13 +58,48 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured')
     }
 
-    // Return a client secret style token; for now we return the API key
-    const ephemeralToken = openaiKey
+    // Fetch active voice agent config for model/voice
+    let model = 'gpt-4o-realtime-preview-2024-10-01'
+    try {
+      const { data: cfg } = await supabaseClient
+        .from('voice_agent_configs')
+        .select('model')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (cfg?.model) model = cfg.model
+    } catch (_) {}
+
+    // Create an ephemeral client secret via OpenAI for the browser to use with Realtime
+    const ephemResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session: {
+          type: 'realtime',
+          model,
+        }
+      })
+    })
+
+    if (!ephemResp.ok) {
+      const txt = await ephemResp.text()
+      throw new Error(`Failed to create ephemeral token: ${ephemResp.status} ${txt}`)
+    }
+
+    const ephem = await ephemResp.json()
+    const clientSecret = ephem?.client_secret?.value || ephem?.client_secret
+    const expiresAt = ephem?.client_secret?.expires_at || (Date.now() + (60 * 60 * 1000))
 
     return new Response(
       JSON.stringify({
-        client_secret: ephemeralToken,
-        expires_at: Date.now() + (60 * 60 * 1000), // 1 hour from now
+        client_secret: clientSecret,
+        model,
+        expires_at: expiresAt,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -163,6 +163,15 @@ export const AIProviderSettings: React.FC = () => {
         .order('priority', { ascending: true });
       if (error) throw error;
       setProviders(data || []);
+      // Auto-fetch models for active OpenAI provider when API key present
+      const activeOpenAI = (data || []).find((p: any) => p.provider_type === 'openai' && p.is_active);
+      if (activeOpenAI && activeOpenAI.configuration?.api_key) {
+        setFormData(activeOpenAI);
+        setSelectedProviderType('openai');
+        // Fire and forget model+voice fetch
+        fetchModelsForCurrentProvider();
+        fetchVoicesForCurrentProvider();
+      }
     } catch (error: unknown) {
       toast({
         title: "Error",
