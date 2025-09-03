@@ -164,7 +164,7 @@ VITE_ENCRYPTION_KEY=your-secure-encryption-key-minimum-32-chars`;
                     <Label>Terminal command:</Label>
                     <div className="flex gap-2">
                       <code className="flex-1 bg-black/20 p-2 rounded text-sm">
-                        touch .env && echo "{envTemplate.split('\n')[0]}" > .env
+                        {`touch .env && echo "${envTemplate.split('\n')[0]}" > .env`}
                       </code>
                       <Button
                         size="sm"
