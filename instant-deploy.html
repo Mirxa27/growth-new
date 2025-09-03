@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant Deploy - Newomen App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .option {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .option:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .option h3 {
+            margin: 0 0 10px 0;
+        }
+        .option p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Instant Deploy Solutions</h1>
+        
+        <div class="option" onclick="showDeploy('surge')">
+            <h3>1. Surge.sh (Recommended - No Account Needed)</h3>
+            <p>Deploy in 30 seconds, no signup required</p>
+            <div id="surge" style="display: none;">
+                <div class="code">
+                    npx surge dist newomen-app.surge.sh
+                </div>
+                <button onclick="copyToClipboard('npx surge dist newomen-app.surge.sh')">Copy Command</button>
+            </div>
+        </div>
+
+        <div class="option" onclick="showDeploy('netlify')">
+            <h3>2. Netlify Drop (Drag & Drop)</h3>
+            <p>Just drag your dist folder to their website</p>
+            <div id="netlify" style="display: none;">
+                <p>1. Go to <a href="https://app.netlify.com/drop" target="_blank" style="color: white;">app.netlify.com/drop</a></p>
+                <p>2. Drag and drop your 'dist' folder</p>
+                <p>3. Done! Your site is live</p>
+            </div>
+        </div>
+
+        <div class="option" onclick="showDeploy('vercel-manual')">
+            <h3>3. Vercel Manual Upload</h3>
+            <p>Upload directly through their website</p>
+            <div id="vercel-manual" style="display: none;">
+                <p>1. Go to <a href="https://vercel.com/new" target="_blank" style="color: white;">vercel.com/new</a></p>
+                <p>2. Choose "Upload Folder"</p>
+                <p>3. Select your 'dist' folder</p>
+                <p>4. Set Framework Preset to "Other"</p>
+                <p>5. Click Deploy</p>
+            </div>
+        </div>
+
+        <div class="option" onclick="showDeploy('emergency')">
+            <h3>4. Emergency Local Server</h3>
+            <p>Test locally if all deployments fail</p>
+            <div id="emergency" style="display: none;">
+                <div class="code">
+                    cd dist && python3 -m http.server 8000
+                </div>
+                <p>Then open: <a href="http://localhost:8000" target="_blank" style="color: white;">http://localhost:8000</a></p>
+                <button onclick="copyToClipboard('cd dist && python3 -m http.server 8000')">Copy Command</button>
+            </div>
+        </div>
+
+        <div class="option" onclick="showDeploy('github')">
+            <h3>5. GitHub Pages (If you have a repo)</h3>
+            <p>Free hosting with your GitHub account</p>
+            <div id="github" style="display: none;">
+                <div class="code">
+                    git add dist -f<br>
+                    git commit -m "Deploy"<br>
+                    git subtree push --prefix dist origin gh-pages
+                </div>
+                <button onclick="copyToClipboard('git add dist -f && git commit -m \"Deploy\" && git subtree push --prefix dist origin gh-pages')">Copy Commands</button>
+            </div>
+        </div>
+
+        <hr style="margin: 40px 0; opacity: 0.3;">
+
+        <h2>⚡ Quick Fix Commands</h2>
+        <div class="code">
+            # Fix all deployment issues<br>
+            ./fix-vercel-deployment.sh<br><br>
+            
+            # Build production version<br>
+            ./build-production.sh<br><br>
+            
+            # Try all deployment options<br>
+            ./deploy-anywhere.sh
+        </div>
+    </div>
+
+    <script>
+        function showDeploy(id) {
+            const element = document.getElementById(id);
+            element.style.display = element.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
