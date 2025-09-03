@@ -1,0 +1,20 @@
+{
+  "name": "all-app",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@10",
+  "scripts": {
+    "dev:web": "npm --workspace web run dev",
+    "dev:server": "npm --workspace @all-app/server run dev",
+    "dev": "npm run dev:server & npm run dev:web",
+    "build": "npm --workspace @all-app/server run build && npm --workspace web run build"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.4.3"
+  }
+}
