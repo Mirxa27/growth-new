@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
 serve(async (req: Request) => {
@@ -8,60 +9,70 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { provider, config } = await req.json()
+    const { providerId, provider, config } = await req.json()
 
-    // Test the AI provider configuration
-    let result = { success: false, message: '' }
+    // Build a supabase client with service role to read admin_ai_providers
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    switch (provider) {
-      case 'openai':
-        if (!config.api_key) {
-          result = { success: false, message: 'OpenAI API key is required' }
-        } else {
-          // Test OpenAI connection
-          const response = await fetch('https://api.openai.com/v1/models', {
-            headers: {
-              'Authorization': `Bearer ${config.api_key}`,
-            }
-          })
-          
-          if (response.ok) {
-            result = { success: true, message: 'OpenAI connection successful' }
-          } else {
-            result = { success: false, message: `OpenAI API error: ${response.status}` }
-          }
-        }
-        break
+    // Resolve provider and key
+    let providerType = provider as string | undefined
+    let apiKey = config?.api_key as string | undefined
 
-      case 'anthropic':
-        if (!config.api_key) {
-          result = { success: false, message: 'Anthropic API key is required' }
-        } else {
-          // Test Anthropic connection
-          result = { success: true, message: 'Anthropic configuration valid' }
-        }
-        break
-
-      case 'google':
-        if (!config.api_key) {
-          result = { success: false, message: 'Google AI API key is required' }
-        } else {
-          // Test Google AI connection
-          result = { success: true, message: 'Google AI configuration valid' }
-        }
-        break
-
-      default:
-        result = { success: false, message: 'Unknown provider' }
+    if (providerId) {
+      const { data } = await supabase
+        .from('admin_ai_providers')
+        .select('provider_type, configuration')
+        .eq('id', providerId)
+        .maybeSingle()
+      if (data) {
+        providerType = data.provider_type
+        apiKey = (data.configuration as any)?.api_key || apiKey
+      }
     }
 
-    return new Response(
-      JSON.stringify(result),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
+    if (!providerType) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Provider type is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    let result = { success: false, message: '' }
+
+    switch (providerType) {
+      case 'openai': {
+        if (!apiKey) {
+          result = { success: false, message: 'OpenAI API key is required' }
+        } else {
+          const response = await fetch('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          })
+          result = response.ok
+            ? { success: true, message: 'OpenAI connection successful' }
+            : { success: false, message: `OpenAI API error: ${response.status}` }
+        }
+        break
       }
-    )
+      case 'anthropic': {
+        result = apiKey
+          ? { success: true, message: 'Anthropic configuration valid' }
+          : { success: false, message: 'Anthropic API key is required' }
+        break
+      }
+      case 'google': {
+        result = apiKey
+          ? { success: true, message: 'Google AI configuration valid' }
+          : { success: false, message: 'Google AI API key is required' }
+        break
+      }
+      default: {
+        result = { success: false, message: 'Unknown provider' }
+      }
+    }
+
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (error) {
     return new Response(

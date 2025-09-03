@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { loadRealtimeSettings, type RealtimeSettings } from '@/services/realtime/settings.service';
 import {
   Mic,
   MicOff,
@@ -42,9 +43,13 @@ const RealtimeVoiceAgent: React.FC = () => {
 
   const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioWorkletRef = useRef<AudioWorkletNode | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const realtimeSettingsRef = useRef<RealtimeSettings | null>(null);
 
   const initializeVoiceSession = async () => {
     try {
@@ -57,8 +62,12 @@ const RealtimeVoiceAgent: React.FC = () => {
         throw new Error('Authentication required');
       }
 
+      // Load realtime settings
+      const settings = await loadRealtimeSettings();
+      realtimeSettingsRef.current = settings;
+
       // Request Realtime session token from Edge Function
-      const response = await fetch('/functions/v1/get-realtime-token', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authSession.access_token}`,
@@ -72,9 +81,13 @@ const RealtimeVoiceAgent: React.FC = () => {
       }
 
       const sessionData: VoiceSession = await response.json();
-      
+
       // Initialize WebRTC or WebSocket connection to OpenAI Realtime API
-      await connectToRealtime(sessionData);
+      if (settings.connectionMethod === 'webrtc') {
+        await connectWithWebRTC(sessionData);
+      } else {
+        await connectWithWebSocket(sessionData);
+      }
 
       setIsConnected(true);
       setConnectionStatus('connected');
@@ -97,7 +110,7 @@ const RealtimeVoiceAgent: React.FC = () => {
     }
   };
 
-  const connectToRealtime = async (sessionData: VoiceSession) => {
+  const connectWithWebSocket = async (sessionData: VoiceSession) => {
     try {
       // Initialize audio context and media stream
       audioContextRef.current = new AudioContext({ sampleRate: 24000 });
@@ -121,13 +134,13 @@ const RealtimeVoiceAgent: React.FC = () => {
       wsRef.current.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
         
-        // Send authentication
+        // Send authentication / session config
         wsRef.current?.send(JSON.stringify({
           type: 'session.update',
           session: {
             model: sessionData.model,
             instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
-            voice: 'alloy',
+            voice: realtimeSettingsRef.current?.voice || 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
             input_audio_transcription: {
@@ -164,6 +177,96 @@ const RealtimeVoiceAgent: React.FC = () => {
     }
   };
 
+  const connectWithWebRTC = async (sessionData: VoiceSession) => {
+    try {
+      // Prepare audio element for remote playback
+      if (!remoteAudioRef.current) {
+        remoteAudioRef.current = new Audio();
+        remoteAudioRef.current.autoplay = true;
+      }
+
+      // Get microphone
+      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        },
+        video: false
+      });
+
+      // Optional: audio context for level/VAD only
+      audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+      await setupAudioLevelMonitoring();
+
+      // Create peer connection
+      pcRef.current = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      // Add mic track
+      mediaStreamRef.current.getTracks().forEach(track => pcRef.current!.addTrack(track, mediaStreamRef.current!));
+
+      // Handle remote tracks
+      pcRef.current.ontrack = (event) => {
+        const [remoteTrack] = event.streams;
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteTrack;
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      };
+
+      // Data channel for events
+      dcRef.current = pcRef.current.createDataChannel('oai-events');
+      dcRef.current.onopen = () => {
+        const sessionUpdate = {
+          type: 'session.update',
+          session: {
+            model: sessionData.model,
+            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
+            voice: realtimeSettingsRef.current?.voice || 'alloy'
+          }
+        };
+        try {
+          dcRef.current?.send(JSON.stringify(sessionUpdate));
+        } catch {}
+      };
+      pcRef.current.ondatachannel = (ev) => {
+        // If server opens channels, capture them if needed
+        if (!dcRef.current) {
+          dcRef.current = ev.channel;
+        }
+      };
+
+      // Create offer
+      const offer = await pcRef.current.createOffer({ offerToReceiveAudio: true });
+      await pcRef.current.setLocalDescription(offer);
+
+      // Exchange SDP with OpenAI Realtime
+      const sdpResponse = await fetch(`https://api.openai.com/v1/realtime?model=${sessionData.model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionData.client_secret}`,
+          'Content-Type': 'application/sdp'
+        },
+        body: offer.sdp || ''
+      });
+      const answerSdp = await sdpResponse.text();
+      await pcRef.current.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+
+      setIsConnected(true);
+      setConnectionStatus('connected');
+    } catch (error) {
+      console.error('Failed to establish WebRTC connection:', error);
+      setConnectionStatus('error');
+      throw error;
+    }
+  };
+
   const setupAudioProcessing = () => {
     if (!audioContextRef.current || !mediaStreamRef.current) return;
 
@@ -175,15 +278,48 @@ const RealtimeVoiceAgent: React.FC = () => {
       
       audioWorkletRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
       
+      let silenceTimer: number | null = null;
+      let lastLevel = 0;
       audioWorkletRef.current.port.onmessage = (event) => {
-        if (event.data.type === 'audio-data' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
+        if (event.data.type === 'audio-data' && isMicEnabled && wsRef.current?.readyState === WebSocket.OPEN) {
           // Send audio data to Realtime API
           wsRef.current.send(JSON.stringify({
             type: 'input_audio_buffer.append',
             audio: event.data.audio
           }));
+        } else if (event.data.type === 'audio-data' && isMicEnabled && pcRef.current) {
+          // For WebRTC path, append as media stream is already attached; no need to forward audio chunks
         } else if (event.data.type === 'audio-level') {
-          setAudioLevel(event.data.level);
+          const level = event.data.level as number;
+          setAudioLevel(level);
+          // Basic silence detection: when level drops below threshold after being higher, commit
+          const threshold = 0.02; // tune if needed
+          const nowSpeaking = level > threshold;
+          const wasSpeaking = lastLevel > threshold;
+          lastLevel = level;
+
+          if (wasSpeaking && !nowSpeaking && wsRef.current?.readyState === WebSocket.OPEN) {
+            // debounce commit slightly to avoid chopping words
+            if (silenceTimer) {
+              clearTimeout(silenceTimer);
+            }
+            silenceTimer = window.setTimeout(() => {
+              try {
+                wsRef.current?.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+                wsRef.current?.send(JSON.stringify({ type: 'response.create' }));
+              } catch {}
+            }, 200);
+          } else if (wasSpeaking && !nowSpeaking && dcRef.current && dcRef.current.readyState === 'open') {
+            // For WebRTC path, trigger response on silence
+            if (silenceTimer) {
+              clearTimeout(silenceTimer);
+            }
+            silenceTimer = window.setTimeout(() => {
+              try {
+                dcRef.current?.send(JSON.stringify({ type: 'response.create' }));
+              } catch {}
+            }, 200);
+          }
         }
       };
 
@@ -301,6 +437,16 @@ const RealtimeVoiceAgent: React.FC = () => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
+    }
+
+    if (dcRef.current) {
+      try { dcRef.current.close(); } catch {}
+      dcRef.current = null;
+    }
+
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch {}
+      pcRef.current = null;
     }
 
     if (mediaStreamRef.current) {
