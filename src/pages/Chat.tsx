@@ -356,6 +356,23 @@ const Chat = () => {
                         setMessages(prev => [...prev, newMessage]);
                       }}
                     />
+                    <div className="mt-4">
+                      <p className="text-xs text-muted-foreground text-center mb-2">
+                        Alternative connection method:
+                      </p>
+                      <VoiceChatWebSocket 
+                        onTranscript={(text, isUser) => {
+                          const newMessage: Message = {
+                            id: Date.now().toString(),
+                            content: text,
+                            sender: isUser ? 'user' : 'ai',
+                            timestamp: new Date(),
+                            type: 'voice'
+                          };
+                          setMessages(prev => [...prev, newMessage]);
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </TabsContent>

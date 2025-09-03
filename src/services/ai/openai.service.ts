@@ -141,10 +141,31 @@ class OpenAIService {
       const data = await response.json();
       const models = data.data as OpenAIModel[];
 
-      // Cache for 1 hour
-      cache.set(cacheKey, models, { ttl: 3600000 });
+      // Add realtime models that might not be listed
+      const realtimeModels: OpenAIModel[] = [
+        {
+          id: 'gpt-4o-realtime-preview-2024-12-17',
+          created: Math.floor(Date.now() / 1000),
+          object: 'model',
+          owned_by: 'openai'
+        },
+        {
+          id: 'gpt-4o-realtime-preview',
+          created: Math.floor(Date.now() / 1000),
+          object: 'model',
+          owned_by: 'openai'
+        }
+      ];
+      
+      // Merge with existing models
+      const existingIds = new Set(models.map(m => m.id));
+      const modelsToAdd = realtimeModels.filter(m => !existingIds.has(m.id));
+      const allModels = [...models, ...modelsToAdd];
 
-      return models;
+      // Cache for 1 hour
+      cache.set(cacheKey, allModels, { ttl: 3600000 });
+
+      return allModels;
     } catch (error) {
       errorHandler.handleError(error, {
         severity: ErrorSeverity.MEDIUM,
