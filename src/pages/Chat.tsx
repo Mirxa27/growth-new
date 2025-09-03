@@ -21,6 +21,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { VoiceChat } from '@/components/chat/VoiceChat';
 import { VoiceChatWebSocket } from '@/components/chat/VoiceChatWebSocket';
+import { VoiceSession } from '@/components/voice/VoiceSession';
 
 interface Message {
   id: string;
@@ -344,7 +345,17 @@ const Chat = () => {
                   </ScrollArea>
                   
                   <div className="p-4 border-t border-white/10">
-                    <VoiceChat 
+                    {/* New WebRTC Voice Session */}
+                    <VoiceSession
+                      userId={user?.id || 'anonymous'}
+                      config={{
+                        language: 'en-US',
+                        voiceId: 'nova',
+                        model: 'gpt-4-turbo-preview',
+                        systemPrompt: 'You are NewMe, a supportive and empathetic AI companion focused on personal growth and well-being. Keep responses concise and conversational.',
+                        enableTranscription: true,
+                        enableVAD: true
+                      }}
                       onTranscript={(text, isUser) => {
                         const newMessage: Message = {
                           id: Date.now().toString(),
@@ -355,24 +366,43 @@ const Chat = () => {
                         };
                         setMessages(prev => [...prev, newMessage]);
                       }}
+                      onSessionEnd={(sessionData) => {
+                        console.log('Voice session ended:', sessionData);
+                      }}
                     />
-                    <div className="mt-4">
-                      <p className="text-xs text-muted-foreground text-center mb-2">
-                        Alternative connection method:
-                      </p>
-                      <VoiceChatWebSocket 
-                        onTranscript={(text, isUser) => {
-                          const newMessage: Message = {
-                            id: Date.now().toString(),
-                            content: text,
-                            sender: isUser ? 'user' : 'ai',
-                            timestamp: new Date(),
-                            type: 'voice'
-                          };
-                          setMessages(prev => [...prev, newMessage]);
-                        }}
-                      />
-                    </div>
+                    
+                    {/* Legacy options - hidden by default */}
+                    <details className="mt-4">
+                      <summary className="text-xs text-muted-foreground cursor-pointer">
+                        Alternative connection methods
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        <VoiceChat 
+                          onTranscript={(text, isUser) => {
+                            const newMessage: Message = {
+                              id: Date.now().toString(),
+                              content: text,
+                              sender: isUser ? 'user' : 'ai',
+                              timestamp: new Date(),
+                              type: 'voice'
+                            };
+                            setMessages(prev => [...prev, newMessage]);
+                          }}
+                        />
+                        <VoiceChatWebSocket 
+                          onTranscript={(text, isUser) => {
+                            const newMessage: Message = {
+                              id: Date.now().toString(),
+                              content: text,
+                              sender: isUser ? 'user' : 'ai',
+                              timestamp: new Date(),
+                              type: 'voice'
+                            };
+                            setMessages(prev => [...prev, newMessage]);
+                          }}
+                        />
+                      </div>
+                    </details>
                   </div>
                 </div>
               </TabsContent>
