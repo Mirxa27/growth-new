@@ -70,7 +70,9 @@ export class AIDiagnostics {
         status: 'error',
         message: 'OpenAI API key not configured',
         details: {
-          current: env.openai.apiKey ? 'Placeholder value detected' : 'Not set',
+          current: env.openai.apiKey ? 
+            (env.openai.apiKey.startsWith('sk-proj-') ? 'Valid API key format' : 'Invalid API key format') 
+            : 'Not set',
           required: true
         },
         fix: 'Add your OpenAI API key to .env file: VITE_OPENAI_API_KEY=sk-...'

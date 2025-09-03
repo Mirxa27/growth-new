@@ -6,6 +6,9 @@
 /* Base Mobile Styles (0-639px) */
 @layer base {
   :root {
+    /* Dynamic viewport height (set by JavaScript) */
+    --vh: 1vh;
+    
     /* Responsive spacing scale */
     --spacing-xs: 0.25rem;  /* 4px */
     --spacing-sm: 0.5rem;   /* 8px */
@@ -178,6 +181,35 @@
     padding-right: var(--safe-area-inset-right);
     padding-bottom: var(--safe-area-inset-bottom);
     padding-left: var(--safe-area-inset-left);
+  }
+  
+  /* Safe area utilities */
+  .h-safe-area-inset-bottom {
+    height: var(--safe-area-inset-bottom);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(var(--spacing-md), var(--safe-area-inset-bottom));
+  }
+  
+  .pt-safe {
+    padding-top: max(var(--spacing-md), var(--safe-area-inset-top));
+  }
+  
+  /* Dynamic viewport height utilities */
+  .h-screen-safe {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  .max-h-screen-safe {
+    max-height: 100vh;
+    max-height: calc(var(--vh, 1vh) * 100);
   }
 }
 

@@ -17,8 +17,12 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import { VoiceChat } from '@/components/chat/VoiceChat';
+import { VoiceChatWebSocket } from '@/components/chat/VoiceChatWebSocket';
+import { VoiceSession } from '@/components/voice/VoiceSession';
 
 interface Message {
   id: string;
@@ -30,6 +34,7 @@ interface Message {
 
 const Chat = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -147,25 +152,7 @@ const Chat = () => {
     }
   };
 
-  const handleVoiceToggle = () => {
-    if (isRecording) {
-      setIsRecording(false);
-      toast({
-        title: "Voice recording stopped",
-        description: "Processing your message...",
-      });
-      // For now, simulate voice processing with text
-      setTimeout(() => {
-        sendMessage("Voice message processed", 'voice');
-      }, 1000);
-    } else {
-      setIsRecording(true);
-      toast({
-        title: "Voice recording started",
-        description: "Speak your message now...",
-      });
-    }
-  };
+
 
   const quickReplies = [
     "I'm feeling anxious today",
@@ -322,49 +309,102 @@ const Chat = () => {
               </TabsContent>
 
               <TabsContent value="voice" className="m-0">
-                <div className="h-[500px] flex flex-col items-center justify-center p-8">
-                  <div className="text-center space-y-6">
-                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${
-                      isRecording 
-                        ? 'bg-red-500/20 border-4 border-red-500 animate-pulse' 
-                        : 'bg-primary/20 border-4 border-primary'
-                    }`}>
-                      {isRecording ? (
-                        <MicOff className="w-16 h-16 text-red-500" />
-                      ) : (
-                        <Mic className="w-16 h-16 text-primary" />
-                      )}
-                    </div>
+                <div className="h-[500px] flex flex-col">
+                  <ScrollArea className="flex-1 p-4">
+                    {messages.filter(m => m.type === 'voice').map((message) => (
+                      <div key={message.id} className={`flex gap-3 mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {message.sender === 'ai' && (
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-gradient-primary text-white">
+                              <Bot className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div className={`max-w-[80%] ${message.sender === 'user' ? 'order-first' : ''}`}>
+                          <div className={`rounded-2xl px-4 py-2 ${
+                            message.sender === 'user' 
+                              ? 'bg-gradient-primary text-white' 
+                              : 'glass border-card-border'
+                          }`}>
+                            <p className="text-sm">{message.content}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+                        
+                        {message.sender === 'user' && (
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback>
+                              <User className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </ScrollArea>
+                  
+                  <div className="p-4 border-t border-white/10">
+                    {/* New WebRTC Voice Session */}
+                    <VoiceSession
+                      userId={user?.id || 'anonymous'}
+                      config={{
+                        language: 'en-US',
+                        voiceId: 'nova',
+                        model: 'gpt-4-turbo-preview',
+                        systemPrompt: 'You are NewMe, a supportive and empathetic AI companion focused on personal growth and well-being. Keep responses concise and conversational.',
+                        enableTranscription: true,
+                        enableVAD: true
+                      }}
+                      onTranscript={(text, isUser) => {
+                        const newMessage: Message = {
+                          id: Date.now().toString(),
+                          content: text,
+                          sender: isUser ? 'user' : 'ai',
+                          timestamp: new Date(),
+                          type: 'voice'
+                        };
+                        setMessages(prev => [...prev, newMessage]);
+                      }}
+                      onSessionEnd={(sessionData) => {
+                        console.log('Voice session ended:', sessionData);
+                      }}
+                    />
                     
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        {isRecording ? 'Recording...' : 'Voice Chat'}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {isRecording 
-                          ? 'Speak now, tap to stop recording'
-                          : 'Tap the microphone to start voice chat'
-                        }
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={handleVoiceToggle}
-                      size="lg"
-                      className={isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-primary'}
-                    >
-                      {isRecording ? (
-                        <>
-                          <MicOff className="w-5 h-5 mr-2" />
-                          Stop Recording
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-5 h-5 mr-2" />
-                          Start Recording
-                        </>
-                      )}
-                    </Button>
+                    {/* Legacy options - hidden by default */}
+                    <details className="mt-4">
+                      <summary className="text-xs text-muted-foreground cursor-pointer">
+                        Alternative connection methods
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        <VoiceChat 
+                          onTranscript={(text, isUser) => {
+                            const newMessage: Message = {
+                              id: Date.now().toString(),
+                              content: text,
+                              sender: isUser ? 'user' : 'ai',
+                              timestamp: new Date(),
+                              type: 'voice'
+                            };
+                            setMessages(prev => [...prev, newMessage]);
+                          }}
+                        />
+                        <VoiceChatWebSocket 
+                          onTranscript={(text, isUser) => {
+                            const newMessage: Message = {
+                              id: Date.now().toString(),
+                              content: text,
+                              sender: isUser ? 'user' : 'ai',
+                              timestamp: new Date(),
+                              type: 'voice'
+                            };
+                            setMessages(prev => [...prev, newMessage]);
+                          }}
+                        />
+                      </div>
+                    </details>
                   </div>
                 </div>
               </TabsContent>

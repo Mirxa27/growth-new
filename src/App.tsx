@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { useEffect } from "react";
 import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
+import { useViewportHeight } from "@/hooks/useResponsive";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PublicAssessment from "./pages/PublicAssessment";
@@ -29,6 +30,9 @@ import ResultsPage from "./pages/ResultsPage";
 const queryClient = new QueryClient();
 
 const App = () => {
+  // Fix viewport height on mobile devices
+  useViewportHeight();
+  
   useEffect(() => {
     // Debug and fix pointer events issues in development
     if (process.env.NODE_ENV === 'development') {

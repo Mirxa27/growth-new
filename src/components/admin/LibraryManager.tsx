@@ -158,6 +158,9 @@ export const LibraryManager: React.FC = () => {
         <DialogContent className="glass-strong">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit' : 'Create'} Library Item</DialogTitle>
+            <DialogDescription>
+              {editingItem ? 'Update the library item details.' : 'Add a new resource to the content library.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

@@ -37,6 +37,7 @@ import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
+import { APIKeyManager } from '@/components/admin/APIKeyManager';
 
 type AdminSection = 
   | 'overview'
@@ -509,7 +510,12 @@ const AdminDashboard: React.FC = () => {
       case 'settings':
         return <GeneralSettings />;
       case 'ai-providers':
-        return <AIProviderSettings />;
+        return (
+          <div className="space-y-6">
+            <APIKeyManager />
+            <AIProviderSettings />
+          </div>
+        );
       case 'moderation':
         return <ContentModerationSettings />;
       case 'diagnostics':
