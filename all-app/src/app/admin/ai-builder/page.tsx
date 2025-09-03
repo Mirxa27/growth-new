@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, Loader2, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -16,8 +16,42 @@ export default function AIBuilderPage() {
   const [description, setDescription] = useState('')
   const [difficulty, setDifficulty] = useState('medium')
   const [aiProvider, setAIProvider] = useState<AIProvider>('openai')
+  const [aiModel, setAIModel] = useState<string>('gpt-4o-mini')
+  const [visibility, setVisibility] = useState<'public' | 'private'>('private')
+  const [category, setCategory] = useState<string>('general')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<any>(null)
+
+  const providerModels: Record<AIProvider, string[]> = {
+    openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini'],
+    anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229'],
+    google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
+  }
+
+  useEffect(() => {
+    // Reset model to first option when provider changes
+    const models = providerModels[aiProvider]
+    if (models && models.length > 0) {
+      setAIModel(models[0])
+    }
+  }, [aiProvider])
+
+  const mappedType = useMemo(() => {
+    // Map UI content types to DB allowed types
+    if (contentType === 'assessment') return 'quiz'
+    return contentType
+  }, [contentType])
+
+  const mapDifficulty = (value: string) => {
+    switch (value) {
+      case 'easy':
+        return 'beginner'
+      case 'hard':
+        return 'advanced'
+      default:
+        return 'intermediate'
+    }
+  }
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -41,6 +75,7 @@ export default function AIBuilderPage() {
           description,
           difficulty,
           aiProvider,
+          aiModel,
         }),
       })
 
@@ -51,18 +86,17 @@ export default function AIBuilderPage() {
       const data = await response.json()
       setGeneratedContent(data.content)
 
-      // Save to database
-      const { error } = await supabase.from('ai_generated_content').insert({
-        content_type: contentType,
-        prompt: `Topic: ${topic}, Description: ${description}`,
-        ai_provider: aiProvider,
-        ai_model: data.model,
+      // Save generation record to history
+      const { error } = await supabase.from('ai_generation_history').insert({
+        template_id: null,
+        topic,
+        additional_context: description,
         generated_content: data.content,
-        status: 'completed',
+        status: 'draft',
         created_by: user?.id,
       } as any)
 
-      if (error) throw error
+      if (error) console.warn('AI generation history insert warning:', error.message)
 
       toast.success('Content generated successfully!')
     } catch (error) {
@@ -77,22 +111,74 @@ export default function AIBuilderPage() {
     if (!generatedContent) return
 
     try {
-      // Save the content based on type
-      if (contentType === 'assessment') {
-        const { error } = await supabase.from('assessments').insert({
-          title: generatedContent.title,
-          description: generatedContent.description,
-          instructions: generatedContent.instructions,
-          category_id: generatedContent.category_id,
-          difficulty,
-          created_by: user?.id,
-        } as any)
+      // Build questions in DB-friendly format
+      const questions = Array.isArray(generatedContent.questions)
+        ? generatedContent.questions.map((q: any, index: number) => {
+            const rawType = (q.type || q.question_type || 'multiple_choice') as string
+            let question_type: 'multiple_choice' | 'free_text' | 'image' = 'multiple_choice'
+            let options: any[] | undefined = undefined
 
-        if (error) throw error
+            if (rawType === 'multiple_choice') {
+              const opts = q.options || q.choices || []
+              const correct = q.correct_answer
+              options = opts.map((opt: any, i: number) => {
+                const text = typeof opt === 'string' ? opt : (opt?.text || opt?.option_text || String(opt))
+                const is_correct = typeof correct === 'string' ? correct === text : false
+                return {
+                  option_text: text,
+                  is_correct,
+                  position: i + 1,
+                  score_value: is_correct ? 1 : 0,
+                }
+              })
+            } else if (rawType === 'true_false' || rawType === 'boolean') {
+              question_type = 'multiple_choice'
+              const correct = (q.correct_answer ?? '').toString().toLowerCase()
+              options = [
+                { option_text: 'True', is_correct: correct === 'true', position: 1, score_value: correct === 'true' ? 1 : 0 },
+                { option_text: 'False', is_correct: correct === 'false', position: 2, score_value: correct === 'false' ? 1 : 0 },
+              ]
+            } else if (rawType === 'rating' || rawType === 'scale') {
+              question_type = 'multiple_choice'
+              const max = q?.scale?.max || 5
+              options = Array.from({ length: max }).map((_, i) => ({
+                option_text: String(i + 1),
+                is_correct: false,
+                position: i + 1,
+                score_value: 0,
+              }))
+            } else if (rawType === 'free_text' || rawType === 'text') {
+              question_type = 'free_text'
+            }
 
-        // Also insert questions
-        // ... additional logic for questions
-      }
+            return {
+              question_text: q.text || q.question_text || q.question || `Question ${index + 1}`,
+              question_type,
+              position: index + 1,
+              points: q.points || 1,
+              explanation: q.explanation || null,
+              options,
+            }
+          })
+        : []
+
+      const difficultyMapped = mapDifficulty(difficulty)
+
+      const { data: createdId, error } = await (supabase as any).rpc('create_assessment_with_questions', {
+        _title: generatedContent.title || topic,
+        _description: generatedContent.description || description || null,
+        _type: mappedType,
+        _visibility: visibility,
+        _difficulty: difficultyMapped,
+        _category: category,
+        _ai_provider: aiProvider,
+        _ai_model: aiModel,
+        _ai_prompt: `Topic: ${topic}${description ? ` | Description: ${description}` : ''}`,
+        _questions: questions,
+        _created_by: user?.id,
+      })
+
+      if (error) throw error
 
       toast.success('Content saved successfully!')
       setGeneratedContent(null)
@@ -197,6 +283,45 @@ export default function AIBuilderPage() {
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="google">Google (Gemini)</option>
               </select>
+            </div>
+
+            {/* AI Model */}
+            <div>
+              <label className="label">Model</label>
+              <select
+                value={aiModel}
+                onChange={(e) => setAIModel(e.target.value)}
+                className="input w-full"
+              >
+                {providerModels[aiProvider].map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Visibility */}
+            <div>
+              <label className="label">Visibility</label>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                className="input w-full"
+              >
+                <option value="private">Private (Users)</option>
+                <option value="public">Public (Visitors)</option>
+              </select>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="label">Category</label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g., general, wellness, career"
+                className="input w-full"
+              />
             </div>
 
             {/* Generate Button */}
