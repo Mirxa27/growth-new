@@ -58,7 +58,7 @@ const RealtimeVoiceAgent: React.FC = () => {
       }
 
       // Request Realtime session token from Edge Function
-      const response = await fetch('/functions/v1/get-realtime-token', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authSession.access_token}`,
@@ -175,6 +175,8 @@ const RealtimeVoiceAgent: React.FC = () => {
       
       audioWorkletRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
       
+      let silenceTimer: number | null = null;
+      let lastLevel = 0;
       audioWorkletRef.current.port.onmessage = (event) => {
         if (event.data.type === 'audio-data' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
           // Send audio data to Realtime API
@@ -183,7 +185,26 @@ const RealtimeVoiceAgent: React.FC = () => {
             audio: event.data.audio
           }));
         } else if (event.data.type === 'audio-level') {
-          setAudioLevel(event.data.level);
+          const level = event.data.level as number;
+          setAudioLevel(level);
+          // Basic silence detection: when level drops below threshold after being higher, commit
+          const threshold = 0.02; // tune if needed
+          const nowSpeaking = level > threshold;
+          const wasSpeaking = lastLevel > threshold;
+          lastLevel = level;
+
+          if (wasSpeaking && !nowSpeaking && wsRef.current?.readyState === WebSocket.OPEN) {
+            // debounce commit slightly to avoid chopping words
+            if (silenceTimer) {
+              clearTimeout(silenceTimer);
+            }
+            silenceTimer = window.setTimeout(() => {
+              try {
+                wsRef.current?.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+                wsRef.current?.send(JSON.stringify({ type: 'response.create' }));
+              } catch {}
+            }, 200);
+          }
         }
       };
 

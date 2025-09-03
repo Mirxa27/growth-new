@@ -72,11 +72,29 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Load realtime settings (model/voice) from platform settings if available
+    let model = 'gpt-4o-realtime-preview-2024-12-17'
+    try {
+      const { data: settingsRow } = await supabase
+        .from('platform_settings')
+        .select('setting_value')
+        .eq('setting_key', 'realtime_settings')
+        .maybeSingle()
+      const settings = (settingsRow?.setting_value || {}) as Record<string, unknown>
+      if (typeof settings?.model === 'string' && settings.model) {
+        model = settings.model as string
+      }
+    } catch (_) {
+      // ignore and use default
+    }
+
     // Create a temporary session token for the realtime API
     // In production, you might want to create a more secure token
     const sessionToken = {
+      session_id: `realtime_${user.id}_${Date.now()}`,
       client_secret: openaiApiKey,
       user_id: user.id,
+      model,
       expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour
     }
 
@@ -88,7 +106,7 @@ Deno.serve(async (req) => {
         session_token: 'realtime_session',
         status: 'active',
         metadata: {
-          model: 'gpt-4o-realtime-preview',
+          model,
           created_at: new Date().toISOString()
         }
       })
