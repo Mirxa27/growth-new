@@ -327,7 +327,13 @@ class PerformanceMonitoringService {
       // Send to Supabase edge function or store in database
       const { error } = await supabase.from('performance_metrics').insert(
         metricsToSend.map(metric => ({
-          ...metric,
+          metric_type: metric.type || 'unknown',
+          name: metric.name,
+          value: metric.value,
+          unit: metric.unit,
+          tags: metric.tags || {},
+          metadata: metric.metadata || {},
+          timestamp: new Date(metric.timestamp).toISOString(), // Convert to ISO string
           user_agent: navigator.userAgent,
           url: window.location.href,
           session_id: this.sessionId,

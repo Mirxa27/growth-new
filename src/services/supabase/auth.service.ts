@@ -147,7 +147,7 @@ class AuthService {
       const user = this.currentState.user;
       if (!user) return;
       
-      const profile: Partial<AuthProfile> = {
+      const profile = {
         id: userId,
         email: user.email!,
         full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
@@ -161,22 +161,17 @@ class AuthService {
       
       const { data, error } = await supabase
         .from('user_profiles')
-        .insert(profile)
+        .upsert(profile, { onConflict: 'id' })
         .select()
         .single();
       
-      if (error) throw error;
-      
-      if (data) {
+      if (!error && data) {
         this.currentState.profile = data as AuthProfile;
         cache.set('auth:profile', data, { ttl: 300000 });
       }
     } catch (error) {
-      errorHandler.handleError(error, {
-        severity: ErrorSeverity.MEDIUM,
-        category: ErrorCategory.DATABASE,
-        context: { action: 'create_default_profile', userId }
-      });
+      // Don't throw error, just log it
+      console.warn('Failed to create default profile:', error);
     }
   }
 
