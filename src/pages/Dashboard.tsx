@@ -38,7 +38,7 @@ const Dashboard = () => {
         // Fetch user data
         const { error: profilesError } = await supabase
           .from('profiles')
-          .select('created_at, last_login_at, avatar_url')
+          .select('created_at, last_login_at')
           .eq('user_id', user.id);
         if (profilesError) throw profilesError;
 

@@ -1,91 +1,28 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, Compass, BookOpen, Users } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { Home, BookOpen, Users, User } from 'lucide-react';
 
-// --- Data (Defined outside component for performance) ---
-
-const NAV_ITEMS = [
-  { name: 'Home', icon: Home, path: '/dashboard' },
-  { name: 'Chat', icon: MessageCircle, path: '/chat' },
-  { name: 'Journey', icon: Compass, path: '/explorations' },
-  { name: 'Library', icon: BookOpen, path: '/library' },
-  { name: 'Community', icon: Users, path: '/community' },
-];
-
-// --- Sub-component for individual navigation items ---
-
-interface NavItemProps {
-  item: typeof NAV_ITEMS[0];
-  isActive: boolean;
-  onClick: (path: string) => void;
-}
-
-const NavItem = ({ item, isActive, onClick }: NavItemProps) => {
-  const { name, icon: Icon, path } = item;
-
+export const MobileNavigation: React.FC = () => {
   return (
-    <motion.button
-      key={name}
-      onClick={() => onClick(path)}
-      aria-label={name}
-      whileTap={{ scale: 0.9 }}
-      className={cn(
-        "relative z-10 flex flex-col items-center justify-center gap-1 flex-1 p-2 transition-colors duration-300",
-        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="text-xs font-medium">{name}</span>
-
-      {/* The magic sliding pill effect */}
-      {isActive && (
-        <motion.div
-          layoutId="active-nav-pill"
-          className="absolute inset-0 bg-primary/10 rounded-xl -z-10"
-          style={{ borderRadius: 16 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        />
-      )}
-    </motion.button>
-  );
-};
-
-// --- Main Mobile Navigation Component ---
-
-export const MobileNavigation = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
-
-  // Conditional rendering based on auth status and route
-  const hiddenRoutes = ['/', '/auth', '/assessment'];
-  if (!user || hiddenRoutes.includes(location.pathname)) {
-    return null;
-  }
-
-  const isActive = (path: string) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard' || location.pathname === '/';
-    }
-    return location.pathname.startsWith(path);
-  };
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden px-4 pb-4">
-      <nav className="relative flex justify-around items-center p-2 bg-background/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg">
-        {NAV_ITEMS.map((item) => (
-          <NavItem
-            key={item.name}
-            item={item}
-            isActive={isActive(item.path)}
-            onClick={navigate}
-          />
-        ))}
-      </nav>
-      {/* Ensures content doesn't hide behind the nav bar on devices with a bottom safe area */}
-      <div className="h-safe-area-inset-bottom" />
+    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg md:hidden">
+      <div className="flex justify-around py-2">
+        <NavLink to="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Home className="w-6 h-6" />
+          <span className="text-xs">Home</span>
+        </NavLink>
+        <NavLink to="/library" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <BookOpen className="w-6 h-6" />
+          <span className="text-xs">Library</span>
+        </NavLink>
+        <NavLink to="/community" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Users className="w-6 h-6" />
+          <span className="text-xs">Community</span>
+        </NavLink>
+        <NavLink to="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <User className="w-6 h-6" />
+          <span className="text-xs">Profile</span>
+        </NavLink>
+      </div>
     </div>
   );
 };

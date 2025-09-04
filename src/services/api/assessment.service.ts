@@ -1,500 +1,482 @@
-/**
- * Assessment Service
- * Handles all assessment-related operations with full business logic
- */
-
-import { BaseApiService, type ApiResponse } from './base.service';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
-import { CreateAssessmentSchema, AssessmentResponseSchema } from '@/services/validation/schemas';
+import { Assessment, AssessmentQuestion, AssessmentResult } from '@/types/assessment';
+import { Database } from '@/integrations/supabase/types';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { queryClient } from '@/lib/react-query';
 
-export type Assessment = Tables<'assessments'>;
-export type AssessmentInsert = TablesInsert<'assessments'>;
-export type AssessmentUpdate = TablesUpdate<'assessments'>;
-export type AssessmentQuestion = Tables<'assessment_questions'>;
-export type AssessmentOption = Tables<'assessment_options'>;
-export type UserAssessmentResult = Tables<'user_assessment_results'>;
+// Type aliases for better type safety
+type AssessmentRow = Database['public']['Tables']['assessments']['Row'];
+type AssessmentQuestionRow = Database['public']['Tables']['assessment_questions']['Row'];
+type AssessmentOptionRow = Database['public']['Tables']['assessment_options']['Row'];
+type AssessmentResultRow = Database['public']['Tables']['assessment_results']['Row'];
+type UserAssessmentResultRow = Database['public']['Tables']['user_assessment_results']['Row'];
 
-export interface AssessmentWithQuestions extends Assessment {
-  questions: (AssessmentQuestion & {
-    options: AssessmentOption[];
-  })[];
+// Enhanced error class for better error handling
+export class AssessmentError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'AssessmentError';
+  }
 }
 
-export interface AssessmentResult {
-  assessmentId: string;
-  userId: string;
-  responses: Array<{
-    questionId: string;
-    optionId: string;
-    score?: number;
-  }>;
-  totalScore: number;
-  personalityType?: string;
-  insights?: string;
-  recommendations?: string[];
-}
+// Cache management
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-export interface AssessmentAnalytics {
-  totalAttempts: number;
-  averageScore: number;
-  completionRate: number;
-  popularOptions: Record<string, number>;
-  timeSpentAverage: number;
-}
+// Realtime subscriptions
+let realtimeChannel: RealtimeChannel | null = null;
 
-class AssessmentService extends BaseApiService {
-  constructor() {
-    super('assessments');
+// Utility function for cache management
+const getFromCache = <T>(key: string): T | null => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
   }
-  
-  /**
-   * Get all assessments with their questions and options
-   */
-  async getAssessmentsWithQuestions(
-    filters?: { is_public?: boolean; category?: string }
-  ): Promise<ApiResponse<AssessmentWithQuestions[]>> {
-    try {
-      let query = supabase
-        .from('assessments')
-        .select(`
-          *,
-          questions:assessment_questions(
-            *,
-            options:assessment_options(*)
-          )
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (filters?.is_public !== undefined) {
-        query = query.eq('is_public', filters.is_public);
-      }
-      
-      if (filters?.category) {
-        query = query.eq('category', filters.category);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      // Sort questions and options by order
-      const sortedData = (data || []).map(assessment => ({
-        ...assessment,
-        questions: assessment.questions
-          ?.sort((a: any, b: any) => a.order - b.order)
-          .map((q: any) => ({
-            ...q,
-            options: q.options?.sort((a: any, b: any) => a.order - b.order) || []
-          })) || []
-      }));
-      
-      return {
-        data: sortedData as AssessmentWithQuestions[],
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getAssessmentsWithQuestions', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Get a single assessment with all its questions and options
-   */
-  async getAssessmentById(id: string): Promise<ApiResponse<AssessmentWithQuestions>> {
-    try {
-      const { data, error } = await supabase
-        .from('assessments')
-        .select(`
-          *,
-          questions:assessment_questions(
-            *,
-            options:assessment_options(*)
-          )
-        `)
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      
-      // Sort questions and options by order
-      const sortedData = {
-        ...data,
-        questions: data.questions
-          ?.sort((a: any, b: any) => a.order - b.order)
-          .map((q: any) => ({
-            ...q,
-            options: q.options?.sort((a: any, b: any) => a.order - b.order) || []
-          })) || []
-      };
-      
-      return {
-        data: sortedData as AssessmentWithQuestions,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getAssessmentById', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Submit assessment responses and calculate results
-   */
-  async submitAssessment(result: AssessmentResult): Promise<ApiResponse<UserAssessmentResult>> {
-    try {
-      // Validate the assessment result data
-      const validatedData = this.validate(AssessmentResponseSchema, {
-        assessment_id: result.assessmentId,
-        answers: result.responses.reduce((acc, r) => ({
-          ...acc,
-          [r.questionId]: r.optionId,
-        }), {}),
-      });
-      
-      // Start a transaction
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      // Calculate personality type based on responses
-      const personalityType = await this.calculatePersonalityType(result.responses);
-      
-      // Generate insights based on the assessment results
-      const insights = await this.generateInsights(result.assessmentId, result.responses, personalityType);
-      
-      // Generate personalized recommendations
-      const recommendations = await this.generateRecommendations(personalityType, result.totalScore);
-      
-      // Save the result
-      const { data, error } = await supabase
-        .from('user_assessment_results')
-        .insert({
-          user_id: user.id,
-          assessment_id: result.assessmentId,
-          responses: result.responses,
-          total_score: result.totalScore,
-          personality_type: personalityType,
-          insights: insights,
-          recommendations: recommendations,
-          completed_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update user's profile with latest assessment results
-      await this.updateUserProfile(user.id, personalityType, result.totalScore);
-      
-      return {
-        data: data as UserAssessmentResult,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('submitAssessment', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Calculate personality type based on responses
-   */
-  private async calculatePersonalityType(
-    responses: AssessmentResult['responses']
-  ): Promise<string> {
-    // Implement sophisticated personality calculation algorithm
-    const scoresByDimension: Record<string, number> = {};
-    
-    for (const response of responses) {
-      // Get option details to determine dimension
-      const { data: option } = await supabase
-        .from('assessment_options')
-        .select('scoring_data')
-        .eq('id', response.optionId)
-        .single();
-      
-      if (option?.scoring_data) {
-        const scoringData = option.scoring_data as any;
-        Object.entries(scoringData.dimensions || {}).forEach(([dimension, score]) => {
-          scoresByDimension[dimension] = (scoresByDimension[dimension] || 0) + (score as number);
-        });
+  cache.delete(key);
+  return null;
+};
+
+const setCache = <T>(key: string, data: T): void => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+const invalidateCache = (pattern?: string): void => {
+  if (pattern) {
+    for (const key of cache.keys()) {
+      if (key.includes(pattern)) {
+        cache.delete(key);
       }
     }
-    
-    // Determine personality type based on highest scoring dimensions
-    const sortedDimensions = Object.entries(scoresByDimension)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([dim]) => dim);
-    
-    return sortedDimensions.join('-') || 'Balanced';
+  } else {
+    cache.clear();
+  }
+};
+
+// Enhanced error handling wrapper
+const handleError = (error: any, context: string): never => {
+  console.error(`[AssessmentService] ${context}:`, error);
+  
+  if (error.code === 'PGRST116') {
+    throw new AssessmentError('Assessment not found', 'NOT_FOUND', 404);
   }
   
-  /**
-   * Generate insights based on assessment results
-   */
-  private async generateInsights(
-    assessmentId: string,
-    responses: AssessmentResult['responses'],
-    personalityType: string
-  ): Promise<string> {
-    // Fetch assessment details
-    const { data: assessment } = await supabase
+  if (error.code === 'PGRST301') {
+    throw new AssessmentError('Invalid request parameters', 'INVALID_PARAMS', 400);
+  }
+  
+  if (error.code === '23505') {
+    throw new AssessmentError('Duplicate entry', 'DUPLICATE', 409);
+  }
+  
+  throw new AssessmentError(
+    error.message || 'An unexpected error occurred',
+    'UNKNOWN_ERROR',
+    500,
+    { originalError: error }
+  );
+};
+
+// Fetch all public assessments with caching
+export const getPublicAssessments = async (): Promise<Assessment[]> => {
+  const cacheKey = 'public-assessments';
+  const cached = getFromCache<Assessment[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
       .from('assessments')
-      .select('title, description, category')
-      .eq('id', assessmentId)
-      .single();
-    
-    if (!assessment) return 'Unable to generate insights';
-    
-    // Build comprehensive insights
-    const insights = [
-      `Based on your responses to the ${assessment.title} assessment, your personality type is ${personalityType}.`,
-      '',
-      'Key Strengths:',
-      this.getStrengthsForPersonalityType(personalityType),
-      '',
-      'Areas for Growth:',
-      this.getGrowthAreasForPersonalityType(personalityType),
-      '',
-      'Your Response Pattern:',
-      this.analyzeResponsePattern(responses),
-    ].join('\n');
-    
-    return insights;
-  }
-  
-  /**
-   * Generate personalized recommendations
-   */
-  private async generateRecommendations(
-    personalityType: string,
-    totalScore: number
-  ): Promise<string[]> {
-    const recommendations: string[] = [];
-    
-    // Base recommendations on personality type
-    const typeRecommendations = this.getRecommendationsForType(personalityType);
-    recommendations.push(...typeRecommendations);
-    
-    // Add score-based recommendations
-    if (totalScore < 40) {
-      recommendations.push(
-        'Consider exploring foundational personal development resources',
-        'Start with small, achievable goals to build momentum',
-        'Focus on self-awareness exercises and mindfulness practices'
-      );
-    } else if (totalScore < 70) {
-      recommendations.push(
-        'You\'re on a great path - continue building on your strengths',
-        'Challenge yourself with intermediate growth opportunities',
-        'Consider mentoring others in areas where you excel'
-      );
-    } else {
-      recommendations.push(
-        'You demonstrate strong self-awareness and capabilities',
-        'Explore advanced leadership and influence strategies',
-        'Share your insights and experiences with the community'
-      );
-    }
-    
-    return recommendations.slice(0, 5); // Return top 5 recommendations
-  }
-  
-  /**
-   * Update user profile with assessment results
-   */
-  private async updateUserProfile(
-    userId: string,
-    personalityType: string,
-    latestScore: number
-  ): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          personality_type: personalityType,
-          latest_assessment_score: latestScore,
-          last_assessment_date: new Date().toISOString(),
-        })
-        .eq('id', userId);
-      
-      if (error) throw error;
-    } catch (error) {
-      this.logError('updateUserProfile', error);
-    }
-  }
-  
-  /**
-   * Get user's assessment history
-   */
-  async getUserAssessmentHistory(userId: string): Promise<ApiResponse<UserAssessmentResult[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('user_assessment_results')
-        .select(`
+      .select(`
+        *,
+        questions:assessment_questions(
           *,
-          assessment:assessments(title, category, description)
-        `)
-        .eq('user_id', userId)
-        .order('completed_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return {
-        data: data as any,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getUserAssessmentHistory', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
+          options:assessment_options(*)
+        )
+      `)
+      .eq('visibility', 'public')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const assessments = (data || []).map(transformAssessmentRow);
+    setCache(cacheKey, assessments);
+    return assessments;
+  } catch (error) {
+    handleError(error, 'getPublicAssessments');
   }
-  
-  /**
-   * Get assessment analytics
-   */
-  async getAssessmentAnalytics(assessmentId: string): Promise<ApiResponse<AssessmentAnalytics>> {
-    try {
-      const { data: results, error } = await supabase
-        .from('user_assessment_results')
-        .select('*')
-        .eq('assessment_id', assessmentId);
+};
+
+// Fetch assessments with advanced filtering
+export const getAssessments = async (filters?: {
+  category?: string;
+  type?: string;
+  difficulty?: string;
+  visibility?: 'public' | 'private' | 'premium';
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: Assessment[]; total: number }> => {
+  const cacheKey = `assessments-${JSON.stringify(filters || {})}`;
+  const cached = getFromCache<{ data: Assessment[]; total: number }>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    let query = supabase
+      .from('assessments')
+      .select(`
+        *,
+        questions:assessment_questions(
+          *,
+          options:assessment_options(*)
+        )
+      `, { count: 'exact' });
+
+    if (filters?.category) {
+      query = query.eq('category', filters.category);
+    }
+    if (filters?.type) {
+      query = query.eq('type', filters.type);
+    }
+    if (filters?.difficulty) {
+      query = query.eq('difficulty', filters.difficulty);
+    }
+    if (filters?.visibility) {
+      query = query.eq('visibility', filters.visibility);
+    }
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+    }
+
+    const { data, error, count } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const assessments = (data || []).map(transformAssessmentRow);
+    const result = { data: assessments, total: count || 0 };
+    
+    setCache(cacheKey, result);
+    return result;
+  } catch (error) {
+    handleError(error, 'getAssessments');
+  }
+};
+
+// Fetch single assessment by ID
+export const getAssessmentById = async (id: string): Promise<Assessment | null> => {
+  const cacheKey = `assessment-${id}`;
+  const cached = getFromCache<Assessment>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
+      .from('assessments')
+      .select(`
+        *,
+        questions:assessment_questions(
+          *,
+          options:assessment_options(*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const assessment = transformAssessmentRow(data);
+    setCache(cacheKey, assessment);
+    return assessment;
+  } catch (error) {
+    handleError(error, 'getAssessmentById');
+  }
+};
+
+// Fetch full assessment details
+export const getFullAssessment = async (id: string): Promise<Assessment | null> => {
+  return getAssessmentById(id); // Using the enhanced version
+};
+
+// Create new assessment
+export const createAssessment = async (assessment: Partial<Assessment>): Promise<Assessment> => {
+  try {
+    const { data, error } = await supabase
+      .from('assessments')
+      .insert({
+        title: assessment.title,
+        description: assessment.description,
+        type: assessment.type,
+        category: assessment.category,
+        visibility: assessment.visibility,
+        estimated_time: assessment.estimatedTime,
+        scoring: assessment.scoring,
+        created_by: assessment.createdBy
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    invalidateCache('assessments');
+    return transformAssessmentRow(data);
+  } catch (error) {
+    handleError(error, 'createAssessment');
+  }
+};
+
+// Update existing assessment
+export const updateAssessment = async (id: string, updates: Partial<Assessment>): Promise<Assessment> => {
+  try {
+    const { data, error } = await supabase
+      .from('assessments')
+      .update({
+        title: updates.title,
+        description: updates.description,
+        category: updates.category,
+        visibility: updates.visibility,
+        estimated_time: updates.estimatedTime,
+        scoring: updates.scoring,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    invalidateCache(`assessment-${id}`);
+    invalidateCache('assessments');
+    return transformAssessmentRow(data);
+  } catch (error) {
+    handleError(error, 'updateAssessment');
+  }
+};
+
+// Delete assessment
+export const deleteAssessment = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('assessments')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    invalidateCache(`assessment-${id}`);
+    invalidateCache('assessments');
+  } catch (error) {
+    handleError(error, 'deleteAssessment');
+  }
+};
+
+// Submit assessment results
+export const submitAssessmentResult = async (params: {
+  assessmentId: string;
+  userId?: string;
+  visitorSessionId?: string;
+  responses: Record<string, any>;
+  score: number;
+  totalScore: number;
+  percentage: number;
+  personalityType?: string;
+  insights?: string[];
+  recommendations?: string[];
+}): Promise<AssessmentResult> => {
+  try {
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .insert({
+        assessment_id: params.assessmentId,
+        user_id: params.userId,
+        visitor_session_id: params.visitorSessionId,
+        score: params.score,
+        total_score: params.totalScore,
+        percentage: params.percentage,
+        personality_type: params.personalityType,
+        responses: params.responses,
+        insights: params.insights,
+        recommendations: params.recommendations,
+        completed_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return transformResultRow(data);
+  } catch (error) {
+    handleError(error, 'submitAssessmentResult');
+  }
+};
+
+// Get user assessment results
+export const getUserResults = async (userId: string): Promise<AssessmentResult[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .select(`
+        *,
+        assessment:assessments(*)
+      `)
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(transformResultRow);
+  } catch (error) {
+    handleError(error, 'getUserResults');
+  }
+};
+
+// Get assessment results with analytics
+export const getAssessmentAnalytics = async (assessmentId: string) => {
+  try {
+    const [
+      { data: results, error: resultsError },
+      { count: totalCompletions, error: countError },
+      { data: avgScore, error: avgError }
+    ] = await Promise.all([
+      supabase
+        .from('assessment_results')
+        .select('score, percentage, completed_at')
+        .eq('assessment_id', assessmentId)
+        .order('completed_at', { ascending: false })
+        .limit(100),
       
-      if (error) throw error;
+      supabase
+        .from('assessment_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('assessment_id', assessmentId),
       
-      if (!results || results.length === 0) {
-        return {
-          data: {
-            totalAttempts: 0,
-            averageScore: 0,
-            completionRate: 0,
-            popularOptions: {},
-            timeSpentAverage: 0,
-          },
-          error: null,
-        };
-      }
-      
-      // Calculate analytics
-      const totalAttempts = results.length;
-      const averageScore = results.reduce((sum, r) => sum + (r.total_score || 0), 0) / totalAttempts;
-      
-      // Calculate popular options
-      const optionCounts: Record<string, number> = {};
-      results.forEach(result => {
-        const responses = result.responses as any[];
-        responses?.forEach(response => {
-          const optionId = response.optionId;
-          optionCounts[optionId] = (optionCounts[optionId] || 0) + 1;
+      supabase
+        .from('assessment_results')
+        .select('score')
+        .eq('assessment_id', assessmentId)
+    ]);
+
+    if (resultsError || countError || avgError) {
+      throw resultsError || countError || avgError;
+    }
+
+    const totalScore = results?.reduce((sum, r) => sum + (r.score || 0), 0) || 0;
+    const averageScore = results?.length ? totalScore / results.length : 0;
+    const averagePercentage = results?.length 
+      ? results.reduce((sum, r) => sum + (r.percentage || 0), 0) / results.length 
+      : 0;
+
+    return {
+      totalCompletions: totalCompletions || 0,
+      averageScore: Math.round(averageScore * 100) / 100,
+      averagePercentage: Math.round(averagePercentage * 100) / 100,
+      recentResults: results || []
+    };
+  } catch (error) {
+    handleError(error, 'getAssessmentAnalytics');
+  }
+};
+
+// Real-time subscriptions
+export const subscribeToAssessments = (
+  callback: (payload: { eventType: string; assessment: Assessment }) => void
+): RealtimeChannel => {
+  if (realtimeChannel) {
+    realtimeChannel.unsubscribe();
+  }
+
+  realtimeChannel = supabase
+    .channel('assessments-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'assessments' },
+      (payload) => {
+        const assessment = transformAssessmentRow(payload.new as AssessmentRow);
+        callback({
+          eventType: payload.eventType,
+          assessment
         });
-      });
-      
-      return {
-        data: {
-          totalAttempts,
-          averageScore: Math.round(averageScore * 100) / 100,
-          completionRate: 100, // All saved results are complete
-          popularOptions: optionCounts,
-          timeSpentAverage: 180, // Default 3 minutes, can be tracked more precisely
-        },
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getAssessmentAnalytics', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  // Helper methods for personality insights
-  private getStrengthsForPersonalityType(type: string): string {
-    const strengthsMap: Record<string, string> = {
-      'Analytical': '• Strong problem-solving abilities\n• Attention to detail\n• Logical thinking',
-      'Creative': '• Innovative thinking\n• Artistic expression\n• Outside-the-box solutions',
-      'Social': '• Excellent communication\n• Team collaboration\n• Empathy and understanding',
-      'Leader': '• Decision-making skills\n• Vision and strategy\n• Inspiring others',
-      'Balanced': '• Versatility\n• Adaptability\n• Well-rounded perspective',
-    };
-    
-    const key = type.split('-')[0] || 'Balanced';
-    return strengthsMap[key] || strengthsMap['Balanced'];
-  }
-  
-  private getGrowthAreasForPersonalityType(type: string): string {
-    const growthMap: Record<string, string> = {
-      'Analytical': '• Emotional intelligence\n• Creative expression\n• Flexibility in approach',
-      'Creative': '• Structure and organization\n• Practical implementation\n• Detail orientation',
-      'Social': '• Independent decision-making\n• Analytical thinking\n• Setting boundaries',
-      'Leader': '• Active listening\n• Patience and empathy\n• Collaborative approach',
-      'Balanced': '• Specialization in key areas\n• Deeper expertise\n• Focused development',
-    };
-    
-    const key = type.split('-')[0] || 'Balanced';
-    return growthMap[key] || growthMap['Balanced'];
-  }
-  
-  private getRecommendationsForType(type: string): string[] {
-    const recommendationsMap: Record<string, string[]> = {
-      'Analytical': [
-        'Explore data-driven decision making courses',
-        'Practice creative brainstorming techniques',
-        'Join collaborative problem-solving groups',
-      ],
-      'Creative': [
-        'Channel creativity into structured projects',
-        'Learn project management methodologies',
-        'Collaborate with analytical thinkers',
-      ],
-      'Social': [
-        'Develop leadership communication skills',
-        'Practice conflict resolution techniques',
-        'Build networking strategies',
-      ],
-      'Leader': [
-        'Study servant leadership principles',
-        'Develop emotional intelligence',
-        'Practice delegation and trust-building',
-      ],
-      'Balanced': [
-        'Identify your strongest dimension to develop further',
-        'Explore diverse learning opportunities',
-        'Maintain your versatile approach',
-      ],
-    };
-    
-    const key = type.split('-')[0] || 'Balanced';
-    return recommendationsMap[key] || recommendationsMap['Balanced'];
-  }
-  
-  private analyzeResponsePattern(responses: AssessmentResult['responses']): string {
-    const totalResponses = responses.length;
-    const highScoreResponses = responses.filter(r => (r.score || 0) >= 4).length;
-    const consistency = (highScoreResponses / totalResponses) * 100;
-    
-    if (consistency > 80) {
-      return 'You showed very consistent and confident responses throughout the assessment.';
-    } else if (consistency > 50) {
-      return 'Your responses show a balanced mix of strengths and areas for development.';
-    } else {
-      return 'Your responses indicate diverse perspectives and openness to growth.';
-    }
-  }
+        
+        // Invalidate relevant caches
+        invalidateCache('assessments');
+        if (payload.new?.id) {
+          invalidateCache(`assessment-${payload.new.id}`);
+        }
+      }
+    )
+    .subscribe();
+
+  return realtimeChannel;
+};
+
+// Utility function to transform database rows to application types
+function transformAssessmentRow(row: any): Assessment {
+  const questions = (row.questions || []).map((q: any) => ({
+    id: q.id.toString(),
+    text: q.question_text || q.text,
+    type: q.question_type || q.type,
+    options: (q.options || []).map((o: any) => ({
+      id: o.id.toString(),
+      text: o.option_text || o.text,
+      value: o.value || o.option_text || o.text
+    })),
+    category: q.category,
+    scale: q.scale,
+    position: q.position || q.order
+  }));
+
+  return {
+    id: row.id.toString(),
+    title: row.title,
+    description: row.description,
+    type: row.type,
+    category: row.category,
+    visibility: row.visibility,
+    estimatedTime: row.estimated_time || row.estimatedTime,
+    questions,
+    scoring: row.scoring,
+    results: {
+      summary: row.results?.summary || '',
+      insights: row.results?.insights || [],
+      recommendations: row.results?.recommendations || [],
+      aiAnalysis: row.results?.aiAnalysis
+    },
+    createdAt: row.created_at || row.createdAt,
+    updatedAt: row.updated_at || row.updatedAt
+  };
 }
 
-export const assessmentService = new AssessmentService();
+function transformResultRow(row: any): AssessmentResult {
+  return {
+    id: row.id.toString(),
+    assessmentId: row.assessment_id?.toString(),
+    userId: row.user_id,
+    visitorSessionId: row.visitor_session_id,
+    score: row.score,
+    totalScore: row.total_score || row.totalScore,
+    percentage: row.percentage,
+    personalityType: row.personality_type,
+    responses: row.responses || {},
+    insights: row.insights || [],
+    recommendations: row.recommendations || [],
+    completedAt: row.completed_at || row.completedAt,
+    createdAt: row.created_at || row.createdAt,
+    assessment: row.assessment ? transformAssessmentRow(row.assessment) : undefined
+  };
+}
+
+// Cleanup function
+export const cleanup = () => {
+  if (realtimeChannel) {
+    realtimeChannel.unsubscribe();
+    realtimeChannel = null;
+  }
+  cache.clear();
+};
+
+// Export types for external use
+export type { AssessmentRow, AssessmentQuestionRow, AssessmentOptionRow, AssessmentResultRow };

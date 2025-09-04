@@ -1,21 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Clock, Target, Brain, Heart, Star, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getPublicAssessments } from '@/services/api/assessment.service';
+import { Assessment } from '@/types/assessment';
 
 interface AssessmentCardProps {
-  assessment: {
-    id: number;
-    title: string;
-    description: string;
-    type: string;
-    difficulty?: string;
-    category?: string;
-    estimated_time?: number;
-    question_count?: number;
-  };
+  assessment: Assessment;
   isPublic?: boolean;
 }
 
@@ -53,6 +46,16 @@ const getDifficultyColor = (difficulty?: string) => {
 
 export const MobileAssessmentCard: React.FC<AssessmentCardProps> = ({ assessment, isPublic = false }) => {
   const navigate = useNavigate();
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+
+  useEffect(() => {
+    const fetchAssessments = async () => {
+      const data = await getPublicAssessments();
+      setAssessments(data);
+    };
+
+    fetchAssessments();
+  }, []);
 
   const handleStart = () => {
     if (isPublic) {

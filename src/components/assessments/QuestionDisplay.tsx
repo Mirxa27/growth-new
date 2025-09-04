@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -6,24 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, Circle } from 'lucide-react';
-
-interface Option {
-  id: number;
-  option_text: string;
-  position: number;
-}
-
-interface Question {
-  id: number;
-  question_text: string;
-  question_type: 'multiple_choice' | 'free_text';
-  position: number;
-  explanation?: string;
-  options?: Option[];
-}
+import { getFullAssessment } from '@/services/api/assessment.service';
+import { Assessment, AssessmentQuestion } from '@/types/assessment';
 
 interface QuestionDisplayProps {
-  question: Question;
+  assessmentId: string;
   currentAnswer: string;
   onAnswerChange: (answer: string) => void;
   questionNumber: number;
@@ -35,7 +22,7 @@ interface QuestionDisplayProps {
 }
 
 export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
-  question,
+  assessmentId,
   currentAnswer,
   onAnswerChange,
   questionNumber,
@@ -45,7 +32,21 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   isFirst,
   isLast,
 }) => {
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [question, setQuestion] = useState<AssessmentQuestion | null>(null);
   const progress = (questionNumber / totalQuestions) * 100;
+
+  useEffect(() => {
+    const fetchAssessment = async () => {
+      const data = await getFullAssessment(assessmentId);
+      setAssessment(data);
+      if (data) {
+        setQuestion(data.questions[questionNumber - 1]);
+      }
+    };
+
+    fetchAssessment();
+  }, [assessmentId, questionNumber]);
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6">

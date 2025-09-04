@@ -18,178 +18,398 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // - assessment_options: columns: id, question_id, option_text, is_correct, feedback, position, created_at, scoring_data
 //   (score_value/explanation columns are NOT used to avoid schema mismatch errors)
 
-// Free Assessments Data Structure (6 assessments per reference.md)
+// Enhanced Free Assessments with 10-15+ questions each
 const freeAssessments = [
   {
-    title: 'Core Personality Discovery',
-    description:
-      'Uncover your authentic personality type with this comprehensive assessment. Discover your natural tendencies, communication style, and core motivations to better understand yourself and others.',
-    type: 'test',
+    title: 'Personalty Discovery',
+    description: 'Discover your core personality traits and understand what makes you unique. Explore your natural tendencies, communication style, and motivations.',
+    type: 'personality',
     visibility: 'public',
     questions: [
       {
-        text: 'When meeting new people at a social gathering, you typically:',
+        text: 'In social situations, you tend to:',
         type: 'multiple_choice',
         options: [
-          { text: 'First take time to observe the people and environment', feedback: 'Shows thoughtful, observational approach' },
-          { text: "Automatically know who you'll connect with and approach confidently", feedback: 'Indicates outgoing, socially intuitive nature' },
-          { text: 'Start conversations immediately to build connections', feedback: 'Suggests confident, socially active personality' },
-          { text: 'Maintain a comfortable distance while assessing the situation', feedback: 'Shows balanced, observant approach' }
+          { text: 'Initiate conversations with new people', feedback: 'Shows outgoing and confident social personality' },
+          { text: 'Wait for others to approach you', feedback: 'Indicates thoughtful and observant nature' },
+          { text: 'Prefer small groups over large gatherings', feedback: 'Suggests preference for intimate connections' },
+          { text: 'Avoid social situations when possible', feedback: 'Points to introverted preference for solitude' }
         ]
       },
       {
-        text: 'When facing a complex problem, your natural approach is to:',
+        text: 'When making decisions, you primarily rely on:',
         type: 'multiple_choice',
         options: [
-          { text: 'Break it down into smaller, manageable parts systematically', feedback: 'Practical, analytical problem-solving style' },
-          { text: 'Explore all possible solutions and their implications', feedback: 'Comprehensive, thoughtful approach' },
-          { text: 'Trust your intuition and make a quick decision', feedback: 'Relies on instincts and experience' },
-          { text: 'Consult others to gain different perspectives', feedback: 'Values collaboration and diverse input' }
+          { text: 'Logic and objective analysis', feedback: 'Analytical and methodical decision-maker' },
+          { text: 'Your gut feelings and intuition', feedback: 'Relies on instinctive and emotional responses' },
+          { text: 'Input from trusted friends/family', feedback: 'Values collaborative input in decisions' },
+          { text: 'Practical considerations and past experiences', feedback: 'Grounded in practical experience and facts' }
         ]
       },
       {
-        text: 'During your ideal weekend, you would most likely be:',
+        text: 'Your ideal weekend involves:',
         type: 'multiple_choice',
         options: [
-          { text: 'Planning my next week and organizing personal projects', feedback: 'Structured, productive nature' },
-          { text: 'Reading, learning something new, or reflecting', feedback: 'Contemplative and growth-oriented' },
-          { text: 'Being around friends and family, staying social', feedback: 'Sociable and relationship-focused' },
-          { text: 'Trying new experiences or adventures', feedback: 'Adventurous and exploratory' }
+          { text: 'Adventure and new experiences', feedback: 'Thrives on excitement and novelty' },
+          { text: 'Relaxation and quiet time', feedback: 'Needs time for reflection and recharge' },
+          { text: 'Socializing with friends', feedback: 'Energized by social interactions' },
+          { text: 'Productive activities and learning', feedback: 'Driven by growth and achievement' }
         ]
       },
       {
-        text: 'When processing new information, you tend to focus on:',
+        text: 'When facing unexpected changes, you:',
         type: 'multiple_choice',
         options: [
-          { text: 'The big picture and future possibilities', feedback: 'Visionary, concept-oriented thinker' },
-          { text: 'Practical details and concrete implementation', feedback: 'Focused on facts and action' },
-          { text: 'The emotional aspects and how things impact others', feedback: 'Empathetic, relationship-minded' },
-          { text: 'The logical connections and systematic reasoning', feedback: 'Analytical and systematic' }
+          { text: 'Embrace the change enthusiastically', feedback: 'Highly adaptable and flexible personality' },
+          { text: 'Feel anxious but adapt quickly', feedback: 'Adaptive but initially reactive to change' },
+          { text: 'Need time to process and adjust', feedback: 'Methodical adjuster who needs time to adapt' },
+          { text: 'Prefer to stick to original plans', feedback: 'Values stability and consistency strongly' }
+        ]
+      },
+      {
+        text: 'In group projects, you naturally take on the role of:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'The leader coordinating the team', feedback: 'Natural leadership and organizational skills' },
+          { text: 'The creative contributor generating ideas', feedback: 'Strong creative and innovative thinking' },
+          { text: 'The detail-oriented organizer', feedback: 'Attention to detail and systematic approach' },
+          { text: 'The supportive mediator between team members', feedback: 'Empathetic and relationship-focused role' }
+        ]
+      },
+      {
+        text: 'When learning something new, you prefer to:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Read about it thoroughly first', feedback: 'Learns best through theoretical study' },
+          { text: 'Jump in and figure it out hands-on', feedback: 'Experiential and practical learner' },
+          { text: 'Listen to explanations and ask questions', feedback: 'Interactive auditory learning style' },
+          { text: 'Watch others demonstrate and then copy', feedback: 'Visual and observational learning approach' }
+        ]
+      },
+      {
+        text: 'Your workspace is typically:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Highly organized and structured', feedback: 'Strong organizational and structural preferences' },
+          { text: 'Cluttered but you know where everything is', feedback: 'Creative chaos with personal system' },
+          { text: 'Minimalist and clean', feedback: 'Values clarity and minimal distraction' },
+          { text: 'Personalized with many personal touches', feedback: 'Expresses personality through environment' }
+        ]
+      },
+      {
+        text: 'When giving feedback, you focus on:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Constructive criticism to improve performance', feedback: 'Direct and performance-improvement focused' },
+          { text: 'Encouragement and positive reinforcement', feedback: 'Supportive and motivation-oriented approach' },
+          { text: 'Fair and balanced assessment', feedback: 'Objective and impartial perspective' },
+          { text: 'Specific facts and evidence', feedback: 'Data-driven and analytical feedback style' }
+        ]
+      },
+      {
+        text: 'In arguments, you react by:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Staying calm and addressing issues logically', feedback: 'Analytical and composed during conflict' },
+          { text: 'Becoming emotional and defending your position', feedback: 'Passionate and emotionally engaged' },
+          { text: "Trying to understand others' viewpoint", feedback: 'Empathetic and relationship-minded' },
+          { text: 'Avoiding confrontation if possible', feedback: 'Conflict-averse and harmony-seeking' }
+        ]
+      },
+      {
+        text: 'Your approach to planning is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Detailed planning well in advance', feedback: 'Thorough and strategic planner' },
+          { text: 'Flexible planning with room for changes', feedback: 'Adaptive and flexible approach' },
+          { text: 'Minimal planning, preferring spontaneity', feedback: 'Intuitive and spontaneous style' },
+          { text: 'Planning only the essential elements', feedback: 'Essential-focused and streamlined planning' }
+        ]
+      },
+      {
+        text: 'Rate your comfort with uncertainty:',
+        type: 'scale',
+        scale: { min: 1, max: 5, labels: ['Very uncomfortable', 'Uncomfortable', 'Neutral', 'Comfortable', 'Very comfortable'] }
+      },
+      {
+        text: 'When you complete a task, you feel most satisfied by:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'The process and learning experience', feedback: 'Values growth and development aspect' },
+          { text: 'Achieving the results and meeting goals', feedback: 'Outcome and achievement oriented' },
+          { text: 'Helping others who benefit from your work', feedback: 'Service and impact-motivated' },
+          { text: 'Creating something innovative or different', feedback: 'Innovation and creativity driven' }
+        ]
+      },
+      {
+        text: 'In your relationships, you tend to be:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Loyal and committed to long-term connections', feedback: 'Deeply committed and loyal friend' },
+          { text: 'Flexible and open to new friendships easily', feedback: 'Socially adaptable and open' },
+          { text: 'Selective and careful about who you let in', feedback: 'Choosy and discerning in relationships' },
+          { text: 'Warm and inclusive with most people you meet', feedback: 'Friendly and approachable personality' }
+        ]
+      },
+      {
+        text: 'When faced with criticism, your first reaction is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'To defend yourself and explain your position', feedback: 'Defensive and explanatory style' },
+          { text: 'To feel hurt and withdraw for a time', feedback: 'Sensitive and withdrawal response' },
+          { text: 'To analyze what you might learn from it', feedback: 'Reflective and growth-oriented response' },
+          { text: 'To discuss it openly to understand all perspectives', feedback: 'Open and collaborative approach' }
+        ]
+      },
+      {
+        text: 'Your attitude toward rules and procedures is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'I appreciate structure and clear guidelines', feedback: 'Values organization and certainty' },
+          { text: 'I often question rules and look for better ways', feedback: 'Skeptic and improvement-focused' },
+          { text: 'I follow rules when they make sense', feedback: 'Pragmatic and conditional compliance' },
+          { text: 'I prefer freedom and dislike rigid procedures', feedback: 'Independent and flexible approach' }
         ]
       }
     ]
   },
   {
-    title: 'Emotional Intelligence Profile',
-    description:
-      'Discover your emotional intelligence strengths and areas for growth. This assessment evaluates your self-awareness, empathy, emotional regulation, and social skills.',
-    type: 'test',
+    title: 'Stress Level Assessment',
+    description: 'Understand your current stress levels and identify effective coping strategies tailored to your personality.',
+    type: 'wellness',
     visibility: 'public',
     questions: [
       {
-        text: 'When a colleague shows signs of frustration, your first response is usually:',
+        text: 'Over the past week, how often have you felt overwhelmed?',
         type: 'multiple_choice',
         options: [
-          { text: 'To become equally frustrated and defensive', feedback: "Matching others' emotions can reduce objectivity" },
-          { text: 'To calmly suggest ways to address the underlying issue', feedback: 'Problem-solving orientation' },
-          { text: 'To offer a listening ear and emotional support', feedback: 'High empathy and support skills' },
-          { text: 'To distance yourself until things calm down', feedback: 'Prefers emotional distance to reset' }
+          { text: 'Never', feedback: 'Good stress management baseline' },
+          { text: 'Rarely', feedback: 'Minimal ongoing stress' },
+          { text: 'Sometimes', feedback: 'Moderate stress patterns' },
+          { text: 'Often', feedback: 'High frequency stress' },
+          { text: 'Daily', feedback: 'Chronic stress levels' }
         ]
       },
       {
-        text: 'In emotionally charged situations, you typically:',
+        text: 'Physical symptoms of stress you\'ve experienced recently:',
         type: 'multiple_choice',
         options: [
-          { text: 'Become anxious and seek immediate resolution', feedback: 'Prefers quick closure under stress' },
-          { text: 'Stay calm and help others work through their emotions', feedback: 'High emotional regulation' },
-          { text: 'Experience the emotions deeply but process them healthily', feedback: 'High self-awareness' },
-          { text: 'Push emotions aside to focus on logical solutions', feedback: 'Prioritizes logic over affect' }
+          { text: 'Headaches', feedback: 'Common stress-related symptom' },
+          { text: 'Sleep problems', feedback: 'Impact on rest and recovery' },
+          { text: 'Muscle tension', feedback: 'Physical manifestation of stress' },
+          { text: 'Fatigue', feedback: 'Energy depletion from stress' },
+          { text: 'Digestive issues', feedback: 'Gut-brain connection stress indicator' },
+          { text: 'None of these', feedback: 'Good coping mechanism presence' }
         ]
       },
       {
-        text: 'Other people often come to you for advice on matters involving:',
+        text: 'When under stress, which coping strategy do you use most?',
         type: 'multiple_choice',
         options: [
-          { text: 'Strategic planning and decision-making', feedback: 'Analytical and structured' },
-          { text: 'Emotional concerns and personal challenges', feedback: 'Trusted for emotional insight' },
-          { text: 'Creative and innovative ideas', feedback: 'Imaginative and future-oriented' },
-          { text: 'Technical matters', feedback: 'Expert knowledge' }
-        ]
-      }
-    ]
-  },
-  {
-    title: 'Communication Style Analysis',
-    description:
-      'Understand your natural communication patterns and learn how to adapt your style for better relationships and effectiveness.',
-    type: 'test',
-    visibility: 'public',
-    questions: [
-      {
-        text: 'During conversations, you naturally tend to:',
-        type: 'multiple_choice',
-        options: [
-          { text: 'Listen more than speak, letting others lead the conversation', feedback: 'Listener-oriented style' },
-          { text: 'Provide facts, data, and logical analysis', feedback: 'Information-focused communicator' },
-          { text: "Focus on understanding others' feelings and perspectives", feedback: 'Empathetic and relational' },
-          { text: 'Express enthusiasm and generate excitement in others', feedback: 'Motivational and energetic' }
+          { text: 'Deep breathing or meditation', feedback: 'Mindfulness approach' },
+          { text: 'Exercise or physical activity', feedback: 'Physical stress relief' },
+          { text: 'Talking to friends/family about it', feedback: 'Social support network' },
+          { text: 'Forcing yourself to work through it', feedback: 'Productivity-focused response' },
+          { text: 'Taking time alone to process', feedback: 'Solitary processing style' },
+          { text: 'Eating or other comfort behaviors', feedback: 'Comfort-seeking pattern' }
         ]
       },
       {
-        text: 'When giving feedback, your approach typically is:',
+        text: 'How often do you experience racing thoughts?',
         type: 'multiple_choice',
         options: [
-          { text: 'Direct and to the point, focusing on bottom-line recommendations', feedback: 'Action-oriented' },
-          { text: 'Gentle and supportive with positives and growth areas', feedback: 'Encouraging and constructive' },
-          { text: 'Detailed and thorough, examining all aspects', feedback: 'Comprehensive and analytical' },
-          { text: 'Technical and precise, focusing on specific details', feedback: 'Detail-oriented, expert approach' }
+          { text: 'Never', feedback: 'Good mental clarity' },
+          { text: 'Rarely', feedback: 'Minimal cognitive stress' },
+          { text: 'Sometimes', feedback: 'Occasional mental overload' },
+          { text: 'Often', feedback: 'Frequent mental restlessness' },
+          { text: 'Most of the time', feedback: 'Chronic rumination pattern' }
         ]
+      },
+      {
+        text: 'Rate your usual sleep quality when stressed:',
+        type: 'scale',
+        scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] }
+      },
+      {
+        text: 'How do you typically react to unexpected challenges?',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Address them immediately and systematically', feedback: 'Proactive problem-solving style' },
+          { text: 'Feel overwhelmed but eventually handle them', feedback: 'Delayed adaptation pattern' },
+          { text: 'Ask others for help or advice', feedback: 'Collaborative support system' },
+          { text: 'Avoid dealing with them as long as possible', feedback: 'Avoidant coping mechanism' },
+          { text: 'Feel anxious but stay focused on solutions', feedback: 'Anxiety-driven motivation' }
+        ]
+      },
+      {
+        text: 'Rate your ability to relax and unwind after a stressful day:',
+        type: 'scale',
+        scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] }
+      },
+      {
+        text: 'Which environment feels most stressful to you?',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Work or professional settings', feedback: 'Career-related stress triggers' },
+          { text: 'Social situations or parties', feedback: 'Social anxiety indicators' },
+          { text: 'Public speaking or presentations', feedback: 'Performance anxiety pattern' },
+          { text: 'Family conflicts or expectations', feedback: 'Relationship stress triggers' },
+          { text: 'Personal health or relationship concerns', feedback: 'Personal worry patterns' }
+        ]
+      },
+      {
+        text: 'How often do you practice stress management activities?',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Daily', feedback: 'Strong self-care routine' },
+          { text: 'A few times a week', feedback: 'Regular stress management' },
+          { text: 'Once a week', feedback: 'Periodic stress relief' },
+          { text: 'Rarely', feedback: 'Limited stress management tools' },
+          { text: 'Never', feedback: 'Need for stress management skills' }
+        ]
+      },
+      {
+        text: 'Rate your current ability to cope with daily challenges:',
+        type: 'scale',
+        scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] }
       }
     ]
   },
   {
-    title: 'Stress Response Patterns',
-    description: 'Discover how you naturally respond to stress and learn effective coping strategies tailored to your personality.',
-    type: 'test',
+    title: 'Relationship Attachment Style',
+    description: 'Understand your attachment patterns and how they influence your relationships. Discover your secure, anxious, or avoidant tendencies.',
+    type: 'relationships',
     visibility: 'public',
     questions: [
       {
-        text: 'When you feel overwhelmed, your first instinct is to:',
+        text: 'When your partner needs space, you tend to:',
         type: 'multiple_choice',
         options: [
-          { text: 'Create a to-do list and tackle tasks one by one', feedback: 'Structured coping approach' },
-          { text: 'Talk to a friend or family member about it', feedback: 'Social support seeking' },
-          { text: 'Withdraw and spend time alone', feedback: 'Solitary recharge and reflection' },
-          { text: 'Engage in a physical activity like walking or exercise', feedback: 'Embodied stress release' }
+          { text: 'Feel relieved and enjoy the independence', feedback: 'Secure independence recognition' },
+          { text: 'Feel anxious and worry about the relationship', feedback: 'Anxious attachment pattern' },
+          { text: 'Respect their needs while staying connected', feedback: 'Secure relationship balance' },
+          { text: 'Get angry or try to change their mind', feedback: 'Anxious resistance to separation' }
         ]
-      }
-    ]
-  },
-  {
-    title: 'Relationship Style Assessment',
-    description:
-      'Explore your attachment style and relationship patterns to build healthier, more fulfilling connections.',
-    type: 'test',
-    visibility: 'public',
-    questions: [
+      },
       {
-        text: 'In close relationships, you typically feel most secure when:',
+        text: 'In arguments, you typically:',
         type: 'multiple_choice',
         options: [
-          { text: 'You have consistent communication and reliability', feedback: 'Values stability and trust' },
-          { text: 'There is space for independence alongside connection', feedback: 'Balances autonomy and intimacy' },
-          { text: 'You receive regular reassurance and affirmation', feedback: 'Appreciates verbal/affectional signals' },
-          { text: 'You avoid conflicts and keep interactions light', feedback: 'Prefers low-conflict environments' }
+          { text: 'Withdraw and need time alone', feedback: 'Avoidant withdrawal tendency' },
+          { text: 'Pursue resolution immediately', feedback: 'Anxious need for immediate resolution' },
+          { text: 'Seek compromise and understanding', feedback: 'Secure conflict resolution approach' },
+          { text: 'Escalate the conflict', feedback: 'Emotional flooding in conflict' }
         ]
-      }
-    ]
-  },
-  {
-    title: 'Life Purpose Alignment',
-    description:
-      'Discover what truly motivates you and aligns with your core values to find greater meaning and fulfillment.',
-    type: 'test',
-    visibility: 'public',
-    questions: [
+      },
       {
-        text: 'You feel most aligned with your purpose when:',
+        text: 'Your biggest relationship fear is:',
         type: 'multiple_choice',
         options: [
-          { text: 'You help others grow or feel supported', feedback: 'Service- and growth-oriented purpose' },
-          { text: 'You create something original or expressive', feedback: 'Creativity and expression-driven purpose' },
-          { text: 'You solve complex problems with real impact', feedback: 'Problem-solving and impact focus' },
-          { text: 'You build stable systems that improve lives', feedback: 'Systems and reliability motivation' }
+          { text: 'Losing your independence', feedback: 'Avoidant autonomy concern' },
+          { text: 'Being abandoned or rejected', feedback: 'Anxious abandonment fear' },
+          { text: 'Conflict and disharmony', feedback: 'Secure harmony preservation' },
+          { text: 'Not being good enough', feedback: 'Low self-esteem indicator' }
         ]
+      },
+      {
+        text: 'How do you show affection?',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Through words of affirmation and verbal appreciation', feedback: 'Love language: affirmation' },
+          { text: 'Through acts of service and doing things for others', feedback: 'Love language: service' },
+          { text: 'Through quality time and focused attention', feedback: 'Love language: quality time' },
+          { text: 'Through physical touch and closeness', feedback: 'Love language: touch' }
+        ]
+      },
+      {
+        text: 'When you feel hurt by your partner, you:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Express it clearly and discuss it calmly', feedback: 'Secure emotional expression pattern' },
+          { text: 'Withdraw and process it internally', feedback: 'Avoidant internal processing' },
+          { text: 'Seek reassurance through frequent communication', feedback: 'Anxious reassurance seeking' },
+          { text: 'Become defensive and counter-attack', feedback: 'Preemptive self-protection' }
+        ]
+      },
+      {
+        text: 'Your ideal balance in a relationship is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'High independence with occasional connection', feedback: 'Avoidant independence preference' },
+          { text: 'Deep intimacy and constant closeness', feedback: 'Anxious intimacy ideal' },
+          { text: 'Balanced interdependence with healthy boundaries', feedback: 'Secure healthy boundaries' },
+          { text: 'Flexible based on the situation', feedback: 'Adaptive relationship style' }
+        ]
+      },
+      {
+        text: 'When making important relationship decisions, you:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Decide independently and seek agreement', feedback: 'Autonomous decision-making style' },
+          { text: 'Discuss thoroughly and decide together', feedback: 'Collaborative relationship approach' },
+          { text: 'Base decisions on maintaining harmony', feedback: 'Conflict-avoidant pattern' },
+          { text: 'Move forward confidently explaining your reasoning', feedback: 'Self-assured decision style' }
+        ]
+      },
+      {
+        text: 'Rate your trust in relationship partners:',
+        type: 'scale',
+        scale: { min: 1, max: 5, labels: ['Very cautious about trust', 'Slow to trust', 'Neutral', 'Generally trusting', 'Very trusting'] }
+      },
+      {
+        text: 'How do you respond to a partner\'s success?',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Genuine happiness and celebration', feedback: 'Secure capacity for mutual joy' },
+          { text: 'Feel happy but slightly envious', feedback: 'Ambivalent success response' },
+          { text: 'Neutral or disinterested', feedback: 'Avoidant disconnection pattern' },
+          { text: 'Use it as motivation for myself', feedback: 'Competitive response pattern' }
+        ]
+      },
+      {
+        text: 'Your approach to relationship conflict is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Avoid conflict at all costs', feedback: 'High conflict aversion' },
+          { text: 'Address issues immediately when they arise', feedback: 'Direct conflict engagement' },
+          { text: 'Save conflicts for important matters only', feedback: 'Selective conflict approach' },
+          { text: 'See conflict as opportunities for growth', feedback: 'Growth-oriented conflict view' }
+        ]
+      },
+      {
+        text: 'In terms of relationship values, you prioritize:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Personal freedom and autonomy', feedback: 'Independence value system' },
+          { text: 'Deep emotional connection and intimacy', feedback: 'Intimacy value orientation' },
+          { text: 'Mutual respect and shared responsibility', feedback: 'Mutual respect foundation' },
+          { text: 'Adventure and growth together', feedback: 'Shared growth focus' }
+        ]
+      },
+      {
+        text: 'When you\'re stressed, you need from your partner:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Space to process alone', feedback: 'Stress solitude preference' },
+          { text: 'Emotional support and reassurance', feedback: 'Stress support preference' },
+          { text: 'Practical help with tasks', feedback: 'Stress assistance preference' },
+          { text: 'Distraction and fun activities', feedback: 'Stress distraction preference' }
+        ]
+      },
+      {
+        text: 'Your ideal relationship communication style is:',
+        type: 'multiple_choice',
+        options: [
+          { text: 'Direct and to the point', feedback: 'Clear direct communication' },
+          { text: 'Gentle and diplomatic', feedback: 'Soft skill communication' },
+          { text: 'Deep and emotional', feedback: 'Emotional depth communication' },
+          { text: 'Practical and solution-focused', feedback: 'Problem-solving communication' }
+        ]
+      },
+      {
+        text: 'Rate your comfort with vulnerability in relationships:',
+        type: 'scale',
+        scale: { min: 1, max: 5, labels: ['Very uncomfortable', 'Uncomfortable', 'Sometimes comfortable', 'Generally comfortable', 'Very comfortable'] }
       }
     ]
   }

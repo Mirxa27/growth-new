@@ -1,718 +1,725 @@
-/**
- * Community Service
- * Handles all community-related operations including posts, comments, and interactions
- */
-
-import { BaseApiService, type ApiResponse } from './base.service';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { CommunityPost, CommunityComment, PostReaction } from '@/types/community';
+import { Database } from '@/integrations/supabase/types';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
-export type CommunityPost = Tables<'community_posts'>;
-export type CommunityPostInsert = TablesInsert<'community_posts'>;
-export type CommunityPostUpdate = TablesUpdate<'community_posts'>;
+// Type aliases for better type safety
+type CommunityPostRow = Database['public']['Tables']['community_posts']['Row'];
+type CommunityCommentRow = Database['public']['Tables']['community_comments']['Row'];
+type PostReactionRow = Database['public']['Tables']['post_reactions']['Row'];
 
-export interface CommunityPostWithAuthor extends CommunityPost {
-  author: {
-    id: string;
-    display_name: string;
-    avatar_url?: string;
-  };
-  likes_count: number;
-  comments_count: number;
-  user_has_liked?: boolean;
+// Enhanced error class for better error handling
+export class CommunityError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'CommunityError';
+  }
 }
 
-export interface PostComment {
-  id: string;
-  post_id: string;
-  user_id: string;
+// Cache management
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
+// Real-time subscriptions
+let realtimeChannels: RealtimeChannel[] = [];
+
+// Utility function for error handling
+const handleError = (error: any, context: string): never => {
+  console.error(`[CommunityService] ${context}:`, error);
+  
+  if (error.code === 'PGRST116') {
+    throw new CommunityError('Post not found', 'NOT_FOUND', 404);
+  }
+  
+  if (error.code === '23503') {
+    throw new CommunityError('Referenced resource not found', 'FOREIGN_KEY_ERROR', 400);
+  }
+  
+  if (error.code === '23505') {
+    throw new CommunityError('Duplicate action', 'DUPLICATE', 409);
+  }
+  
+  throw new CommunityError(
+    error.message || 'An unexpected error occurred',
+    'UNKNOWN_ERROR',
+    500,
+    { originalError: error }
+  );
+};
+
+// Cache utility functions
+const getFromCache = <T>(key: string): T | null => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCache = <T>(key: string, data: T): void => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+const invalidateCache = (pattern?: string): void => {
+  if (pattern) {
+    for (const key of cache.keys()) {
+      if (key.includes(pattern)) {
+        cache.delete(key);
+      }
+    }
+  } else {
+    cache.clear();
+  }
+};
+
+// Fetch community posts with advanced filtering
+export const getCommunityPosts = async (filters?: {
+  category?: string;
+  authorId?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'latest' | 'popular' | 'trending';
+}) => {
+  const cacheKey = `posts-${JSON.stringify(filters || {})}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
+
+  try {
+    let query = supabase
+      .from('community_posts')
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        ),
+        reactions:post_reactions(count),
+        comments:community_comments(count),
+        likes:post_likes(count)
+      `, { count: 'exact' });
+
+    if (filters?.category) {
+      query = query.eq('categories.category.slug', filters.category);
+    }
+    
+    if (filters?.authorId) {
+      query = query.eq('author_id', filters.authorId);
+    }
+    
+    if (filters?.search) {
+      query = query.ilike('content', `%${filters.search}%`);
+    }
+
+    // Sort based on criteria
+    switch (filters?.sortBy) {
+      case 'popular':
+        query = query.order('likes_count', { ascending: false });
+        break;
+      case 'trending':
+        query = query.order('comments_count', { ascending: false });
+        break;
+      case 'latest':
+      default:
+        query = query.order('created_at', { ascending: false });
+    }
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    
+    if (filters?.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    const posts = (data || []).map(transformPostRow);
+    const result = { posts, total: count || 0 };
+    
+    setCache(cacheKey, result);
+    return result;
+  } catch (error) {
+    handleError(error, 'getCommunityPosts');
+  }
+};
+
+// Fetch single post with details
+export const getPostById = async (postId: string): Promise<CommunityPost | null> => {
+  const cacheKey = `post-${postId}`;
+  const cached = getFromCache<CommunityPost>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        ),
+        reactions:post_reactions!inner(
+          *,
+          user:profiles!inner(
+            id,
+            username,
+            avatar_url
+          )
+        ),
+        comments:community_comments!inner(
+          *,
+          author:profiles!inner(
+            id,
+            username,
+            avatar_url,
+            full_name
+          ),
+          reactions:comment_reactions(count)
+        ),
+        likes:post_likes!inner(
+          *,
+          user:profiles!inner(
+            id,
+            username,
+            avatar_url,
+            full_name
+          )
+        )
+      `)
+      .eq('id', postId)
+      .single();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const post = transformPostRow(data);
+    setCache(cacheKey, post);
+    return post;
+  } catch (error) {
+    handleError(error, 'getPostById');
+  }
+};
+
+// Create new post
+export const createPost = async (post: {
+  title: string;
   content: string;
-  created_at: string;
-  updated_at?: string;
-  author: {
-    display_name: string;
-    avatar_url?: string;
-  };
-}
+  authorId: string;
+  categoryIds?: string[];
+  isAnonymous?: boolean;
+  tags?: string[];
+}): Promise<CommunityPost> => {
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .insert({
+        title: post.title,
+        content: post.content,
+        author_id: post.authorId,
+        is_anonymous: post.isAnonymous || false,
+        tags: post.tags || []
+      })
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        )
+      `)
+      .single();
 
-export interface PostInteraction {
-  postId: string;
-  userId: string;
-  type: 'like' | 'share' | 'report';
-  timestamp: Date;
-}
+    if (error) throw error;
 
-export interface CommunityStats {
-  totalPosts: number;
-  totalMembers: number;
-  activeDiscussions: number;
-  trendingTopics: string[];
-  engagementRate: number;
-}
-
-class CommunityService extends BaseApiService {
-  constructor() {
-    super('community_posts');
-  }
-  
-  /**
-   * Get all community posts with author information
-   */
-  async getPosts(options?: {
-    category?: string;
-    sortBy?: 'recent' | 'popular' | 'trending';
-    page?: number;
-    pageSize?: number;
-  }): Promise<ApiResponse<CommunityPostWithAuthor[]>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
-      
-      let query = supabase
-        .from('community_posts')
-        .select(`
-          *,
-          profiles!community_posts_user_id_fkey(
-            id,
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('is_published', true);
-      
-      // Apply category filter
-      if (options?.category) {
-        query = query.eq('category', options.category);
-      }
-      
-      // Apply sorting
-      switch (options?.sortBy) {
-        case 'popular':
-          query = query.order('likes_count', { ascending: false });
-          break;
-        case 'trending':
-          // Trending = recent posts with high engagement
-          query = query
-            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-            .order('likes_count', { ascending: false });
-          break;
-        case 'recent':
-        default:
-          query = query.order('created_at', { ascending: false });
-      }
-      
-      // Apply pagination
-      if (options?.page && options?.pageSize) {
-        const from = (options.page - 1) * options.pageSize;
-        const to = from + options.pageSize - 1;
-        query = query.range(from, to);
-      }
-      
-      const { data: posts, error } = await query;
-      
-      if (error) throw error;
-      
-      // Transform data and check if user has liked each post
-      const postsWithInteractions = await Promise.all(
-        (posts || []).map(async (post: any) => {
-          let userHasLiked = false;
-          
-          if (userId) {
-            const { data: like } = await supabase
-              .from('post_likes')
-              .select('id')
-              .eq('post_id', post.id)
-              .eq('user_id', userId)
-              .single();
-            
-            userHasLiked = !!like;
-          }
-          
-          // Get comment count
-          const { count: commentsCount } = await supabase
-            .from('post_comments')
-            .select('id', { count: 'exact', head: true })
-            .eq('post_id', post.id);
-          
-          return {
-            ...post,
-            author: {
-              id: post.profiles.id,
-              display_name: post.profiles.display_name,
-              avatar_url: post.profiles.avatar_url,
-            },
-            likes_count: post.likes_count || 0,
-            comments_count: commentsCount || 0,
-            user_has_liked: userHasLiked,
-          };
-        })
-      );
-      
-      return {
-        data: postsWithInteractions as CommunityPostWithAuthor[],
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getPosts', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Get a single post with full details
-   */
-  async getPost(postId: string): Promise<ApiResponse<CommunityPostWithAuthor>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
-      
-      const { data: post, error } = await supabase
-        .from('community_posts')
-        .select(`
-          *,
-          profiles!community_posts_user_id_fkey(
-            id,
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('id', postId)
-        .single();
-      
-      if (error) throw error;
-      
-      // Check if user has liked the post
-      let userHasLiked = false;
-      if (userId) {
-        const { data: like } = await supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', postId)
-          .eq('user_id', userId)
-          .single();
-        
-        userHasLiked = !!like;
-      }
-      
-      // Get comment count
-      const { count: commentsCount } = await supabase
-        .from('post_comments')
-        .select('id', { count: 'exact', head: true })
-        .eq('post_id', postId);
-      
-      // Increment view count
-      await this.incrementViewCount(postId);
-      
-      return {
-        data: {
-          ...post,
-          author: {
-            id: post.profiles.id,
-            display_name: post.profiles.display_name,
-            avatar_url: post.profiles.avatar_url,
-          },
-          likes_count: post.likes_count || 0,
-          comments_count: commentsCount || 0,
-          user_has_liked: userHasLiked,
-        } as CommunityPostWithAuthor,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getPost', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Create a new community post
-   */
-  async createPost(post: Omit<CommunityPostInsert, 'user_id'>): Promise<ApiResponse<CommunityPost>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      // Validate and sanitize content
-      const sanitizedPost = {
-        ...post,
-        user_id: user.id,
-        content: this.sanitizeContent(post.content || ''),
-        is_published: post.is_published ?? true,
-        created_at: new Date().toISOString(),
-      };
-      
-      const { data, error } = await supabase
-        .from('community_posts')
-        .insert(sanitizedPost)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Track post creation analytics
-      await this.trackPostAnalytics(data.id, 'created');
-      
-      return {
-        data: data as CommunityPost,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('createPost', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Update a community post
-   */
-  async updatePost(
-    postId: string,
-    updates: CommunityPostUpdate
-  ): Promise<ApiResponse<CommunityPost>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      // Verify ownership
-      const { data: existingPost } = await supabase
-        .from('community_posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-      
-      if (!existingPost || existingPost.user_id !== user.id) {
-        throw new Error('Unauthorized to update this post');
-      }
-      
-      // Sanitize content if provided
-      if (updates.content) {
-        updates.content = this.sanitizeContent(updates.content);
-      }
-      
-      const { data, error } = await supabase
-        .from('community_posts')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', postId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      return {
-        data: data as CommunityPost,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('updatePost', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Delete a community post
-   */
-  async deletePost(postId: string): Promise<ApiResponse<void>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      // Verify ownership or admin status
-      const { data: existingPost } = await supabase
-        .from('community_posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-      
-      if (!existingPost || existingPost.user_id !== user.id) {
-        // Check if user is admin
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile?.role !== 'admin') {
-          throw new Error('Unauthorized to delete this post');
-        }
-      }
-      
-      // Soft delete by marking as unpublished
-      const { error } = await supabase
-        .from('community_posts')
-        .update({
-          is_published: false,
-          deleted_at: new Date().toISOString(),
-        })
-        .eq('id', postId);
-      
-      if (error) throw error;
-      
-      return {
-        data: null,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('deletePost', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Like or unlike a post
-   */
-  async toggleLike(postId: string): Promise<ApiResponse<{ liked: boolean; likesCount: number }>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      // Check if already liked
-      const { data: existingLike } = await supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', user.id)
-        .single();
-      
-      if (existingLike) {
-        // Unlike
-        await supabase
-          .from('post_likes')
-          .delete()
-          .eq('id', existingLike.id);
-        
-        // Decrement likes count
-        await supabase.rpc('decrement_post_likes', { post_id: postId });
-        
-        // Get updated count
-        const { data: post } = await supabase
-          .from('community_posts')
-          .select('likes_count')
-          .eq('id', postId)
-          .single();
-        
-        return {
-          data: {
-            liked: false,
-            likesCount: post?.likes_count || 0,
-          },
-          error: null,
-        };
-      } else {
-        // Like
-        await supabase
-          .from('post_likes')
-          .insert({
-            post_id: postId,
-            user_id: user.id,
-          });
-        
-        // Increment likes count
-        await supabase.rpc('increment_post_likes', { post_id: postId });
-        
-        // Get updated count
-        const { data: post } = await supabase
-          .from('community_posts')
-          .select('likes_count')
-          .eq('id', postId)
-          .single();
-        
-        // Notify post author
-        await this.notifyPostAuthor(postId, user.id, 'like');
-        
-        return {
-          data: {
-            liked: true,
-            likesCount: post?.likes_count || 0,
-          },
-          error: null,
-        };
-      }
-    } catch (error) {
-      this.logError('toggleLike', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  /**
-   * Get comments for a post
-   */
-  async getComments(postId: string): Promise<ApiResponse<PostComment[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('post_comments')
-        .select(`
-          *,
-          profiles!post_comments_user_id_fkey(
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('post_id', postId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      
-      const comments = (data || []).map((comment: any) => ({
-        id: comment.id,
-        post_id: comment.post_id,
-        user_id: comment.user_id,
-        content: comment.content,
-        created_at: comment.created_at,
-        updated_at: comment.updated_at,
-        author: {
-          display_name: comment.profiles.display_name,
-          avatar_url: comment.profiles.avatar_url,
-        },
+    // Add categories if provided
+    if (post.categoryIds && post.categoryIds.length > 0) {
+      const categoryInserts = post.categoryIds.map(categoryId => ({
+        post_id: data.id,
+        category_id: categoryId
       }));
       
-      return {
-        data: comments,
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getComments', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
+      await supabase
+        .from('post_categories')
+        .insert(categoryInserts);
     }
+
+    const newPost = transformPostRow(data);
+    invalidateCache('posts');
+    return newPost;
+  } catch (error) {
+    handleError(error, 'createPost');
   }
-  
-  /**
-   * Add a comment to a post
-   */
-  async addComment(
-    postId: string,
-    content: string
-  ): Promise<ApiResponse<PostComment>> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      const sanitizedContent = this.sanitizeContent(content);
-      
-      const { data, error } = await supabase
-        .from('post_comments')
-        .insert({
+};
+
+// Update post
+export const updatePost = async (postId: string, updates: {
+  title?: string;
+  content?: string;
+  tags?: string[];
+  categoryIds?: string[];
+}): Promise<CommunityPost> => {
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .update({
+        title: updates.title,
+        content: updates.content,
+        tags: updates.tags,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', postId)
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Update categories if provided
+    if (updates.categoryIds) {
+      await supabase
+        .from('post_categories')
+        .delete()
+        .eq('post_id', postId);
+
+      if (updates.categoryIds.length > 0) {
+        const categoryInserts = updates.categoryIds.map(categoryId => ({
           post_id: postId,
-          user_id: user.id,
-          content: sanitizedContent,
-        })
-        .select(`
-          *,
-          profiles!post_comments_user_id_fkey(
-            display_name,
-            avatar_url
-          )
-        `)
-        .single();
-      
-      if (error) throw error;
-      
-      // Notify post author
-      await this.notifyPostAuthor(postId, user.id, 'comment');
-      
-      return {
-        data: {
-          id: data.id,
-          post_id: data.post_id,
-          user_id: data.user_id,
-          content: data.content,
-          created_at: data.created_at,
-          author: {
-            display_name: data.profiles.display_name,
-            avatar_url: data.profiles.avatar_url,
-          },
-        },
-        error: null,
-      };
-    } catch (error) {
-      this.logError('addComment', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
+          category_id: categoryId
+        }));
+        
+        await supabase
+          .from('post_categories')
+          .insert(categoryInserts);
+      }
     }
+
+    const updatedPost = transformPostRow(data);
+    invalidateCache(`post-${postId}`);
+    invalidateCache('posts');
+    return updatedPost;
+  } catch (error) {
+    handleError(error, 'updatePost');
   }
-  
-  /**
-   * Get community statistics
-   */
-  async getCommunityStats(): Promise<ApiResponse<CommunityStats>> {
-    try {
-      // Get total posts
-      const { count: totalPosts } = await supabase
-        .from('community_posts')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_published', true);
-      
-      // Get total members
-      const { count: totalMembers } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true });
-      
-      // Get active discussions (posts with recent comments)
-      const recentDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: activePostIds } = await supabase
-        .from('post_comments')
-        .select('post_id')
-        .gte('created_at', recentDate);
-      
-      const uniqueActivePostIds = new Set(activePostIds?.map(c => c.post_id) || []);
-      const activeDiscussions = uniqueActivePostIds.size;
-      
-      // Get trending topics (most used tags/categories)
-      const { data: posts } = await supabase
-        .from('community_posts')
-        .select('tags, category')
-        .eq('is_published', true)
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-      
-      const topicCounts: Record<string, number> = {};
-      posts?.forEach(post => {
-        if (post.category) {
-          topicCounts[post.category] = (topicCounts[post.category] || 0) + 1;
-        }
-        if (post.tags && Array.isArray(post.tags)) {
-          post.tags.forEach((tag: string) => {
-            topicCounts[tag] = (topicCounts[tag] || 0) + 1;
+};
+
+// Delete post
+export const deletePost = async (postId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('community_posts')
+      .delete()
+      .eq('id', postId);
+
+    if (error) throw error;
+    
+    invalidateCache(`post-${postId}`);
+    invalidateCache('posts');
+  } catch (error) {
+    handleError(error, 'deletePost');
+  }
+};
+
+// Add comment to post
+export const addComment = async (comment: {
+  postId: string;
+  content: string;
+  authorId: string;
+  parentId?: string;
+  isAnonymous?: boolean;
+}): Promise<CommunityComment> => {
+  try {
+    const { data, error } = await supabase
+      .from('community_comments')
+      .insert({
+        post_id: comment.postId,
+        content: comment.content,
+        author_id: comment.authorId,
+        parent_id: comment.parentId,
+        is_anonymous: comment.isAnonymous || false
+      })
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        reactions:comment_reactions(count)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Increment comment count on post
+    await supabase
+      .from('community_posts')
+      .update({ comments_count: supabase.sql`comments_count + 1` })
+      .eq('id', comment.postId);
+
+    const newComment = transformCommentRow(data);
+    invalidateCache(`post-${comment.postId}`);
+    invalidateCache('posts');
+    return newComment;
+  } catch (error) {
+    handleError(error, 'addComment');
+  }
+};
+
+// Update comment
+export const updateComment = async (commentId: string, content: string): Promise<CommunityComment> => {
+  try {
+    const { data, error } = await supabase
+      .from('community_comments')
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        reactions:comment_reactions(count)
+      `)
+      .single();
+
+    if (error) throw error;
+    
+    invalidateCache('posts');
+    return transformCommentRow(data);
+  } catch (error) {
+    handleError(error, 'updateComment');
+  }
+};
+
+// Delete comment
+export const deleteComment = async (commentId: string): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('community_comments')
+      .delete()
+      .eq('id', commentId)
+      .select('post_id')
+      .single();
+
+    if (error) throw error;
+
+    // Decrement comment count on post
+    await supabase
+      .from('community_posts')
+      .update({ comments_count: supabase.sql`comments_count - 1` })
+      .eq('id', data.post_id);
+
+    invalidateCache(`post-${data.post_id}`);
+    invalidateCache('posts');
+  } catch (error) {
+    handleError(error, 'deleteComment');
+  }
+};
+
+// React to post
+export const reactToPost = async (params: {
+  postId: string;
+  userId: string;
+  reactionType: 'like' | 'love' | 'insightful' | 'inspiring';
+}): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('post_reactions')
+      .upsert({
+        post_id: params.postId,
+        user_id: params.userId,
+        reaction_type: params.reactionType
+      }, {
+        onConflict: 'post_id,user_id'
+      });
+
+    if (error) throw error;
+    
+    invalidateCache(`post-${params.postId}`);
+    invalidateCache('posts');
+  } catch (error) {
+    handleError(error, 'reactToPost');
+  }
+};
+
+// Like post
+export const likePost = async (postId: string, userId: string): Promise<void> => {
+  try {
+    // Use the stored procedure for atomic increment
+    const { error } = await supabase
+      .rpc('increment_post_likes', { post_id: postId });
+
+    if (error) throw error;
+    
+    invalidateCache(`post-${postId}`);
+    invalidateCache('posts');
+  } catch (error) {
+    handleError(error, 'likePost');
+  }
+};
+
+// Unlike post
+export const unlikePost = async (postId: string, userId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('post_likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    
+    // Update like count
+    await supabase
+      .from('community_posts')
+      .update({ likes_count: supabase.sql`likes_count - 1` })
+      .eq('id', postId);
+
+    invalidateCache(`post-${postId}`);
+    invalidateCache('posts');
+  } catch (error) {
+    handleError(error, 'unlikePost');
+  }
+};
+
+// Get trending posts
+export const getTrendingPosts = async (limit: number = 10): Promise<CommunityPost[]> => {
+  const cacheKey = `trending-${limit}`;
+  const cached = getFromCache<CommunityPost[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        ),
+        reactions:post_reactions(count),
+        comments:community_comments(count),
+        likes:post_likes(count)
+      `)
+      .order('likes_count', { ascending: false })
+      .order('comments_count', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    const posts = (data || []).map(transformPostRow);
+    setCache(cacheKey, posts);
+    return posts;
+  } catch (error) {
+    handleError(error, 'getTrendingPosts');
+  }
+};
+
+// Get user posts
+export const getUserPosts = async (userId: string): Promise<CommunityPost[]> => {
+  const cacheKey = `user-posts-${userId}`;
+  const cached = getFromCache<CommunityPost[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .select(`
+        *,
+        author:profiles!inner(
+          id,
+          username,
+          avatar_url,
+          full_name
+        ),
+        categories:post_categories!inner(
+          category:categories!inner(*)
+        ),
+        reactions:post_reactions(count),
+        comments:community_comments(count),
+        likes:post_likes(count)
+      `)
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const posts = (data || []).map(transformPostRow);
+    setCache(cacheKey, posts);
+    return posts;
+  } catch (error) {
+    handleError(error, 'getUserPosts');
+  }
+};
+
+// Real-time subscriptions
+export const subscribeToPosts = (
+  callback: (payload: { eventType: string; post: CommunityPost }) => void
+): RealtimeChannel => {
+  const channel = supabase
+    .channel('posts-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_posts' },
+      async (payload) => {
+        const post = await getPostById(payload.new.id);
+        if (post) {
+          callback({
+            eventType: payload.eventType,
+            post
           });
+          
+          invalidateCache('posts');
+          invalidateCache(`post-${payload.new.id}`);
         }
-      });
-      
-      const trendingTopics = Object.entries(topicCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-        .map(([topic]) => topic);
-      
-      // Calculate engagement rate
-      const { count: totalLikes } = await supabase
-        .from('post_likes')
-        .select('id', { count: 'exact', head: true });
-      
-      const { count: totalComments } = await supabase
-        .from('post_comments')
-        .select('id', { count: 'exact', head: true });
-      
-      const totalEngagements = (totalLikes || 0) + (totalComments || 0);
-      const engagementRate = totalPosts ? (totalEngagements / totalPosts) * 100 : 0;
-      
-      return {
-        data: {
-          totalPosts: totalPosts || 0,
-          totalMembers: totalMembers || 0,
-          activeDiscussions,
-          trendingTopics,
-          engagementRate: Math.round(engagementRate * 100) / 100,
-        },
-        error: null,
-      };
-    } catch (error) {
-      this.logError('getCommunityStats', error);
-      return {
-        data: null,
-        error: this.handleError(error),
-      };
-    }
-  }
-  
-  // Helper methods
-  
-  private sanitizeContent(content: string): string {
-    // Basic sanitization - in production, use a proper library like DOMPurify
-    return content
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+\s*=/gi, '')
-      .trim();
-  }
-  
-  private async incrementViewCount(postId: string): Promise<void> {
-    try {
-      await supabase.rpc('increment_post_views', { post_id: postId });
-    } catch (error) {
-      // Non-critical error, log but don't throw
-      this.logError('incrementViewCount', error);
-    }
-  }
-  
-  private async trackPostAnalytics(
-    postId: string,
-    action: 'created' | 'viewed' | 'liked' | 'commented'
-  ): Promise<void> {
-    try {
-      await supabase.from('post_analytics').insert({
-        post_id: postId,
-        action,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      // Non-critical error, log but don't throw
-      this.logError('trackPostAnalytics', error);
-    }
-  }
-  
-  private async notifyPostAuthor(
-    postId: string,
-    actorId: string,
-    action: 'like' | 'comment'
-  ): Promise<void> {
-    try {
-      // Get post author
-      const { data: post } = await supabase
-        .from('community_posts')
-        .select('user_id, title')
-        .eq('id', postId)
-        .single();
-      
-      if (!post || post.user_id === actorId) return; // Don't notify self
-      
-      // Get actor details
-      const { data: actor } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('id', actorId)
-        .single();
-      
-      if (!actor) return;
-      
-      // Create notification
-      const message = action === 'like'
-        ? `${actor.display_name} liked your post "${post.title}"`
-        : `${actor.display_name} commented on your post "${post.title}"`;
-      
-      await supabase.from('notifications').insert({
-        user_id: post.user_id,
-        type: `post_${action}`,
-        message,
-        data: { postId, actorId },
-        read: false,
-      });
-    } catch (error) {
-      // Non-critical error, log but don't throw
-      this.logError('notifyPostAuthor', error);
-    }
-  }
+      }
+    )
+    .subscribe();
+
+  realtimeChannels.push(channel);
+  return channel;
+};
+
+// Subscribe to comments
+export const subscribeToComments = (
+  postId: string,
+  callback: (payload: { eventType: string; comment: CommunityComment }) => void
+): RealtimeChannel => {
+  const channel = supabase
+    .channel(`comments-${postId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_comments', filter: `post_id=eq.${postId}` },
+      (payload) => {
+        const comment = transformCommentRow(payload.new as any);
+        callback({
+          eventType: payload.eventType,
+          comment
+        });
+        
+        invalidateCache(`post-${postId}`);
+      }
+    )
+    .subscribe();
+
+  realtimeChannels.push(channel);
+  return channel;
+};
+
+// Utility functions for data transformation
+function transformPostRow(row: any): CommunityPost {
+  return {
+    id: row.id.toString(),
+    title: row.title,
+    content: row.content,
+    author: {
+      id: row.author?.id,
+      username: row.author?.username,
+      avatarUrl: row.author?.avatar_url,
+      fullName: row.author?.full_name
+    },
+    categories: (row.categories || []).map((c: any) => ({
+      id: c.category.id,
+      name: c.category.name,
+      slug: c.category.slug,
+      color: c.category.color
+    })),
+    tags: row.tags || [],
+    reactions: (row.reactions || []).map((r: any) => ({
+      id: r.id,
+      type: r.reaction_type,
+      userId: r.user_id,
+      user: r.user
+    })),
+    comments: (row.comments || []).map((c: any) => transformCommentRow(c)),
+    likes: (row.likes || []).map((l: any) => ({
+      id: l.id,
+      userId: l.user_id,
+      user: l.user,
+      createdAt: l.created_at
+    })),
+    likesCount: row.likes_count || 0,
+    commentsCount: row.comments_count || 0,
+    isAnonymous: row.is_anonymous,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }
 
-export const communityService = new CommunityService();
+function transformCommentRow(row: any): CommunityComment {
+  return {
+    id: row.id.toString(),
+    postId: row.post_id?.toString(),
+    content: row.content,
+    author: {
+      id: row.author?.id,
+      username: row.author?.username,
+      avatarUrl: row.author?.avatar_url,
+      fullName: row.author?.full_name
+    },
+    parentId: row.parent_id?.toString(),
+    replies: (row.replies || []).map((r: any) => transformCommentRow(r)),
+    reactions: (row.reactions || []).map((r: any) => ({
+      id: r.id,
+      type: r.reaction_type,
+      userId: r.user_id
+    })),
+    likesCount: row.likes_count || 0,
+    isAnonymous: row.is_anonymous,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+// Cleanup function
+export const cleanup = () => {
+  realtimeChannels.forEach(channel => {
+    channel.unsubscribe();
+  });
+  realtimeChannels = [];
+  cache.clear();
+};
+
+// Export types for external use
+export type { CommunityPostRow, CommunityCommentRow, PostReactionRow };

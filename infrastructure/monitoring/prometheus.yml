@@ -1,0 +1,66 @@
+# Prometheus Configuration for Newomen.me Monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Application metrics
+  - job_name: 'newomen-app'
+    static_configs:
+      - targets: ['app:3000']
+    metrics_path: '/metrics'
+
+  # Edge functions
+  - job_name: 'supabase-edge-functions'
+    static_configs:
+      - targets: ['supabase-functions:8080']
+    metrics_path: '/metrics'
+
+  # CloudWatch metrics via exporter
+  - job_name: 'cloudwatch-exporter'
+    static_configs:
+      - targets: ['cloudwatch-exporter:9106']
+
+  # Application health checks
+  - job_name: 'health-checks'
+    static_configs:
+      - targets: ['app:3000']
+    metrics_path: '/health'
+    scrape_interval: 30s
+
+# Relabel configurations for better metrics
+scrape_configs:
+  - job_name: 'supabase-postgres'
+    static_configs:
+      - targets: ['supabase-db:5432']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: postgres-exporter:9187

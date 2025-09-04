@@ -18,7 +18,7 @@ export function BottomTabBar() {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden" role="navigation" aria-label="Mobile Navigation">
       <div className="grid grid-cols-5 h-16">
         {tabs.map((tab) => {
           const isActive = pathname === tab.href
@@ -31,13 +31,14 @@ export function BottomTabBar() {
                   ? 'text-blue-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <tab.icon className="h-5 w-5" />
+              <tab.icon className="h-5 w-5" aria-hidden="true" />
               <span className="text-xs">{tab.name}</span>
             </Link>
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }

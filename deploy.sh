@@ -47,7 +47,7 @@ fi
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-npm install
+npm install --legacy-peer-deps
 
 # Type checking
 echo "🔍 Running type checks..."

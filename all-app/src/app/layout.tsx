@@ -3,7 +3,6 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { Providers } from '@/components/providers'
-import { BottomTabBar } from '@/components/bottom-tab-bar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -34,10 +33,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} pb-16 md:pb-0`}>
+      <body className={inter.className}>
         <Providers>
           {children}
-          <BottomTabBar />
           <Toaster position="top-right" richColors />
         </Providers>
       </body>

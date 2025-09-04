@@ -1,286 +1,273 @@
-import DOMPurify from 'dompurify';
+// Validation and sanitization utilities
+import { z } from 'zod';
 
-// --- Type Definitions ---
+// Common validation schemas
+export const idSchema = z.string().uuid();
+export const emailSchema = z.string().email();
+export const urlSchema = z.string().url();
 
-export interface ValidationResult {
-  isValid: boolean;
-  errors: { field: string; message: string }[];
-  warnings: string[];
-}
+// Assessment validation schemas
+export const assessmentSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
+  description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+  type: z.enum(['personality', 'cognitive', 'communication', 'lifestyle', 'relationships', 'wellness', 'quiz']),
+  category: z.string().min(1, 'Category is required').max(50, 'Category must be 50 characters or less'),
+  visibility: z.enum(['public', 'private', 'premium']),
+  estimatedTime: z.number().min(1, 'Estimated time must be at least 1 minute').max(120, 'Estimated time must be 120 minutes or less'),
+  questions: z.array(z.object({
+    id: z.string().min(1, 'Question ID is required'),
+    text: z.string().min(1, 'Question text is required').max(500, 'Question text must be 500 characters or less'),
+    type: z.enum(['single', 'multiple', 'scale', 'text']),
+    options: z.array(z.string()).optional(),
+    category: z.string().optional(),
+    scale: z.object({
+      min: z.number(),
+      max: z.number(),
+      labels: z.array(z.string())
+    }).optional()
+  })).min(1, 'At least one question is required'),
+  scoring: z.object({
+    type: z.enum(['cumulative', 'categorical', 'personality']),
+    categories: z.array(z.string()).optional(),
+    interpretation: z.record(z.string()).optional()
+  })
+});
 
-export interface AssessmentValidationDTO {
-  title: string;
-  description?: string;
-  type: 'quiz' | 'personality' | 'test';
-  visibility: 'public' | 'private';
-  questions: {
-    question_text: string;
-    question_type: 'multiple_choice' | 'free_text';
-    options?: { option_text: string; is_correct?: boolean }[];
-  }[];
-}
+// Community post validation schemas
+export const postSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title must be 200 characters or less'),
+  content: z.string().min(1, 'Content is required').max(5000, 'Content must be 5000 characters or less'),
+  authorId: z.string().uuid('Invalid author ID'),
+  categoryIds: z.array(z.string().uuid()).min(1, 'At least one category is required'),
+  isAnonymous: z.boolean().optional(),
+  tags: z.array(z.string().max(30, 'Tag must be 30 characters or less')).max(10, 'Maximum 10 tags allowed').optional()
+});
 
-export interface ExplorationValidationDTO {
-  title: string;
-  description: string;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  prompts: {
-    facilitator: string;
-    higher_self: string;
-  };
-  questions: string[];
-  rewards: {
-    crystals: number;
-  };
-}
+// Community comment validation schemas
+export const commentSchema = z.object({
+  postId: z.string().uuid('Invalid post ID'),
+  content: z.string().min(1, 'Comment is required').max(1000, 'Comment must be 1000 characters or less'),
+  authorId: z.string().uuid('Invalid author ID'),
+  parentId: z.string().uuid('Invalid parent comment ID').optional(),
+  isAnonymous: z.boolean().optional()
+});
 
-// --- Custom Error Classes ---
+// User profile validation
+export const profileSchema = z.object({
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be 30 characters or less')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
+  fullName: z.string()
+    .min(1, 'Full name is required')
+    .max(100, 'Full name must be 100 characters or less')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Full name can only contain letters, spaces, hyphens, and apostrophes'),
+  avatarUrl: z.string().url('Invalid avatar URL').optional(),
+  bio: z.string().max(500, 'Bio must be 500 characters or less').optional()
+});
 
-export class ValidationError extends Error {
-  field?: string;
+// Assessment result validation
+export const assessmentResultSchema = z.object({
+  assessmentId: z.string().uuid('Invalid assessment ID'),
+  userId: z.string().uuid('Invalid user ID').optional(),
+  responses: z.record(z.any()),
+  score: z.number().min(0, 'Score must be non-negative'),
+  totalScore: z.number().min(0, 'Total score must be non-negative'),
+  percentage: z.number().min(0).max(100, 'Percentage must be between 0 and 100'),
+  personalityType: z.string().optional(),
+  insights: z.array(z.string()).optional(),
+  recommendations: z.array(z.string()).optional()
+});
 
-  constructor(message: string, field?: string) {
-    super(message);
-    this.name = 'ValidationError';
-    this.field = field;
-  }
-}
-
-export class APIError extends Error {
-  statusCode: number;
-
-  constructor(message: string, statusCode: number) {
-    super(message);
-    this.name = 'APIError';
-    this.statusCode = statusCode;
-  }
-}
-
-// --- Core Validation Functions ---
-
-export const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-export const validatePassword = (password: string): ValidationResult => {
-  const errors: { field: string; message: string }[] = [];
-  const warnings: string[] = [];
-  
-  if (password.length < 8) {
-    errors.push({ field: 'password', message: 'Password must be at least 8 characters long' });
-  }
-  if (!/[A-Z]/.test(password)) {
-    errors.push({ field: 'password', message: 'Password must contain at least one uppercase letter' });
-  }
-  if (!/[a-z]/.test(password)) {
-    errors.push({ field: 'password', message: 'Password must contain at least one lowercase letter' });
-  }
-  if (!/\d/.test(password)) {
-    errors.push({ field: 'password', message: 'Password must contain at least one number' });
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    warnings.push('Consider adding a special character for a stronger password');
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-  };
-};
-
-export const validateAssessment = (data: AssessmentValidationDTO): ValidationResult => {
-  const errors: { field: string; message: string }[] = [];
-
-  if (!data.title || data.title.trim().length < 3) {
-    errors.push({ field: 'title', message: 'Title must be at least 3 characters long' });
-  }
-  if (!['quiz', 'personality', 'test'].includes(data.type)) {
-    errors.push({ field: 'type', message: 'Invalid assessment type' });
-  }
-  if (!data.questions || data.questions.length === 0) {
-    errors.push({ field: 'questions', message: 'Assessment must have at least one question' });
-  } else {
-    data.questions.forEach((q, index) => {
-      if (!q.question_text || q.question_text.trim().length === 0) {
-        errors.push({ field: `questions[${index}].question_text`, message: 'Question text cannot be empty' });
-      }
-      if (q.question_type === 'multiple_choice' && (!q.options || q.options.length < 2)) {
-        errors.push({ field: `questions[${index}].options`, message: 'Multiple choice questions must have at least 2 options' });
-      }
-    });
-  }
-
-  return { isValid: errors.length === 0, errors, warnings: [] };
-};
-
-export const validateExploration = (data: ExplorationValidationDTO): ValidationResult => {
-  const errors: { field: string; message: string }[] = [];
-
-  if (!data.title || data.title.trim().length < 5) {
-    errors.push({ field: 'title', message: 'Title must be at least 5 characters long' });
-  }
-  if (!data.description || data.description.trim().length < 10) {
-    errors.push({ field: 'description', message: 'Description must be at least 10 characters long' });
-  }
-  if (!data.prompts.facilitator) {
-    errors.push({ field: 'prompts.facilitator', message: 'Facilitator prompt is required' });
-  }
-  if (data.rewards.crystals < 0) {
-    errors.push({ field: 'rewards.crystals', message: 'Crystal reward cannot be negative' });
-  }
-
-  return { isValid: errors.length === 0, errors, warnings: [] };
-};
-
-// --- Sanitization ---
-
+// Sanitization functions
 export const sanitizeInput = (input: string): string => {
-  return input.trim();
-};
-
-export const sanitizeHTML = (html: string): string => {
-  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-};
-
-// --- Rate Limiting (Simple In-Memory Example) ---
-
-interface RateLimitRecord {
-  count: number;
-  resetTime: number;
-}
-
-export const rateLimiter = {
-  attempts: new Map<string, RateLimitRecord>(),
+  if (typeof input !== 'string') return '';
   
-  isAllowed: (identifier: string, maxAttempts: number, windowMs: number): boolean => {
-    const now = Date.now();
-    const record = rateLimiter.attempts.get(identifier);
+  return input
+    .trim()
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/data:/gi, '')
+    .slice(0, 5000); // Limit length
+};
 
-    if (!record || now > record.resetTime) {
-      rateLimiter.attempts.set(identifier, { count: 1, resetTime: now + windowMs });
-      return true;
-    }
+// Email sanitization
+export const sanitizeEmail = (email: string): string => {
+  return email.trim().toLowerCase();
+};
 
-    if (record.count < maxAttempts) {
-      record.count++;
-      return true;
-    }
+// URL sanitization
+export const sanitizeUrl = (url: string): string => {
+  const sanitized = url.trim();
+  if (sanitized && !sanitized.startsWith('http')) {
+    return `https://${sanitized}`;
+  }
+  return sanitized;
+};
 
+// Phone number sanitization
+export const sanitizePhone = (phone: string): string => {
+  return phone.replace(/\D/g, '').slice(0, 15);
+};
+
+// Username sanitization
+export const sanitizeUsername = (username: string): string => {
+  return username
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '');
+};
+
+// Content sanitization for rich text
+export const sanitizeRichText = (content: string): string => {
+  if (typeof content !== 'string') return '';
+  
+  // Allow basic HTML tags for rich text
+  const allowedTags = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a'];
+  
+  return content
+    .trim()
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '')
+    .slice(0, 10000); // Limit length
+};
+
+// XSS protection
+export const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "&#039;");
+};
+
+// Input length validation
+export const validateLength = (input: string, min: number, max: number): boolean => {
+  const trimmed = input?.trim();
+  return trimmed && trimmed.length >= min && trimmed.length <= max;
+};
+
+// File upload validation
+export const validateFile = (file: File, maxSizeMB: number, allowedTypes: string[]): boolean => {
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+  
+  if (file.size > maxSizeBytes) {
     return false;
-  },
-
-  reset: (identifier: string): void => {
-    rateLimiter.attempts.delete(identifier);
   }
+  
+  return allowedTypes.includes(file.type);
 };
 
-// --- Logging ---
+// Password validation
+export const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[!@#$%^&*]/, 'Password must contain at least one special character');
 
-export const logError = (error: Error, context?: Record<string, any>): void => {
-  console.error(`[ERROR] ${new Date().toISOString()}:`, error.message, {
-    name: error.name,
-    stack: error.stack,
-    ...context,
-  });
-  // In a real app, you'd send this to a logging service (e.g., Sentry, LogRocket)
+// Date validation
+export const validateDate = (date: string): boolean => {
+  const parsed = new Date(date);
+  return !isNaN(parsed.getTime()) && parsed < new Date();
 };
 
-// --- Utility Functions ---
-
-/**
- * A simple debounce function.
- */
-export function debounce<T extends (...args: any[]) => void>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: ReturnType<typeof setTimeout>;
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-/**
- * A simple throttle function.
- */
-export function throttle<T extends (...args: any[]) => void>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  return function(this: any, ...args: Parameters<T>) {
-    const context = this;
-    if (!inThrottle) {
-      func.apply(context, args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
-
-// --- Security ---
-
-/**
- * Basic check for common XSS patterns in a string.
- * Note: This is not a substitute for proper output encoding and sanitization.
- */
-export const hasXSS = (input: string): boolean => {
-  const patterns = [
-    /<script\b[^>]*>([\s\S]*?)<\/script>/gim,
-    /javascript:/gim,
-    /onerror\s*=/gim,
-    /onload\s*=/gim,
-  ];
-  return patterns.some(pattern => pattern.test(input));
+// Age validation
+export const validateAge = (birthDate: string, minAge: number = 13): boolean => {
+  const birth = new Date(birthDate);
+  const today = new Date();
+  const age = today.getFullYear() - birth.getFullYear();
+  
+  if (today.getMonth() < birth.getMonth() || 
+      (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) {
+    return age - 1 >= minAge;
+  }
+  
+  return age >= minAge;
 };
 
-/**
- * Sanitizes a DOM element by removing potentially dangerous attributes.
- */
-export const sanitizeElement = (element: HTMLElement): void => {
-  const allElements = [element, ...Array.from(element.querySelectorAll('*'))];
-  allElements.forEach(el => {
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.startsWith('on')) {
-        el.removeAttribute(attr.name);
+// Validate and sanitize form data
+export const validateAndSanitize = <T extends Record<string, any>>(
+  data: T,
+  schema: z.ZodSchema<T>
+): { success: boolean; data?: T; errors?: Record<string, string> } => {
+  try {
+    const validated = schema.parse(data);
+    
+    // Sanitize string fields
+    const sanitized = Object.entries(validated).reduce((acc, [key, value]) => {
+      if (typeof value === 'string') {
+        acc[key] = sanitizeInput(value);
+      } else {
+        acc[key] = value;
       }
+      return acc;
+    }, {} as T);
+    
+    return { success: true, data: sanitized };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errors: Record<string, string> = {};
+      error.errors.forEach((err) => {
+        if (err.path.length > 0) {
+          errors[err.path[0].toString()] = err.message;
+        }
+      });
+      return { success: false, errors };
     }
-  });
+    return { success: false, errors: { general: 'Validation failed' } };
+  }
 };
 
-// --- Password Strength ---
+// Rate limiting helper
+export class RateLimiter {
+  private attempts: Map<string, number[]> = new Map();
+  private windowMs: number;
+  private maxAttempts: number;
 
-export const checkPasswordStrength = (password: string): ValidationResult => {
-  const data = { password };
-  const warnings: string[] = [];
-  const errors: { field: string; message: string }[] = [];
-
-  if (data.password.length < 8) {
-    errors.push({ field: 'password', message: 'Password must be at least 8 characters long' });
-  } else if (data.password.length < 12) {
-    warnings.push('Consider using a longer password for better security');
+  constructor(windowMs: number = 60000, maxAttempts: number = 5) {
+    this.windowMs = windowMs;
+    this.maxAttempts = maxAttempts;
   }
 
-  if (!/[A-Z]/.test(data.password)) {
-    errors.push({ field: 'password', message: 'Password must contain an uppercase letter' });
-  }
-  if (!/[a-z]/.test(data.password)) {
-    errors.push({ field: 'password', message: 'Password must contain a lowercase letter' });
-  }
-  if (!/\d/.test(data.password)) {
-    errors.push({ field: 'password', message: 'Password must contain a number' });
-  }
-  if (!/[^A-Za-z0-9]/.test(data.password)) {
-    warnings.push('Consider adding a special character for a stronger password');
+  check(key: string): boolean {
+    const now = Date.now();
+    const attempts = this.attempts.get(key) || [];
+    
+    // Remove old attempts
+    const validAttempts = attempts.filter(time => now - time < this.windowMs);
+    
+    if (validAttempts.length >= this.maxAttempts) {
+      return false;
+    }
+    
+    validAttempts.push(now);
+    this.attempts.set(key, validAttempts);
+    return true;
   }
 
-  return { isValid: errors.length === 0, errors, warnings };
+  reset(key: string): void {
+    this.attempts.delete(key);
+  }
+}
+
+// Export validation utilities
+export const validationUtils = {
+  validateLength,
+  validateFile,
+  validateDate,
+  validateAge,
+  escapeHtml,
+  sanitizeInput,
+  sanitizeEmail,
+  sanitizeUrl,
+  sanitizeUsername,
+  sanitizeRichText,
+  sanitizePhone
 };

@@ -48,18 +48,8 @@ export const CommunityPosts = () => {
       setLoading(true);
       
       const { data: postsData, error } = await supabase
-        .from('community_posts')
-        .select(`
-          id,
-          user_id,
-          content,
-          post_type,
-          likes_count,
-          comments_count,
-          tags,
-          created_at,
-          profiles (display_name, avatar_url)
-        `)
+        .from('community_posts_with_profiles')
+        .select()
         .eq('is_approved', true)
         .eq('visibility', 'public')
         .order('created_at', { ascending: false })

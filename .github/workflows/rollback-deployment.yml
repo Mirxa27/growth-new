@@ -1,0 +1,100 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      target_commit:
+        description: 'Target commit hash to rollback to'
+        required: true
+      reason:
+        description: 'Reason for rollback'
+        required: false
+      skip_confirmation:
+        description: 'Skip confirmation prompt'
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_commit }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build rollback version
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+
+      - name: Create rollback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-${{ github.event.inputs.environment }}-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+      - name: Deploy rollback to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod --env=${{ github.event.inputs.environment }}'
+          working-directory: ./dist
+
+      - name: Post rollback notification
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: |
+            🔄 Rollback completed for ${{ github.event.inputs.environment }}
+            Target: ${{ github.event.inputs.target_commit }}
+            Reason: ${{ github.event.inputs.reason }}
+            Actor: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  health-check:
+    name: Health Check After Rollback
+    runs-on: ubuntu-latest
+    needs: rollback
+    steps:
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Check health
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          URL=$([ "$ENVIRONMENT" = "production" ] && echo "https://newomenlife.com" || echo "https://staging.newomenlife.com")
+          
+          curl -f "$URL/health" || curl -f "$URL"

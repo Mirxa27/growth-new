@@ -12,9 +12,10 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
                      undefined;
 
     // Normalize undefined value to empty string to avoid controlled -> uncontrolled warnings
+    // Also ensure onChange is provided to avoid controlled field warnings
     const inputProps = {
       ...props,
-      value: (props as any).value ?? ''
+      value: props.value ?? '',
     }
     
     return (

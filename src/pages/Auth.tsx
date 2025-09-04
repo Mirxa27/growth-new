@@ -32,13 +32,18 @@ const Auth = () => {
     email: z.string().email({ message: 'Invalid email address' }),
   });
 
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
+  const [signUpName, setSignUpName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const { email, password } = Object.fromEntries(new FormData(event.currentTarget));
-    // Validate input
-    const signInData = { email: email as string, password: password as string };
+    const signInData = { email: signInEmail, password: signInPassword };
     const result = signInSchema.safeParse(signInData);
     if (!result.success) {
       const message = result.error.issues[0].message;
@@ -49,7 +54,7 @@ const Auth = () => {
     }
 
     try {
-      const { error } = await signIn(email as string, password as string);
+      const { error } = await signIn(signInEmail, signInPassword);
       if (error) throw error;
       toast({ title: "Success", description: "Signed in successfully." });
       navigate('/dashboard');
@@ -65,9 +70,7 @@ const Auth = () => {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const { name, email, password } = Object.fromEntries(new FormData(event.currentTarget));
-    // Validate input
-    const signUpData = { name: name as string, email: email as string, password: password as string };
+    const signUpData = { name: signUpName, email: signUpEmail, password: signUpPassword };
     const result = signUpSchema.safeParse(signUpData);
     if (!result.success) {
       const message = result.error.issues[0].message;
@@ -79,11 +82,11 @@ const Auth = () => {
 
     try {
       const { error } = await signUp({
-        email: email as string,
-        password: password as string,
+        email: signUpEmail,
+        password: signUpPassword,
         options: {
           data: {
-            display_name: name as string, // Correctly pass display_name
+            display_name: signUpName, // Correctly pass display_name
           }
         }
       });
@@ -115,11 +118,11 @@ const Auth = () => {
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email-in">Email</Label>
-                  <Input id="email-in" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                  <Input id="email-in" name="email" type="email" placeholder="m@example.com" required className="glass-input" value={signInEmail} onChange={(e) => setSignInEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-in">Password</Label>
-                  <Input id="password-in" name="password" type="password" required className="glass-input" />
+                  <Input id="password-in" name="password" type="password" required className="glass-input" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
@@ -139,15 +142,15 @@ const Auth = () => {
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name-up">Name</Label>
-                  <Input id="name-up" name="name" placeholder="Your Name" required className="glass-input" />
+                  <Input id="name-up" name="name" placeholder="Your Name" required className="glass-input" value={signUpName} onChange={(e) => setSignUpName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-up">Email</Label>
-                  <Input id="email-up" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                  <Input id="email-up" name="email" type="email" placeholder="m@example.com" required className="glass-input" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-up">Password</Label>
-                  <Input id="password-up" name="password" type="password" required className="glass-input" />
+                  <Input id="password-up" name="password" type="password" required className="glass-input" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)} />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
@@ -166,8 +169,7 @@ const Auth = () => {
             <CardContent>
               <form onSubmit={async (e) => {
                 e.preventDefault(); setLoading(true); setError(null);
-                const { email } = Object.fromEntries(new FormData(e.currentTarget));
-                const data = { email: email as string };
+                const data = { email: forgotEmail };
                 const parsed = forgotSchema.safeParse(data);
                 if (!parsed.success) {
                   const msg = parsed.error.issues[0].message;
@@ -185,7 +187,7 @@ const Auth = () => {
               }} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email-forgot">Email</Label>
-                  <Input id="email-forgot" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                  <Input id="email-forgot" name="email" type="email" placeholder="m@example.com" required className="glass-input" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>

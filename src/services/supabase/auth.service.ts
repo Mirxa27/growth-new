@@ -3,11 +3,7 @@ import type {
   User,
   Session,
   AuthError,
-  Provider,
-  SignUpWithPasswordCredentials,
-  SignInWithPasswordCredentials,
-  SignInWithOAuthCredentials,
-  AuthChangeEvent
+  Provider
 } from '@supabase/supabase-js';
 import { errorHandler, ErrorCategory, ErrorSeverity } from '@/services/error/error-handler.service';
 import { cache } from '@/services/cache/cache.service';
@@ -33,7 +29,7 @@ export interface AuthState {
 
 class AuthService {
   private static instance: AuthService;
-  private listeners: Set<(event: AuthChangeEvent, session: Session | null) => void> = new Set();
+  private listeners: Set<(event: string, session: Session | null) => void> = new Set();
   private currentState: AuthState = {
     user: null,
     session: null,
@@ -161,7 +157,7 @@ class AuthService {
       
       const { data, error } = await supabase
         .from('user_profiles')
-        .upsert(profile, { onConflict: 'id' })
+        .upsert([profile] as any, { onConflict: 'id' })
         .select()
         .single();
       
@@ -178,7 +174,7 @@ class AuthService {
   /**
    * Sign up with email and password
    */
-  async signUp(credentials: SignUpWithPasswordCredentials & { full_name?: string }): Promise<{ user: User | null; error: AuthError | null }> {
+  async signUp(credentials: { email: string; password: string; full_name?: string }): Promise<{ user: User | null; error: AuthError | null }> {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: credentials.email,
@@ -207,9 +203,12 @@ class AuthService {
   /**
    * Sign in with email and password
    */
-  async signIn(credentials: SignInWithPasswordCredentials): Promise<{ user: User | null; error: AuthError | null }> {
+  async signIn(credentials: { email: string; password: string }): Promise<{ user: User | null; error: AuthError | null }> {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password
+      });
       
       if (error) throw error;
       
@@ -351,10 +350,14 @@ class AuthService {
       const userId = this.currentState.user?.id;
       if (!userId) throw new Error('No authenticated user');
       
+      if (!this.currentState.user) {
+        throw new Error('User is not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('user_profiles')
-        .update(updates)
-        .eq('id', userId)
+        .update(updates as any)
+        .eq('id', this.currentState.user.id)
         .select()
         .single();
       
@@ -403,7 +406,7 @@ class AuthService {
   /**
    * Add auth state change listener
    */
-  onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void): () => void {
+  onAuthStateChange(callback: (event: string, session: Session | null) => void): () => void {
     this.listeners.add(callback);
     return () => this.listeners.delete(callback);
   }

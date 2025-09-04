@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Target, TrendingUp, Share2, Download, Home, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getAssessmentById } from '@/services/api/assessment.service';
+import { Assessment } from '@/types/assessment';
 
 interface AssessmentResultsProps {
-  assessmentTitle: string;
+  assessmentId: string;
   score: number;
   totalPoints: number;
   percentage: number;
@@ -20,7 +22,7 @@ interface AssessmentResultsProps {
 }
 
 export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
-  assessmentTitle,
+  assessmentId,
   score,
   totalPoints,
   percentage,
@@ -32,7 +34,17 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   onRetake,
 }) => {
   const navigate = useNavigate();
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAssessment = async () => {
+      const data = await getAssessmentById(assessmentId);
+      setAssessment(data);
+    };
+
+    fetchAssessment();
+  }, [assessmentId]);
 
   const getScoreColor = (percent: number) => {
     if (percent >= 80) return 'text-green-600';
