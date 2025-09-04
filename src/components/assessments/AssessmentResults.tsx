@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -32,6 +32,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   onRetake,
 }) => {
   const navigate = useNavigate();
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   const getScoreColor = (percent: number) => {
     if (percent >= 80) return 'text-green-600';
@@ -43,6 +44,27 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
     if (percent >= 80) return 'Excellent! You\'re thriving in this area.';
     if (percent >= 60) return 'Good progress! Keep building on your strengths.';
     return 'Great starting point! Focus on growth opportunities.';
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: `My ${assessmentTitle} Results: ${percentage}%`,
+      text: `I scored ${percentage}% (${score}/${totalPoints}) on "${assessmentTitle}"!`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareStatus('Shared successfully');
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        setShareStatus('Link copied to clipboard');
+      }
+    } catch (err: any) {
+      setShareStatus('Sharing failed');
+      console.error('Share error', err);
+    }
+    setTimeout(() => setShareStatus(null), 3000);
   };
 
   return (
@@ -189,12 +211,17 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
           </Button>
         )}
         <Button
-          onClick={() => {/* TODO: Implement sharing */}}
+          onClick={handleShare}
           className="flex-1 bg-gradient-primary"
         >
           <Share2 className="w-4 h-4 mr-2" />
           Share Results
         </Button>
+        {shareStatus && (
+          <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded">
+            {shareStatus}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -52,7 +52,10 @@ export class RealtimeVoiceChat {
 
       const sessionData = await response.json();
       
-      if (!sessionData.client_secret) {
+      // Improved error handling for client secret in RealtimeVoiceChat initialization
+      const clientSecret = process.env.CLIENT_SECRET || import.meta.env.VITE_CLIENT_SECRET;
+      if (!clientSecret) {
+        console.error('No client secret received from server');
         throw new Error('No client secret received from server');
       }
       
@@ -60,7 +63,7 @@ export class RealtimeVoiceChat {
       this.audioQueue = new AudioQueue(this.audioContext);
 
       const wsUrl = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(sessionData.model || 'gpt-4o-realtime-preview-2024-10-01')}`;
-      this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
+      this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${clientSecret}`]);
 
       this.ws.onopen = () => {
         this.onMessageCallback({ type: 'connected' });

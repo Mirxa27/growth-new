@@ -159,15 +159,9 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
     try {
       const params = {
         topic,
-
-        type: 'test',
-        provider,
-        model,
-
         type,
         provider: selectedProvider,
         model: selectedModel,
-
         questionCount,
         difficulty,
         category,
@@ -733,39 +727,6 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
             </CardContent>
           </Card>
         </div>
-
-      
-      <TabsContent value="exploration">
-        <Card className="glass-card border-glass">
-          <CardHeader>
-            <CardTitle>AI-Powered Exploration Builder</CardTitle>
-            <CardDescription>Create deep, reflective explorations for personal growth and self-discovery.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <Compass className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Exploration builder uses the same interface as assessments.</p>
-              <p className="text-sm mt-2">Select "Exploration" as the type in the Assessment tab.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-      
-      <TabsContent value="course">
-        <Card className="glass-card border-glass">
-          <CardHeader>
-            <CardTitle>AI-Powered Course Builder</CardTitle>
-            <CardDescription>Design comprehensive learning experiences with modules, lessons, and assessments.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Course builder uses the same interface as assessments.</p>
-              <p className="text-sm mt-2">Select "Course" as the type in the Assessment tab.</p>
-            </div>
-          </CardContent>
-        </Card>
-
       </TabsContent>
     </Tabs>
   );

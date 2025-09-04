@@ -5,6 +5,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export enum ErrorSeverity {
   LOW = 'low',
@@ -25,12 +26,16 @@ export enum ErrorCategory {
 }
 
 export interface ErrorContext {
+  // Core known fields
   userId?: string;
   action?: string;
   module?: string;
   metadata?: Record<string, any>;
   stackTrace?: string;
   timestamp?: string;
+
+  // Allow additional context properties (e.g., notificationId, providerId, etc.)
+  [key: string]: any;
 }
 
 export interface ErrorRecord {
@@ -256,15 +261,26 @@ class ErrorHandlerService {
   private showErrorToast(error: ErrorRecord, recoveryStrategy?: ErrorRecoveryStrategy) {
     const userMessage = recoveryStrategy?.userMessage || this.getUserFriendlyMessage(error);
     
+    // Show toast without embedding callback objects (keeps typing consistent)
     toast({
       title: 'Something went wrong',
       description: userMessage,
       variant: 'destructive',
-      action: recoveryStrategy?.fallbackAction ? {
-        label: 'Try Again',
-        onClick: recoveryStrategy.fallbackAction,
-      } : undefined,
     });
+
+    // If there's a fallback action, emit a custom event so admin UI can surface an action button
+    if (recoveryStrategy?.fallbackAction) {
+      try {
+        window.dispatchEvent(new CustomEvent('error-recovery-action', {
+          detail: {
+            message: userMessage,
+            actionAvailable: true
+          }
+        }));
+      } catch {
+        // ignore if window unavailable
+      }
+    }
   }
 
   /**
@@ -307,28 +323,65 @@ class ErrorHandlerService {
     this.errorQueue = [];
 
     try {
-      // Log to Supabase error_logs table
-      const { error } = await supabase
-        .from('error_logs')
-        .insert(errors.map(e => ({
-          message: e.message,
-          code: e.code,
-          severity: e.severity,
-          category: e.category,
-          context: e.context,
-          user_id: e.context.userId,
-          created_at: e.createdAt,
-        })));
+      // Attempt to insert logs with retry/backoff (server may be temporarily unreachable)
+      const maxAttempts = 3;
+      let attempt = 0;
+      let logged = false;
+      let lastError: any = null;
 
-      if (error) {
-        // If logging fails, put errors back in queue
+      while (attempt < maxAttempts && !logged) {
+        attempt += 1;
+        try {
+          const { error } = await supabase
+            .from('error_logs')
+            // Cast to any to satisfy Postgrest insert typing in the client build
+            .insert(errors.map(e => ({
+              message: e.message,
+              code: e.code,
+              severity: e.severity,
+              category: e.category,
+              context: e.context,
+              user_id: e.context.userId,
+              created_at: e.createdAt,
+            })) as any);
+
+          if (error) {
+            lastError = error;
+            // Wait with exponential backoff before retrying
+            await new Promise(res => setTimeout(res, 500 * Math.pow(2, attempt - 1)));
+            continue;
+          }
+
+          logged = true;
+        } catch (err) {
+          lastError = err;
+          // Backoff and retry
+          await new Promise(res => setTimeout(res, 500 * Math.pow(2, attempt - 1)));
+        }
+      }
+
+      if (!logged) {
+        // Put errors back in queue for future retry and emit a browser-level event so admin UI can surface it
         this.errorQueue.unshift(...errors);
-        console.error('Failed to log errors:', error);
+        try {
+          // Emit structured event for admin panels to consume (do not include sensitive context)
+          window.dispatchEvent(new CustomEvent('error-logging-failed', {
+            detail: {
+              message: 'Failed to persist error logs after multiple attempts',
+              sample: errors.slice(0, 3).map(e => ({ message: e.message, category: e.category, severity: e.severity })),
+              lastError: (lastError && lastError.message) ? lastError.message : String(lastError)
+            }
+          }));
+        } catch (e) {
+          // window may be undefined in some environments; ignore
+        }
+        // Use logger instead of console.error to centralize output
+        logger.error('Failed to log errors after retries', 'ErrorHandlerService', lastError);
       }
     } catch (err) {
-      // Put errors back in queue for retry
+      // Fallback: ensure errors are re-queued and surface minimal info
       this.errorQueue.unshift(...errors);
-      console.error('Error logging failed:', err);
+      logger.error('Unexpected error while processing error queue', 'ErrorHandlerService', err);
     }
   }
 

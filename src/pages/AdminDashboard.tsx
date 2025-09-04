@@ -31,13 +31,15 @@ import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface'
 import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
 import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
-import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
+import AIRealtimeVoiceAgentAdminPanel from '@/components/admin/AIRealtimeVoiceAgentAdminPanel';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
+import { AdvancedVoiceConfigPanel } from '@/components/admin/AdvancedVoiceConfigPanel';
+import { EnhancedRealtimeVoiceAgent } from '@/components/voice/EnhancedRealtimeVoiceAgent';
 
 type AdminSection = 
   | 'overview'
@@ -63,6 +65,20 @@ interface RecentActivityItem {
 
 const AdminDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
+  
+  // If an explicit section is provided via query param (e.g. ?section=ai-providers),
+  // use it to initialize the active section. This makes e2e tests and direct links reliable.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const section = params.get('section') as AdminSection | null;
+      if (section) {
+        setActiveSection(section);
+      }
+    } catch (e) {
+      // ignore in non-browser contexts
+    }
+  }, []);
 
   const navigationItems = [
     { 
@@ -495,14 +511,47 @@ const AdminDashboard: React.FC = () => {
       case 'voice':
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VoiceAgentConfigManager />
-              <VoicePlayground />
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <VoiceTestingInterface />
-              <VoiceAgentTrainer />
-            </div>
+            {/* Enhanced Real-time Voice Assistant */}
+            <Card className="glass-strong">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mic className="h-6 w-6" />
+                  Enhanced Voice Assistant
+                </CardTitle>
+                <CardDescription>
+                  Test the latest OpenAI GPT-4o Realtime voice assistant with enhanced features.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EnhancedRealtimeVoiceAgent />
+              </CardContent>
+            </Card>
+
+            {/* Advanced Configuration Panel */}
+            <AdvancedVoiceConfigPanel />
+
+            {/* Legacy Components */}
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Legacy Voice Components</CardTitle>
+                <CardDescription>
+                  Previous voice assistant implementations and testing tools.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <AIRealtimeVoiceAgentAdminPanel />
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <VoiceAgentConfigManager />
+                    <VoicePlayground />
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <VoiceTestingInterface />
+                    <VoiceAgentTrainer />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         );
       case 'ai-content':
@@ -513,7 +562,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-6">
             <APIKeyManager />
-            <AIProviderSettings />
+            <AIRealtimeVoiceAgentAdminPanel />
           </div>
         );
       case 'moderation':

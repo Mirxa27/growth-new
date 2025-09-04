@@ -225,7 +225,7 @@ export const AIProviderSettings: React.FC = () => {
   };
 
   const fetchModelsForCurrentProvider = async () => {
-    const config = formData.configuration as ProviderConfiguration;
+    const config = (formData.configuration as ProviderConfiguration) || {};
     const apiKey = config?.api_key;
     
     if (!apiKey) {
@@ -246,7 +246,7 @@ export const AIProviderSettings: React.FC = () => {
       setFetchedModels(models);
       
       // Auto-select first model if none selected
-      if (models.length > 0 && !config.model) {
+      if (models.length > 0 && !config?.model) {
         handleFormConfigurationChange('model', models[0].id);
       }
       
@@ -267,7 +267,7 @@ export const AIProviderSettings: React.FC = () => {
   };
 
   const fetchVoicesForCurrentProvider = async () => {
-    const config = formData.configuration as ProviderConfiguration;
+    const config = (formData.configuration as ProviderConfiguration) || {};
     const apiKey = config?.api_key;
     
     if (selectedProviderType !== 'openai' && selectedProviderType !== 'elevenlabs') {
@@ -292,7 +292,7 @@ export const AIProviderSettings: React.FC = () => {
       setFetchedVoices(voices);
       
       // Auto-select first voice if none selected
-      if (voices.length > 0 && !config.voice_id) {
+      if (voices.length > 0 && !config?.voice_id) {
         handleFormConfigurationChange('voice_id', voices[0].id);
       }
       

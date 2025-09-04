@@ -214,7 +214,7 @@ class NotificationService {
       // Create notification record
       const { data, error } = await supabase
         .from('notifications')
-        .insert({
+        .insert([{
           user_id: userId,
           type: validated.type,
           title: validated.title,
@@ -224,14 +224,14 @@ class NotificationService {
           expires_at: validated.expiresAt,
           action_url: validated.actionUrl,
           action_label: validated.actionLabel,
-        })
+        }] as any)
         .select()
-        .single();
+        .single() as any;
 
       if (error) throw error;
 
       // Send to different channels
-      const promises = [];
+      const promises: Promise<any>[] = [];
 
       if (allowedChannels.includes(NotificationChannel.EMAIL)) {
         promises.push(this.sendEmailNotification(userId, data));
@@ -242,8 +242,8 @@ class NotificationService {
       }
 
       await Promise.allSettled(promises);
-
-      return { success: true, notificationId: data.id };
+ 
+      return { success: true, notificationId: (data as any).id };
     } catch (error) {
       errorHandler.handleError(error, {
         severity: ErrorSeverity.MEDIUM,
@@ -281,7 +281,12 @@ class NotificationService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Failed to send email notification:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'send_email_notification', userId, notificationId: notification?.id }
+      });
+      // keep silent for end-user flow; admin UI can surface via error events
     }
   }
 
@@ -311,7 +316,12 @@ class NotificationService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Failed to send push notification:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'send_push_notification', userId, notificationId: notification?.id }
+      });
+      // Do not throw further to avoid breaking caller flow
     }
   }
 
@@ -337,33 +347,46 @@ class NotificationService {
         .maybeSingle();
 
       if (error) {
-        console.warn('Failed to fetch notification preferences:', error);
-        
-        // If table doesn't exist or other error, try to create default preferences
-        if (error.code === '42P01' || error.code === 'PGRST116') {
-          const defaultPrefs = this.getDefaultPreferences();
-          
-          // Try to insert default preferences
-          await supabase
-            .from('notification_preferences')
-            .insert({
-              user_id: targetUserId,
-              preferences: defaultPrefs
-            })
-            .select()
-            .single()
-            .catch(() => null); // Ignore errors
-          
-          return defaultPrefs;
-        }
+    // Log structured error for observability and fall back safely
+    errorHandler.handleError(error, {
+      severity: ErrorSeverity.MEDIUM,
+      category: ErrorCategory.DATABASE,
+      context: { action: 'fetch_notification_preferences', userId: targetUserId }
+    });
+
+    // If table doesn't exist (common in fresh DBs) attempt to seed defaults
+    const errCode = typeof (error as any)?.code === 'string' ? (error as any).code : String((error as any)?.code || '');
+    if (errCode.includes('42P01') || errCode.toUpperCase().includes('PGRST')) {
+      const defaultPrefs = this.getDefaultPreferences();
+
+      try {
+        await supabase
+          .from('notification_preferences')
+          .insert([{
+            user_id: targetUserId,
+            preferences: defaultPrefs
+          }] as any)
+          .select()
+          .maybeSingle();
+      } catch {
+        // ignore failures while seeding defaults
       }
+
+      cache.set(cacheKey, defaultPrefs, { ttl: 300000 });
+      return defaultPrefs;
+    }
+  }
 
       const preferences = data?.preferences || this.getDefaultPreferences();
       cache.set(cacheKey, preferences, { ttl: 300000 }); // 5 minutes
 
       return preferences;
     } catch (error) {
-      console.error('Error getting notification preferences:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.NETWORK,
+        context: { action: 'get_user_preferences', userId: targetUserId }
+      });
       return this.getDefaultPreferences();
     }
   }
@@ -380,10 +403,10 @@ class NotificationService {
 
       const { error } = await supabase
         .from('notification_preferences')
-        .upsert({
+        .upsert([{
           user_id: this.userId,
           preferences: updated,
-        });
+        }] as any);
 
       if (error) throw error;
 
@@ -462,10 +485,10 @@ class NotificationService {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ 
+        .update({
           read: true,
-          read_at: new Date().toISOString() 
-        })
+          read_at: new Date().toISOString()
+        } as any)
         .eq('id', notificationId)
         .eq('user_id', this.userId);
 
@@ -474,7 +497,11 @@ class NotificationService {
       this.updateUnreadCount();
       return true;
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'mark_notification_read', notificationId }
+      });
       return false;
     }
   }
@@ -488,10 +515,10 @@ class NotificationService {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ 
+        .update({
           read: true,
-          read_at: new Date().toISOString() 
-        })
+          read_at: new Date().toISOString()
+        } as any)
         .eq('user_id', this.userId)
         .is('read_at', null);
 
@@ -500,7 +527,11 @@ class NotificationService {
       this.updateUnreadCount();
       return true;
     } catch (error) {
-      console.error('Failed to mark all notifications as read:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'mark_all_notifications_read' }
+      });
       return false;
     }
   }
@@ -522,7 +553,11 @@ class NotificationService {
 
       return count || 0;
     } catch (error) {
-      console.error('Failed to get unread count:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'get_unread_count' }
+      });
       return 0;
     }
   }
@@ -556,17 +591,17 @@ class NotificationService {
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(
           import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
-        ),
+        ) as unknown as BufferSource,
       });
 
       // Save subscription to database
       const { error } = await supabase
         .from('push_subscriptions')
-        .upsert({
+        .upsert([{
           user_id: this.userId,
           subscription: subscription.toJSON(),
           user_agent: navigator.userAgent,
-        });
+        }] as any);
 
       if (error) throw error;
 

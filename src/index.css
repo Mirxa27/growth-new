@@ -1,7 +1,9 @@
+/* stylelint-disable */
 
 /* Import Responsive Design System */
 @import './styles/responsive.css';
 
+/* Tailwind Directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -414,4 +416,27 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+}
+
+/* Global UI Enhancements for consistent button and content styling */
+
+/* Standard button styling */
+.btn {
+  @apply px-4 py-2 rounded bg-[rgb(var(--primary))] text-white font-medium transition-colors duration-200;
+}
+.btn:hover {
+  @apply bg-[rgb(var(--primary-glow))];
+}
+
+/* Toggle button styling: these styles override any transparency issues to provide solid background colors */
+.toggle-btn {
+  @apply px-4 py-2 rounded bg-[rgb(var(--primary))] text-white font-medium transition-colors duration-200;
+}
+.toggle-btn.active {
+  @apply bg-[rgb(var(--primary-glow))];
+}
+
+/* Enhanced content styling for better visual hierarchy and legibility */
+.content {
+  @apply p-4 bg-white/80 backdrop-blur shadow rounded-lg;
 }

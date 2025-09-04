@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { QuestionDisplay } from '@/components/assessments/QuestionDisplay';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -30,63 +31,62 @@ interface Option {
 
 const AssessmentPage = () => {
   const { id } = useParams();
+  const assessmentId = id ? parseInt(id, 10) : NaN;
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [startTime, setStartTime] = useState<number>(Date.now());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+  // Reset start time and load assessment
+    setStartTime(Date.now());
     loadAssessment();
   }, [id]);
 
   const loadAssessment = async () => {
     try {
-      // Load assessment details
-      const { data: assessmentData, error: assessmentError } = await supabase
+      // Fetch assessment details
+      // Fetch assessment row
+      type AssessRow = Database['public']['Tables']['assessments']['Row'];
+      const { data: row, error } = await supabase
         .from('assessments')
         .select('*')
-        .eq('id', id)
+        .eq('id', assessmentId)
         .single();
-
-      if (assessmentError) throw assessmentError;
-
-      // Check if assessment is private and user is not authenticated
-      if (assessmentData.visibility === 'private' && !user) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to access this assessment.",
-          variant: "destructive"
-        });
-        navigate('/auth');
-        return;
+      if (error || !row) {
+        throw error || new Error('Assessment not found');
       }
-
-      setAssessment(assessmentData);
-
-      // Load questions with options
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('assessment_questions')
-        .select(`
-          *,
-          assessment_options (*)
-        `)
-        .eq('assessment_id', id)
-        .order('position');
-
-      if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
-    } catch (error) {
-      console.error('Error loading assessment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load assessment. Please try again.",
-        variant: "destructive"
+      const assess = row as unknown as AssessRow;
+      setAssessment({
+        id: assess.id,
+        title: assess.title,
+        description: assess.description,
+        type: assess.type,
       });
+      // Load questions with options
+      type QuestionRow = Database['public']['Tables']['assessment_questions']['Row'];
+      type OptionRow = Database['public']['Tables']['assessment_options']['Row'];
+      const { data: qData, error: qError } = await supabase
+        .from('assessment_questions')
+        .select(`*, assessment_options (*)`)
+        .eq('assessment_id', assessmentId);
+      if (qError) throw qError;
+      // Transform rows to our Question interface
+      const questionsList = (qData as (QuestionRow & { assessment_options: OptionRow[] })[]).map(q => ({
+        id: q.id,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        position: q.position,
+        explanation: q.explanation || undefined,
+        assessment_options: q.assessment_options.map(opt => ({ id: opt.id, option_text: opt.option_text, position: opt.position })),
+      }));
+      setQuestions(questionsList);
     } finally {
       setLoading(false);
     }
@@ -146,24 +146,27 @@ const AssessmentPage = () => {
       }
 
       // Save results
-      const { data, error } = await supabase
+    // Calculate total time taken in seconds
+    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      // Insert result (cast to any to satisfy TS)
+      const { data, error } = await (supabase
         .from('assessment_results')
-        .insert({
+        .insert([{
           user_id: user.id,
-          assessment_id: parseInt(id!),
+          assessment_id: assessmentId,
           score,
           total_points: totalPoints,
           percentage: totalPoints > 0 ? (score / totalPoints) * 100 : 0,
           answers,
           completed: true,
-          time_taken: 0 // TODO: Implement time tracking
-        })
+          time_taken: timeTaken
+        }] as any)
         .select()
-        .single();
+        .single());
 
       if (error) throw error;
 
-      navigate(`/results/${data.id}`);
+  navigate(`/results/${(data as any).id}`);
     } catch (error) {
       console.error('Error submitting assessment:', error);
       toast({

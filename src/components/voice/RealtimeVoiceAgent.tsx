@@ -50,6 +50,9 @@ const RealtimeVoiceAgent: React.FC = () => {
   const audioWorkletRef = useRef<AudioWorkletNode | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const realtimeSettingsRef = useRef<RealtimeSettings | null>(null);
+  // Analyzer + buffer for audio level monitoring
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
 
   const initializeVoiceSession = async () => {
     try {
@@ -269,7 +272,7 @@ const RealtimeVoiceAgent: React.FC = () => {
 
   const setupAudioProcessing = () => {
     if (!audioContextRef.current || !mediaStreamRef.current) return;
-
+ 
     const source = audioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
     
     // Create audio worklet for processing
@@ -297,7 +300,7 @@ const RealtimeVoiceAgent: React.FC = () => {
           const nowSpeaking = level > threshold;
           const wasSpeaking = lastLevel > threshold;
           lastLevel = level;
-
+ 
           if (wasSpeaking && !nowSpeaking && wsRef.current?.readyState === WebSocket.OPEN) {
             // debounce commit slightly to avoid chopping words
             if (silenceTimer) {
@@ -322,11 +325,44 @@ const RealtimeVoiceAgent: React.FC = () => {
           }
         }
       };
-
+ 
       source.connect(audioWorkletRef.current);
     }).catch(error => {
       console.error('Failed to load audio worklet:', error);
     });
+  };
+ 
+  // Setup audio level monitoring (copied from EnhancedRealtimeVoiceAgent implementation).
+  const setupAudioLevelMonitoring = () => {
+    if (!audioContextRef.current || !mediaStreamRef.current) return;
+ 
+    // Create analyser for audio level monitoring
+    analyserRef.current = audioContextRef.current.createAnalyser();
+    analyserRef.current.fftSize = 256;
+    
+    const source = audioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
+    source.connect(analyserRef.current);
+    
+    dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+    
+    // Monitor audio levels
+    const monitorAudioLevel = () => {
+      if (!analyserRef.current || !dataArrayRef.current) return;
+      
+      analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+      
+      // Calculate average volume
+      const average = dataArrayRef.current.reduce((sum, value) => sum + value, 0) / dataArrayRef.current.length;
+      const normalizedLevel = average / 255;
+      
+      setAudioLevel(normalizedLevel);
+      
+      if (isConnected) {
+        requestAnimationFrame(monitorAudioLevel);
+      }
+    };
+    
+    monitorAudioLevel();
   };
 
   const handleRealtimeMessage = (message: any) => {

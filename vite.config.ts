@@ -16,7 +16,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false, // Disable source maps in build to reduce source map errors in production
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {

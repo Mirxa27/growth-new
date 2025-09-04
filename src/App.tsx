@@ -26,6 +26,7 @@ import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
+import VoiceAssistantDemo from "./pages/VoiceAssistantDemo";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,11 @@ const App = () => {
               <Route path="/admin" element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/voice-demo" element={
+                <ProtectedRoute>
+                  <VoiceAssistantDemo />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

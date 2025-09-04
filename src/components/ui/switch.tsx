@@ -9,7 +9,11 @@ const Switch = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
     className={cn(
-      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted border-muted-foreground/20",
+      // Keep accessibility/focus styling, but force explicit checked/unchecked backgrounds
+      // so the switch remains visible against the project's glass/gradient backgrounds.
+      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 border-muted-foreground/20",
+      // Explicit backgrounds improve contrast in dark/glass themes:
+      "data-[state=checked]:bg-primary-600 data-[state=unchecked]:bg-white/10",
       className
     )}
     {...props}
@@ -17,7 +21,8 @@ const Switch = React.forwardRef<
   >
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+        // Make the thumb highly visible against glass backgrounds and clearly translate when checked.
+        "pointer-events-none block h-5 w-5 rounded-full bg-white/95 shadow-md ring-0 transition-transform transform-gpu data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
       )}
     />
   </SwitchPrimitives.Root>
