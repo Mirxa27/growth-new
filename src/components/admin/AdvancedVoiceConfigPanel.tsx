@@ -275,7 +275,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
               <Label htmlFor="config-name">Configuration Name</Label>
               <Input
                 id="config-name"
-                value={config.name}
+                value={config.name ?? ''}
                 onChange={(e) => updateConfig('name', e.target.value)}
                 className="glass-input"
                 placeholder="Enter configuration name"
@@ -333,7 +333,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="model">AI Model</Label>
-                  <Select value={config.model} onValueChange={(value) => updateConfig('model', value)}>
+                  <Select value={config.model ?? ''} onValueChange={(value) => updateConfig('model', value)}>
                     <SelectTrigger className="glass">
                       <SelectValue placeholder="Select AI model" />
                     </SelectTrigger>
@@ -354,31 +354,31 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                     type="number"
                     min={1}
                     max={8192}
-                    value={config.max_tokens}
+                    value={config.max_tokens ?? 4096}
                     onChange={(e) => updateConfig('max_tokens', parseInt(e.target.value))}
                     className="glass-input"
                   />
                 </div>
 
                 <div className="space-y-3 md:col-span-2">
-                  <Label>Temperature: {config.temperature}</Label>
-                  <Slider
-                    value={[config.temperature]}
-                    onValueChange={([value]) => updateConfig('temperature', value)}
-                    max={2}
-                    min={0}
-                    step={0.1}
-                    className="w-full"
-                  />
+                  <Label>Temperature: {config.temperature ?? 0.8}</Label>
+                   <Slider
+                     value={[config.temperature ?? 0.8]}
+                     onValueChange={([value]) => updateConfig('temperature', value)}
+                     max={2}
+                     min={0}
+                     step={0.1}
+                     className="w-full"
+                   />
                   <p className="text-sm text-muted-foreground">
                     Controls randomness in responses. Lower values (0.2-0.5) for focused responses, higher values (0.8-1.2) for creative responses.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Top P: {config.top_p}</Label>
+                  <Label>Top P: {config.top_p ?? 1}</Label>
                   <Slider
-                    value={[config.top_p]}
+                    value={[config.top_p ?? 1]}
                     onValueChange={([value]) => updateConfig('top_p', value)}
                     max={1}
                     min={0}
@@ -388,9 +388,9 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Frequency Penalty: {config.frequency_penalty}</Label>
+                  <Label>Frequency Penalty: {config.frequency_penalty ?? 0}</Label>
                   <Slider
-                    value={[config.frequency_penalty]}
+                    value={[config.frequency_penalty ?? 0]}
                     onValueChange={([value]) => updateConfig('frequency_penalty', value)}
                     max={2}
                     min={-2}
@@ -404,7 +404,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                 <Label htmlFor="instructions">System Instructions</Label>
                 <Textarea
                   id="instructions"
-                  value={config.instructions}
+                  value={config.instructions ?? ''}
                   onChange={(e) => updateConfig('instructions', e.target.value)}
                   className="glass-input min-h-[200px]"
                   placeholder="Enter system instructions for the AI assistant..."
@@ -458,7 +458,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="input-format">Input Audio Format</Label>
-                  <Select value={config.input_audio_format} onValueChange={(value) => updateConfig('input_audio_format', value)}>
+                  <Select value={config.input_audio_format ?? 'pcm16'} onValueChange={(value) => updateConfig('input_audio_format', value)}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -474,7 +474,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="output-format">Output Audio Format</Label>
-                  <Select value={config.output_audio_format} onValueChange={(value) => updateConfig('output_audio_format', value)}>
+                  <Select value={config.output_audio_format ?? 'pcm16'} onValueChange={(value) => updateConfig('output_audio_format', value)}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>
@@ -493,16 +493,16 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                   <Input
                     id="sample-rate"
                     type="number"
-                    value={config.sample_rate}
+                    value={config.sample_rate ?? 24000}
                     onChange={(e) => updateConfig('sample_rate', parseInt(e.target.value))}
                     className="glass-input"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label>VAD Threshold: {config.vad_threshold}</Label>
+                  <Label>VAD Threshold: {config.vad_threshold ?? 0.5}</Label>
                   <Slider
-                    value={[config.vad_threshold]}
+                    value={[config.vad_threshold ?? 0.5]}
                     onValueChange={([value]) => updateConfig('vad_threshold', value)}
                     max={1}
                     min={0}
@@ -537,7 +537,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                   <Input
                     id="silence-duration"
                     type="number"
-                    value={config.silence_duration_ms}
+                    value={config.silence_duration_ms ?? 500}
                     onChange={(e) => updateConfig('silence_duration_ms', parseInt(e.target.value))}
                     className="glass-input"
                   />
@@ -551,7 +551,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
                   <Input
                     id="prefix-padding"
                     type="number"
-                    value={config.prefix_padding_ms}
+                    value={config.prefix_padding_ms ?? 300}
                     onChange={(e) => updateConfig('prefix_padding_ms', parseInt(e.target.value))}
                     className="glass-input"
                   />
@@ -621,7 +621,7 @@ export const AdvancedVoiceConfigPanel: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="response-format">Response Format</Label>
-                  <Select value={config.response_format} onValueChange={(value) => updateConfig('response_format', value)}>
+                  <Select value={config.response_format ?? 'audio'} onValueChange={(value) => updateConfig('response_format', value)}>
                     <SelectTrigger className="glass">
                       <SelectValue />
                     </SelectTrigger>

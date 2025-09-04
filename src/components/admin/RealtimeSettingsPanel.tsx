@@ -68,46 +68,46 @@ export const RealtimeSettingsPanel: React.FC = () => {
           </div>
           <div className="space-y-2">
             <Label>Model</Label>
-            <Input value={settings.model} onChange={e => setSettings(s => s ? { ...s, model: e.target.value } : s)} />
+            <Input value={settings.model ?? ''} onChange={e => setSettings(s => s ? { ...s, model: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Voice</Label>
-            <Input value={settings.voice} onChange={e => setSettings(s => s ? { ...s, voice: e.target.value } : s)} />
+            <Input value={settings.voice ?? ''} onChange={e => setSettings(s => s ? { ...s, voice: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Language</Label>
-            <Input value={settings.language} onChange={e => setSettings(s => s ? { ...s, language: e.target.value } : s)} />
+            <Input value={settings.language ?? ''} onChange={e => setSettings(s => s ? { ...s, language: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>STT Model</Label>
-            <Input value={settings.sttModel} onChange={e => setSettings(s => s ? { ...s, sttModel: e.target.value } : s)} />
+            <Input value={settings.sttModel ?? ''} onChange={e => setSettings(s => s ? { ...s, sttModel: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Input Format</Label>
-            <Input value={settings.inputFormat} onChange={e => setSettings(s => s ? { ...s, inputFormat: e.target.value } : s)} />
+            <Input value={settings.inputFormat ?? ''} onChange={e => setSettings(s => s ? { ...s, inputFormat: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Output Format</Label>
-            <Input value={settings.outputFormat} onChange={e => setSettings(s => s ? { ...s, outputFormat: e.target.value } : s)} />
+            <Input value={settings.outputFormat ?? ''} onChange={e => setSettings(s => s ? { ...s, outputFormat: e.target.value } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Use Proxy</Label>
             <div className="flex items-center gap-3">
-              <Switch checked={settings.useProxy} onCheckedChange={checked => setSettings(s => s ? { ...s, useProxy: checked } : s)} />
+              <Switch checked={!!settings.useProxy} onCheckedChange={checked => setSettings(s => s ? { ...s, useProxy: checked } : s)} />
               <Input placeholder="Proxy URL" value={settings.proxyUrl || ''} onChange={e => setSettings(s => s ? { ...s, proxyUrl: e.target.value } : s)} />
             </div>
           </div>
           <div className="space-y-2">
             <Label>VAD Threshold</Label>
-            <Input type="number" step="0.05" min="0" max="1" value={settings.vad.threshold} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, threshold: Number(e.target.value) } } : s)} />
+            <Input type="number" step="0.05" min="0" max="1" value={settings.vad?.threshold ?? 0} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, threshold: Number(e.target.value) } } : s)} />
           </div>
           <div className="space-y-2">
             <Label>VAD Prefix Padding (ms)</Label>
-            <Input type="number" value={settings.vad.prefixPaddingMs} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, prefixPaddingMs: Number(e.target.value) } } : s)} />
+            <Input type="number" value={settings.vad?.prefixPaddingMs ?? 0} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, prefixPaddingMs: Number(e.target.value) } } : s)} />
           </div>
           <div className="space-y-2">
             <Label>VAD Silence (ms)</Label>
-            <Input type="number" value={settings.vad.silenceDurationMs} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, silenceDurationMs: Number(e.target.value) } } : s)} />
+            <Input type="number" value={settings.vad?.silenceDurationMs ?? 0} onChange={e => setSettings(s => s ? { ...s, vad: { ...s.vad, silenceDurationMs: Number(e.target.value) } } : s)} />
           </div>
           <div className="space-y-2">
             <Label>Emotion Detection</Label>

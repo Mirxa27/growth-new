@@ -207,7 +207,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="voice">Voice</Label>
-              <Select value={form.voice} onValueChange={(v: typeof VOICES[number]) => setForm(p => ({ ...p, voice: v }))}>
+              <Select value={form.voice ?? 'alloy'} onValueChange={(v: typeof VOICES[number]) => setForm(p => ({ ...p, voice: v }))}>
                 <SelectTrigger className="glass"><SelectValue placeholder="Select voice" /></SelectTrigger>
                 <SelectContent>
                   {VOICES.map(v => <SelectItem key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>)}
@@ -217,7 +217,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="model">AI Model</Label>
-              <Input id="model" className="glass-input" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} />
+              <Input id="model" className="glass-input" value={form.model ?? ''} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} />
               {errors.model && <p className="text-sm text-red-500">{errors.model}</p>}
             </div>
             <div className="space-y-2">

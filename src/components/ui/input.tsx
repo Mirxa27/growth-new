@@ -5,11 +5,17 @@ import { cn } from "@/lib/utils"
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     // Prevent zoom on iOS when focusing inputs
-    const inputMode = type === 'email' ? 'email' : 
-                     type === 'tel' ? 'tel' : 
-                     type === 'number' ? 'numeric' : 
-                     type === 'url' ? 'url' : 
+    const inputMode = type === 'email' ? 'email' :
+                     type === 'tel' ? 'tel' :
+                     type === 'number' ? 'numeric' :
+                     type === 'url' ? 'url' :
                      undefined;
+
+    // Normalize undefined value to empty string to avoid controlled -> uncontrolled warnings
+    const inputProps = {
+      ...props,
+      value: (props as any).value ?? ''
+    }
     
     return (
       <input
@@ -30,7 +36,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        {...props}
+        {...inputProps}
       />
     )
   }

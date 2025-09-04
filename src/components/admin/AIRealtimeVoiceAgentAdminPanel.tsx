@@ -1,31 +1,3 @@
-  // Save config to Supabase (admin table or settings)
-  const handleSaveConfig = async () => {
-    try {
-      const { error } = await supabase
-        .from('voice_agent_configs')
-        .upsert([{ config: config }], { onConflict: 'id' });
-      if (error) throw error;
-      toast({ title: 'Config Saved', description: 'Voice agent configuration saved.' });
-    } catch (err: any) {
-      toast({ title: 'Save Failed', description: err.message, variant: 'destructive' });
-    }
-  };
-
-  // Load config from Supabase
-  const handleLoadConfig = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('voice_agent_configs')
-        .select('config')
-        .eq('id', 'default')
-        .single();
-      if (error) throw error;
-      if (data?.config) setConfig(data.config);
-      toast({ title: 'Config Loaded', description: 'Voice agent configuration loaded.' });
-    } catch (err: any) {
-      toast({ title: 'Load Failed', description: err.message, variant: 'destructive' });
-    }
-  };
 import React, { useEffect, useState, useRef } from 'react';
 import { defaultGPTRealtimeVoiceAgentConfig, GPTRealtimeVoiceAgentConfig } from '@/config/gpt-realtime-voice-agent.config';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -160,13 +132,46 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
   };
 
   // Request ephemeral realtime token. Server must verify admin before issuing.
+  // Helpers: Save / Load provider config (component-scope so buttons can call them).
+  const handleSaveConfig = async () => {
+    try {
+      // Cast supabase to any here to avoid strict generated table typings in this admin utility.
+      const sb = supabase as any;
+      // Upsert a single row with id 'default' so admin UI can persist a single config document.
+      const { error } = await sb
+        .from('voice_agent_configs')
+        .upsert([{ id: 'default', config }], { onConflict: 'id' });
+      if (error) throw error;
+      toast({ title: 'Config Saved', description: 'Voice agent configuration saved.' });
+    } catch (err: any) {
+      toast({ title: 'Save Failed', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+  
+  const handleLoadConfig = async () => {
+    try {
+      const sb = supabase as any;
+      const { data, error } = await sb
+        .from('voice_agent_configs')
+        .select('config')
+        .eq('id', 'default')
+        .single();
+      if (error) throw error;
+      if ((data as any)?.config) setConfig((data as any).config as GPTRealtimeVoiceAgentConfig);
+      toast({ title: 'Config Loaded', description: 'Voice agent configuration loaded.' });
+    } catch (err: any) {
+      toast({ title: 'Load Failed', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+  
   const requestRealtimeToken = async (): Promise<RealtimeTokenResponse | null> => {
     try {
       appendLog('Requesting realtime token from server (get-realtime-token)');
-      const { data, error } = await supabase.functions.invoke('get-realtime-token', {
+      const sb = supabase as any;
+      const { data, error } = await sb.functions.invoke('get-realtime-token', {
         body: {}
       });
-
+  
       if (error) throw error;
       appendLog('Received realtime token metadata');
       return data as RealtimeTokenResponse;
@@ -428,15 +433,15 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label>Persona Display Name</Label>
-                  <Input value={config.persona.displayName} onChange={(e) => handleConfigChange('persona', 'displayName', e.target.value)} />
+                  <Input value={config.persona.displayName ?? ''} onChange={(e) => handleConfigChange('persona', 'displayName', e.target.value)} />
                 </div>
                 <div>
                   <Label>Persona Key</Label>
-                  <Input value={config.persona.name} onChange={(e) => handleConfigChange('persona', 'name', e.target.value)} />
+                  <Input value={config.persona.name ?? ''} onChange={(e) => handleConfigChange('persona', 'name', e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
                   <Label>System Prompt</Label>
-                  <Textarea value={config.persona.systemPrompt} onChange={(e) => handleConfigChange('persona', 'systemPrompt', e.target.value)} rows={3} />
+                  <Textarea value={config.persona.systemPrompt ?? ''} onChange={(e) => handleConfigChange('persona', 'systemPrompt', e.target.value)} rows={3} />
                 </div>
                 <div>
                   <Label>Speech Style</Label>
@@ -479,7 +484,7 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label>Provider</Label>
-                  <Select onValueChange={(v) => handleConfigChange('provider', 'type', v)} value={config.provider.type}>
+                  <Select onValueChange={(v) => handleConfigChange('provider', 'type', v)} value={config.provider.type ?? ''}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="openai">OpenAI</SelectItem>
@@ -491,11 +496,11 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
                 </div>
                 <div>
                   <Label>Model</Label>
-                  <Input value={config.provider.model} onChange={(e) => handleConfigChange('provider', 'model', e.target.value)} aria-label="Model" />
+                  <Input value={config.provider.model ?? ''} onChange={(e) => handleConfigChange('provider', 'model', e.target.value)} aria-label="Model" />
                 </div>
                 <div>
                   <Label>Server Endpoint (optional)</Label>
-                  <Input value={config.provider.endpoint} onChange={(e) => handleConfigChange('provider', 'endpoint', e.target.value)} placeholder="https://your-server.example" />
+                  <Input value={config.provider.endpoint ?? ''} onChange={(e) => handleConfigChange('provider', 'endpoint', e.target.value)} placeholder="https://your-server.example" />
                 </div>
                 <div>
                   <Label>Provider ID (DB)</Label>
@@ -516,11 +521,11 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <Label>Voice ID</Label>
-                  <Input value={config.voice.id} onChange={(e) => handleConfigChange('voice', 'id', e.target.value)} />
+                  <Input value={config.voice.id ?? ''} onChange={(e) => handleConfigChange('voice', 'id', e.target.value)} />
                 </div>
                 <div>
                   <Label>Language</Label>
-                  <Input value={config.voice.language} onChange={(e) => handleConfigChange('voice', 'language', e.target.value)} />
+                  <Input value={config.voice.language ?? ''} onChange={(e) => handleConfigChange('voice', 'language', e.target.value)} />
                 </div>
                 <div>
                   <Label>Gender / Timbre Preset</Label>
@@ -561,7 +566,7 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label>Transport</Label>
-                  <Select onValueChange={(v) => handleConfigChange('transport', 'type', v as any)} value={config.transport.type}>
+                  <Select onValueChange={(v) => handleConfigChange('transport', 'type', v as any)} value={config.transport.type ?? ''}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="webrtc">WebRTC (preferred)</SelectItem>
@@ -576,19 +581,19 @@ export const AIRealtimeVoiceAgentAdminPanel: React.FC = () => {
                 </div>
                 <div className="md:col-span-2">
                   <Label>ICE Servers (JSON)</Label>
-                  <Textarea value={config.transport.iceServers} onChange={(e) => handleConfigChange('transport', 'iceServers', e.target.value)} rows={2} />
+                  <Textarea value={config.transport.iceServers ?? ''} onChange={(e) => handleConfigChange('transport', 'iceServers', e.target.value)} rows={2} />
                 </div>
                 <div>
                   <Label>Persona Display Name</Label>
-                  <Input value={config.persona.displayName} onChange={(e) => handleConfigChange('persona', 'displayName', e.target.value)} />
+                  <Input value={config.persona.displayName ?? ''} onChange={(e) => handleConfigChange('persona', 'displayName', e.target.value)} />
                 </div>
                 <div>
                   <Label>Persona Key</Label>
-                  <Input value={config.persona.name} onChange={(e) => handleConfigChange('persona', 'name', e.target.value)} />
+                  <Input value={config.persona.name ?? ''} onChange={(e) => handleConfigChange('persona', 'name', e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
                   <Label>System Prompt</Label>
-                  <Textarea value={config.persona.systemPrompt} onChange={(e) => handleConfigChange('persona', 'systemPrompt', e.target.value)} rows={3} />
+                  <Textarea value={config.persona.systemPrompt ?? ''} onChange={(e) => handleConfigChange('persona', 'systemPrompt', e.target.value)} rows={3} />
                 </div>
                 <div>
                   <Label>Speech Style</Label>
