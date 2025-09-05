@@ -1,4 +1,5 @@
 // Production-ready enhanced assessment data with 10-15+ questions each
+// Fixed and optimized for the current system architecture
 
 export interface AssessmentQuestion {
   id: string;
@@ -7,6 +8,8 @@ export interface AssessmentQuestion {
   options?: string[];
   scale?: { min: number; max: number; labels: string[] };
   category?: string;
+  value?: number; // For scoring
+  maxScore?: number; // Maximum score for this question
 }
 
 export interface AIAnalysis {
@@ -28,6 +31,7 @@ export interface Assessment {
     type: 'cumulative' | 'categorical' | 'personality';
     categories?: string[];
     interpretation?: Record<string, string>;
+    weights?: Record<string, number>;
   };
   results: {
     summary: string;
@@ -35,9 +39,13 @@ export interface Assessment {
     recommendations: string[];
     aiAnalysis?: AIAnalysis;
   };
+  createdBy?: string;
+  difficulty?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Enhanced Personality Assessment with 15 questions
+// Enhanced Personality Assessment with 15 questions - FIXED VERSION
 export const enhancedPersonalityAssessment: Assessment = {
   id: 'personality-basics',
   title: 'Personality Discovery',
@@ -51,91 +59,121 @@ export const enhancedPersonalityAssessment: Assessment = {
       id: 'p1',
       text: 'In social situations, you tend to:',
       type: 'single',
-      options: ['Initiate conversations with new people', 'Wait for others to approach you', 'Prefer small groups over large gatherings', 'Avoid social situations when possible']
+      options: ['Initiate conversations with new people', 'Wait for others to approach you', 'Prefer small groups over large gatherings', 'Avoid social situations when possible'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p2',
       text: 'When making decisions, you primarily rely on:',
       type: 'single',
-      options: ['Logic and objective analysis', 'Your gut feelings and intuition', 'Input from trusted friends/family', 'Practical considerations and past experiences']
+      options: ['Logic and objective analysis', 'Your gut feelings and intuition', 'Input from trusted friends/family', 'Practical considerations and past experiences'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p3',
       text: 'Your ideal weekend involves:',
       type: 'single',
-      options: ['Adventure and new experiences', 'Relaxation and quiet time', 'Socializing with friends', 'Productive activities and learning']
+      options: ['Adventure and new experiences', 'Relaxation and quiet time', 'Socializing with friends', 'Productive activities and learning'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p4',
       text: 'When faced with unexpected changes, you:',
       type: 'single',
-      options: ['Embrace the change enthusiastically', 'Feel anxious but adapt quickly', 'Need time to process and adjust', 'Prefer to stick to original plans']
+      options: ['Embrace the change enthusiastically', 'Feel anxious but adapt quickly', 'Need time to process and adjust', 'Prefer to stick to original plans'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p5',
       text: 'In group projects, you naturally take on the role of:',
       type: 'single',
-      options: ['The leader coordinating the team', 'The creative contributor generating ideas', 'The detail-oriented organizer', 'The supportive mediator between team members']
+      options: ['The leader coordinating the team', 'The creative contributor generating ideas', 'The detail-oriented organizer', 'The supportive mediator between team members'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p6',
       text: 'When learning something new, you prefer to:',
       type: 'single',
-      options: ['Read about it thoroughly first', 'Jump in and figure it out hands-on', 'Listen to explanations and ask questions', 'Watch others demonstrate and then copy']
+      options: ['Read about it thoroughly first', 'Jump in and figure it out hands-on', 'Listen to explanations and ask questions', 'Watch others demonstrate and then copy'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p7',
       text: 'Your workspace is typically:',
       type: 'single',
-      options: ['Highly organized and structured', 'Cluttered but you know where everything is', 'Minimalist and clean', 'Personalized with many personal touches']
+      options: ['Highly organized and structured', 'Cluttered but you know where everything is', 'Minimalist and clean', 'Personalized with many personal touches'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p8',
       text: 'When giving feedback, you focus on:',
       type: 'single',
-      options: ['Constructive criticism to improve performance', 'Encouragement and positive reinforcement', 'Fair and balanced assessment', 'Specific facts and evidence']
+      options: ['Constructive criticism to improve performance', 'Encouragement and positive reinforcement', 'Fair and balanced assessment', 'Specific facts and evidence'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p9',
       text: 'In arguments, you react by:',
       type: 'single',
-      options: ['Staying calm and addressing the issues logically', 'Becoming emotional and defending your position', 'Trying to understand the other viewpoint', 'Avoiding confrontation if possible']
+      options: ['Staying calm and addressing the issues logically', 'Becoming emotional and defending your position', 'Trying to understand the other viewpoint', 'Avoiding confrontation if possible'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p10',
       text: 'Your approach to planning is:',
       type: 'single',
-      options: ['Detailed planning well in advance', 'Flexible planning with room for changes', 'Minimal planning, preferring spontaneity', 'Planning only the essential elements']
+      options: ['Detailed planning well in advance', 'Flexible planning with room for changes', 'Minimal planning, preferring spontaneity', 'Planning only the essential elements'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p11',
       text: 'Rate your comfort with uncertainty:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very uncomfortable', 'Uncomfortable', 'Neutral', 'Comfortable', 'Very comfortable'] }
+      scale: { min: 1, max: 5, labels: ['Very uncomfortable', 'Uncomfortable', 'Neutral', 'Comfortable', 'Very comfortable'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'p12',
       text: 'When you complete a task, you feel most satisfied by:',
       type: 'single',
-      options: ['The process and learning experience', 'Achieving the results and meeting goals', 'Helping others who benefit from your work', 'Creating something innovative or different']
+      options: ['The process and learning experience', 'Achieving the results and meeting goals', 'Helping others who benefit from your work', 'Creating something innovative or different'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p13',
       text: 'In your relationships, you tend to be:',
       type: 'single',
-      options: ['Loyal and committed to long-term connections', 'Flexible and open to new friendships easily', 'Selective and careful about who you let in', 'Warm and inclusive with most people you meet']
+      options: ['Loyal and committed to long-term connections', 'Flexible and open to new friendships easily', 'Selective and careful about who you let in', 'Warm and inclusive with most people you meet'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p14',
       text: 'When faced with criticism, your first reaction is:',
       type: 'single',
-      options: ['To defend yourself and explain your position', 'To feel hurt and withdraw for a time', 'To analyze what you might learn from it', 'To discuss it openly to understand all perspectives']
+      options: ['To defend yourself and explain your position', 'To feel hurt and withdraw for a time', 'To analyze what you might learn from it', 'To discuss it openly to understand all perspectives'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'p15',
       text: 'Your attitude toward rules and procedures is:',
       type: 'single',
-      options: ['I appreciate structure and clear guidelines', 'I often question rules and look for better ways', 'I follow rules when they make sense, bend them when they don\'t', 'I prefer freedom and dislike rigid procedures']
+      options: ['I appreciate structure and clear guidelines', 'I often question rules and look for better ways', 'I follow rules when they make sense, bend them when they don\'t', 'I prefer freedom and dislike rigid procedures'],
+      value: 1,
+      maxScore: 4
     }
   ],
   scoring: {
@@ -187,10 +225,12 @@ export const enhancedPersonalityAssessment: Assessment = {
       ],
       summary: 'Your comprehensive personality profile reveals a complex individual with clear preferences and patterns. The analysis shows someone with well-developed self-awareness who generally operates from a place of strength in their dominant traits. Opportunities for growth exist in expanding flexibility within less dominant areas, which could enhance overall adaptability and interpersonal effectiveness. This profile suggests high potential for personal and professional development when operating within supportive environments that align with core preferences while encouraging measured expansion beyond comfort zones.'
     }
-  }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
-// Enhanced Decision Making Assessment with 13 questions
+// Enhanced Decision Making Assessment with 13 questions - FIXED VERSION
 export const enhancedDecisionMakingAssessment: Assessment = {
   id: 'decision-making-style',
   title: 'Decision Making Style Assessment',
@@ -204,79 +244,105 @@ export const enhancedDecisionMakingAssessment: Assessment = {
       id: 'dm1',
       text: 'When faced with a major decision, your first step is usually:',
       type: 'single',
-      options: ['Research all available information extensively', 'Trust your initial gut feeling or instinct', 'Discuss the options with trusted friends/family', 'Make a quick decision and adjust as needed']
+      options: ['Research all available information extensively', 'Trust your initial gut feeling or instinct', 'Discuss the options with trusted friends/family', 'Make a quick decision and adjust as needed'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm2',
       text: 'When gathering information for a decision, you are most likely to:',
       type: 'single',
-      options: ['Focus on data, facts, and logical analysis', 'Consider how the decision will affect various people', 'Seek quick, practical solutions that work', 'Explore creative alternatives and possibilities']
+      options: ['Focus on data, facts, and logical analysis', 'Consider how the decision will affect various people', 'Seek quick, practical solutions that work', 'Explore creative alternatives and possibilities'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm3',
       text: 'Your biggest decision-making challenge is:',
       type: 'single',
-      options: ['Getting stuck in analysis paralysis', 'Making impulsive choices I later regret', 'Being overly influenced by others\' opinions', 'Putting off decisions as long as possible']
+      options: ['Getting stuck in analysis paralysis', 'Making impulsive choices I later regret', 'Being overly influenced by others\' opinions', 'Putting off decisions as long as possible'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm4',
       text: 'When you make a decision, you feel most confident when:',
       type: 'single',
-      options: ['You have thoroughly analyzed all the pros and cons', 'Your choice aligns with your core values and feelings', 'The decision is practical and immediately actionable', 'You have support from people you trust']
+      options: ['You have thoroughly analyzed all the pros and cons', 'Your choice aligns with your core values and feelings', 'The decision is practical and immediately actionable', 'You have support from people you trust'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm5',
       text: 'In group decisions, you typically play the role of:',
       type: 'single',
-      options: ['The analyst who researches and presents facts', 'The mediator who considers everyone\'s feelings', 'The practical guide who moves things forward', 'The visionary who proposes innovative solutions']
+      options: ['The analyst who researches and presents facts', 'The mediator who considers everyone\'s feelings', 'The practical guide who moves things forward', 'The visionary who proposes innovative solutions'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm6',
       text: 'After making a difficult decision, you most likely:',
       type: 'single',
-      options: ['Second-guess yourself and analyze what you might have missed', 'Move forward confidently with your choice', 'Seek validation from others who support the decision', 'Feel immediately relieved and ready to proceed']
+      options: ['Second-guess yourself and analyze what you might have missed', 'Move forward confidently with your choice', 'Seek validation from others who support the decision', 'Feel immediately relieved and ready to proceed'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm7',
       text: 'When unexpected obstacles arise with your decision, you tend to:',
       type: 'single',
-      options: ['Re-evaluate and analyze the impact on your overall strategy', 'Communicate openly and seek support from others', 'Adapt quickly and find practical solutions', 'Stay committed to your original plan despite challenges']
+      options: ['Re-evaluate and analyze the impact on your overall strategy', 'Communicate openly and seek support from others', 'Adapt quickly and find practical solutions', 'Stay committed to your original plan despite challenges'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm8',
       text: 'Rate your comfort level with making decisions under time pressure:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very uncomfortable - I panic under pressure', 'Uncomfortable', 'Neutral', 'Comfortable', 'Very comfortable - I thrive under pressure'] }
+      scale: { min: 1, max: 5, labels: ['Very uncomfortable - I panic under pressure', 'Uncomfortable', 'Neutral', 'Comfortable', 'Very comfortable - I thrive under pressure'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'dm9',
       text: 'You make your best decisions when you have:',
       type: 'single',
-      options: ['Complete information and time to process it all', 'Input from others but the final call is yours', 'Clear criteria and practical constraints', 'Freedom to be creative and think outside the box']
+      options: ['Complete information and time to process it all', 'Input from others but the final call is yours', 'Clear criteria and practical constraints', 'Freedom to be creative and think outside the box'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm10',
       text: 'When presented with too many choices, you tend to:',
       type: 'single',
-      options: ['Analyze all options systematically to find the best one', 'Narrow it down quickly to avoid overwhelm', 'Seek advice to help choose between options', 'Feel energized and create new alternatives']
+      options: ['Analyze all options systematically to find the best one', 'Narrow it down quickly to avoid overwhelm', 'Seek advice to help choose between options', 'Feel energized and create new alternatives'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm11',
       text: 'Your decision-making approach in your career is most influenced by:',
       type: 'single',
-      options: ['Career advancement and professional growth', 'Work-life balance and personal fulfillment', 'Practical financial and security considerations', 'Creativity and innovation opportunities']
+      options: ['Career advancement and professional growth', 'Work-life balance and personal fulfillment', 'Practical financial and security considerations', 'Creativity and innovation opportunities'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'dm12',
       text: 'Rate your satisfaction with your usual decision-making outcomes:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very dissatisfied - Often regret decisions', 'Dissatisfied', 'Neutral', 'Satisfied', 'Very satisfied - Usually make good choices'] }
+      scale: { min: 1, max: 5, labels: ['Very dissatisfied - Often regret decisions', 'Dissatisfied', 'Neutral', 'Satisfied', 'Very satisfied - Usually make good choices'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'dm13',
       text: 'When you learn from past decisions, you are most likely to focus on:',
       type: 'single',
-      options: ['Improvements to your analysis and research process', 'Better understanding of your emotions and intuition', 'More practical approaches and quicker implementation', 'Different approaches and creative alternatives']
+      options: ['Improvements to your analysis and research process', 'Better understanding of your emotions and intuition', 'More practical approaches and quicker implementation', 'Different approaches and creative alternatives'],
+      value: 1,
+      maxScore: 4
     }
   ],
   scoring: {
@@ -324,10 +390,12 @@ export const enhancedDecisionMakingAssessment: Assessment = {
       ],
       summary: 'Your decision-making profile reveals a thoughtful approach with room for development in confidence and consistency. While you demonstrate strengths in your primary style, building flexibility across different decision-making approaches will enhance your overall effectiveness. The analysis shows potential for growth in speed, collaboration, and risk assessment, which could significantly improve your personal and professional outcomes.'
     }
-  }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
-// Enhanced Communication Style Assessment with 11 questions
+// Enhanced Communication Style Assessment with 11 questions - FIXED VERSION
 export const enhancedCommunicationAssessment: Assessment = {
   id: 'communication-style',
   title: 'Communication Style Assessment',
@@ -341,67 +409,89 @@ export const enhancedCommunicationAssessment: Assessment = {
       id: 'c1',
       text: 'When explaining something complex, you tend to:',
       type: 'single',
-      options: ['Use lots of details and examples for clarity', 'Focus on the main points and big picture', 'Make it conversational and ask for questions', 'Use analogies and make it engaging']
+      options: ['Use lots of details and examples for clarity', 'Focus on the main points and big picture', 'Make it conversational and ask for questions', 'Use analogies and make it engaging'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c2',
       text: 'Your preferred way of handling difficult conversations is:',
       type: 'single',
-      options: ['Direct and to the point to address the issue quickly', 'Gentle and empathetic to maintain relationships', 'Analytical, focusing on facts and solutions', 'Humorous or light-hearted to reduce tension']
+      options: ['Direct and to the point to address the issue quickly', 'Gentle and empathetic to maintain relationships', 'Analytical, focusing on facts and solutions', 'Humorous or light-hearted to reduce tension'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c3',
       text: 'When you receive feedback, you are most likely to:',
       type: 'single',
-      options: ['Ask for specific examples to understand better', 'Feel hurt but try to see the positive intent', 'Analyze how to apply it practically', 'Defend your perspective immediately']
+      options: ['Ask for specific examples to understand better', 'Feel hurt but try to see the positive intent', 'Analyze how to apply it practically', 'Defend your perspective immediately'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c4',
       text: 'In group discussions, your typical contribution is:',
       type: 'single',
-      options: ['Detailed analysis and well-thought-out opinions', 'Building consensus and including everyone\'s view', 'Practical advice and solutions', 'Creative ideas and different perspectives']
+      options: ['Detailed analysis and well-thought-out opinions', 'Building consensus and including everyone\'s view', 'Practical advice and solutions', 'Creative ideas and different perspectives'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c5',
       text: 'When someone is upset, your communication focus is on:',
       type: 'single',
-      options: ['Understanding the facts of what happened', 'Empathizing with their feelings and emotions', 'Finding practical solutions to resolve it', 'Lightening the mood and changing the subject']
+      options: ['Understanding the facts of what happened', 'Empathizing with their feelings and emotions', 'Finding practical solutions to resolve it', 'Lightening the mood and changing the subject'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c6',
       text: 'Rate how comfortable you are with public speaking:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very uncomfortable and avoid at all costs', 'Uncomfortable but can manage', 'Neutral', 'Comfortable and enjoy when prepared', 'Very comfortable and enjoy speaking'] }
+      scale: { min: 1, max: 5, labels: ['Very uncomfortable and avoid at all costs', 'Uncomfortable but can manage', 'Neutral', 'Comfortable and enjoy when prepared', 'Very comfortable and enjoy speaking'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'c7',
       text: 'Your writing style in emails and messages tends to be:',
       type: 'single',
-      options: ['Comprehensive and detailed with all necessary information', 'Warm and personable with emojis and friendly language', 'Direct and concise with clear action items', 'Creative and engaging with unique expressions']
+      options: ['Comprehensive and detailed with all necessary information', 'Warm and personable with emojis and friendly language', 'Direct and concise with clear action items', 'Creative and engaging with unique expressions'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c8',
       text: 'When you disagree with someone, you typically:',
       type: 'single',
-      options: ['Present logical evidence to support your view', 'Try to see their perspective and find common ground', 'Suggest practical compromises that work for both', 'Use humor or lighten the mood to reduce tension']
+      options: ['Present logical evidence to support your view', 'Try to see their perspective and find common ground', 'Suggest practical compromises that work for both', 'Use humor or lighten the mood to reduce tension'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c9',
       text: 'Your listening style is best described as:',
       type: 'single',
-      options: ['Active listener who asks clarifying questions and summarizes', 'Empathetic listener who focuses on understanding feelings', 'Attentive listener who looks for key points and next steps', 'Reflective listener who connects to their own experiences']
+      options: ['Active listener who asks clarifying questions and summarizes', 'Empathetic listener who focuses on understanding feelings', 'Attentive listener who looks for key points and next steps', 'Reflective listener who connects to their own experiences'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c10',
       text: 'In professional settings, you communicate to:',
       type: 'single',
-      options: ['Demonstrate expertise and provide thoughtful analysis', 'Build rapport and create positive work relationships', 'Achieve results and advance towards goals', 'Innovate and share creative ideas and solutions']
+      options: ['Demonstrate expertise and provide thoughtful analysis', 'Build rapport and create positive work relationships', 'Achieve results and advance towards goals', 'Innovate and share creative ideas and solutions'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'c11',
       text: 'Rate your overall confidence in expressing your thoughts and opinions:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very shy and rarely express opinions', 'Shy but can express when necessary', 'Neutral', 'Generally confident in communication', 'Very confident and expressive'] }
+      scale: { min: 1, max: 5, labels: ['Very shy and rarely express opinions', 'Shy but can express when necessary', 'Neutral', 'Generally confident in communication', 'Very confident and expressive'] },
+      value: 1,
+      maxScore: 5
     }
   ],
   scoring: {
@@ -448,10 +538,12 @@ export const enhancedCommunicationAssessment: Assessment = {
       ],
       summary: 'Your communication profile reveals someone with strong natural skills in their preferred areas, but with room to develop flexibility across different contexts. The analysis shows clear communication strengths that can serve as a foundation for building more adaptable and effective interpersonal skills. Focus on understanding others\' communication styles and consciously flexing your approach could significantly enhance relationship quality and professional effectiveness.'
     }
-  }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
-// Enhanced Life Balance Assessment with 12 questions
+// Enhanced Life Balance Assessment with 12 questions - FIXED VERSION
 export const enhancedLifeBalanceAssessment: Assessment = {
   id: 'life-balance-check',
   title: 'Life Balance Assessment',
@@ -465,73 +557,97 @@ export const enhancedLifeBalanceAssessment: Assessment = {
       id: 'l1',
       text: 'Rate your satisfaction with your career/professional life:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Very dissatisfied', '', '', '', 'Neutral', '', '', '', '', 'Very satisfied'] }
+      scale: { min: 1, max: 10, labels: ['Very dissatisfied', '', '', '', 'Neutral', '', '', '', '', 'Very satisfied'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l2',
       text: 'How would you rate your physical health and fitness?',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] }
+      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l3',
       text: 'Rate the quality of your relationships:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] }
+      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l4',
       text: 'How fulfilled do you feel personally/spiritually?',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Very unfulfilled', '', '', '', 'Neutral', '', '', '', '', 'Very fulfilled'] }
+      scale: { min: 1, max: 10, labels: ['Very unfulfilled', '', '', '', 'Neutral', '', '', '', '', 'Very fulfilled'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l5',
       text: 'How well do you maintain boundaries between work and personal life?',
       type: 'single',
-      options: ['Very well - clear separation', 'Generally well but sometimes blurred', 'Sometimes check work emails outside hours', 'Poor boundaries - always connected to work', 'No boundaries whatsoever']
+      options: ['Very well - clear separation', 'Generally well but sometimes blurred', 'Sometimes check work emails outside hours', 'Poor boundaries - always connected to work', 'No boundaries whatsoever'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'l6',
       text: 'Rate your energy levels throughout the day:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Constant fatigue', '', '', '', 'Variable energy', '', '', '', '', 'High and consistent energy'] }
+      scale: { min: 1, max: 10, labels: ['Constant fatigue', '', '', '', 'Variable energy', '', '', '', '', 'High and consistent energy'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l7',
       text: 'How often do you engage in meaningful hobbies or leisure activities?',
       type: 'single',
-      options: ['Daily or almost daily', 'A few times a week', 'Once a week', 'A few times a month', 'Rarely or never']
+      options: ['Daily or almost daily', 'A few times a week', 'Once a week', 'A few times a month', 'Rarely or never'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'l8',
       text: 'Rate your ability to say no to requests that overcommit you:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Always say yes despite overcommitment', '', '', '', 'Sometimes say no', '', '', '', '', 'Confidently set limits'] }
+      scale: { min: 1, max: 10, labels: ['Always say yes despite overcommitment', '', '', '', 'Sometimes say no', '', '', '', '', 'Confidently set limits'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l9',
       text: 'How do you typically spend your downtime?',
       type: 'single',
-      options: ['Relaxation and restoration activities', 'Household chores and errands', 'Social media and casual internet browsing', 'Learning or skill development', 'Pursuing creative interests']
+      options: ['Relaxation and restoration activities', 'Household chores and errands', 'Social media and casual internet browsing', 'Learning or skill development', 'Pursuing creative interests'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'l10',
       text: 'Rate your sleep quality and duration:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Poor quality and insufficient', '', '', '', 'Adequate but could be better', '', '', '', '', 'Excellent quality and duration'] }
+      scale: { min: 1, max: 10, labels: ['Poor quality and insufficient', '', '', '', 'Adequate but could be better', '', '', '', '', 'Excellent quality and duration'] },
+      value: 1,
+      maxScore: 10
     },
     {
       id: 'l11',
       text: 'How often do you experience work-life conflict?',
       type: 'single',
-      options: ['Never or very rarely', 'Occasionally', 'Sometimes', 'Often', 'Daily - constant tension']
+      options: ['Never or very rarely', 'Occasionally', 'Sometimes', 'Often', 'Daily - constant tension'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'l12',
       text: 'Rate your overall sense of purpose and direction in life:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['No clear purpose', '', '', '', 'Some direction but unclear', '', '', '', '', 'Strong sense of purpose'] }
+      scale: { min: 1, max: 10, labels: ['No clear purpose', '', '', '', 'Some direction but unclear', '', '', '', '', 'Strong sense of purpose'] },
+      value: 1,
+      maxScore: 10
     }
   ],
   scoring: {
@@ -579,10 +695,12 @@ export const enhancedLifeBalanceAssessment: Assessment = {
       ],
       summary: 'Your life balance analysis reveals a complex interplay of professional responsibilities, personal well-being, and life satisfaction. The assessment shows that while some areas may be thriving, the key to sustainable happiness lies in addressing imbalances proactively. Small, consistent adjustments in lower-scoring areas can create ripple effects throughout your entire lifestyle, leading to improved energy, better relationships, and greater overall fulfillment.'
     }
-  }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
-// Enhanced Relationship Assessment with 14 questions
+// Enhanced Relationship Assessment with 14 questions - FIXED VERSION
 export const enhancedRelationshipAssessment: Assessment = {
   id: 'relationship-style',
   title: 'Relationship Attachment Style',
@@ -596,85 +714,113 @@ export const enhancedRelationshipAssessment: Assessment = {
       id: 'r1',
       text: 'When your partner needs space, you tend to:',
       type: 'single',
-      options: ['Feel relieved and enjoy the independence', 'Feel anxious and worry about the relationship', 'Respect their needs while staying connected', 'Get angry or try to change their mind']
+      options: ['Feel relieved and enjoy the independence', 'Feel anxious and worry about the relationship', 'Respect their needs while staying connected', 'Get angry or try to change their mind'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r2',
       text: 'In arguments, you typically:',
       type: 'single',
-      options: ['Withdraw and need time alone', 'Pursue resolution immediately', 'Seek compromise and understanding', 'Escalate the conflict']
+      options: ['Withdraw and need time alone', 'Pursue resolution immediately', 'Seek compromise and understanding', 'Escalate the conflict'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r3',
       text: 'Your biggest relationship fear is:',
       type: 'single',
-      options: ['Losing your independence', 'Being abandoned or rejected', 'Conflict and disharmony', 'Not being good enough']
+      options: ['Losing your independence', 'Being abandoned or rejected', 'Conflict and disharmony', 'Not being good enough'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r4',
       text: 'How do you show affection?',
       type: 'single',
-      options: ['Through words of affirmation and verbal appreciation', 'Through acts of service and doing things for others', 'Through quality time and focused attention', 'Through physical touch and closeness']
+      options: ['Through words of affirmation and verbal appreciation', 'Through acts of service and doing things for others', 'Through quality time and focused attention', 'Through physical touch and closeness'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r5',
       text: 'When you feel hurt by your partner, you:',
       type: 'single',
-      options: ['Express it clearly and discuss it calmly', 'Withdraw and process it internally', 'Seek reassurance through frequent communication', 'Become defensive and counter-attack']
+      options: ['Express it clearly and discuss it calmly', 'Withdraw and process it internally', 'Seek reassurance through frequent communication', 'Become defensive and counter-attack'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r6',
       text: 'Your ideal balance in a relationship is:',
       type: 'single',
-      options: ['High independence with occasional connection', 'Deep intimacy and constant closeness', 'Balanced interdependence with healthy boundaries', 'Flexible based on the situation']
+      options: ['High independence with occasional connection', 'Deep intimacy and constant closeness', 'Balanced interdependence with healthy boundaries', 'Flexible based on the situation'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r7',
       text: 'When making important relationship decisions, you:',
       type: 'single',
-      options: ['Decide independently and seek agreement', 'Discuss thoroughly and decide together', 'Base decisions on maintaining harmony', 'Move forward confidently and explain reasoning']
+      options: ['Decide independently and seek agreement', 'Discuss thoroughly and decide together', 'Base decisions on maintaining harmony', 'Move forward confidently and explain reasoning'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r8',
       text: 'Rate your trust in relationship partners:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very cautious about trust', 'Slow to trust', 'Neutral', 'Generally trusting', 'Very trusting'] }
+      scale: { min: 1, max: 5, labels: ['Very cautious about trust', 'Slow to trust', 'Neutral', 'Generally trusting', 'Very trusting'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 'r9',
       text: 'How do you respond to a partner\'s success?',
       type: 'single',
-      options: ['Genuinely happy and supportive', 'Feel happy but slightly envious', 'Neutral or disinterested', 'Use it as motivation for myself']
+      options: ['Genuinely happy and supportive', 'Feel happy but slightly envious', 'Neutral or disinterested', 'Use it as motivation for myself'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r10',
       text: 'Your approach to relationship conflict is:',
       type: 'single',
-      options: ['Avoid conflict at all costs', 'Address issues immediately when they arise', 'Save conflicts for important matters only', 'See conflict as growth opportunities']
+      options: ['Avoid conflict at all costs', 'Address issues immediately when they arise', 'Save conflicts for important matters only', 'See conflict as growth opportunities'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r11',
       text: 'In terms of relationship values, you prioritize:',
       type: 'single',
-      options: ['Personal freedom and autonomy', 'Deep emotional connection and intimacy', 'Mutual respect and shared responsibility', 'Adventure and growth together']
+      options: ['Personal freedom and autonomy', 'Deep emotional connection and intimacy', 'Mutual respect and shared responsibility', 'Adventure and growth together'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r12',
       text: 'When you\'re stressed, you need from your partner:',
       type: 'single',
-      options: ['Space to process alone', 'Emotional support and reassurance', 'Practical help with tasks', 'Distraction and fun activities']
+      options: ['Space to process alone', 'Emotional support and reassurance', 'Practical help with tasks', 'Distraction and fun activities'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r13',
       text: 'Your ideal relationship communication style is:',
       type: 'single',
-      options: ['Direct and to the point', 'Gentle and diplomatic', 'Deep and emotional', 'Practical and solution-focused']
+      options: ['Direct and to the point', 'Gentle and diplomatic', 'Deep and emotional', 'Practical and solution-focused'],
+      value: 1,
+      maxScore: 4
     },
     {
       id: 'r14',
       text: 'Rate your comfort with vulnerability in relationships:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very uncomfortable being vulnerable', 'Uncomfortable', 'Sometimes comfortable', 'Generally comfortable', 'Very comfortable and open'] }
+      scale: { min: 1, max: 5, labels: ['Very uncomfortable being vulnerable', 'Uncomfortable', 'Sometimes comfortable', 'Generally comfortable', 'Very comfortable and open'] },
+      value: 1,
+      maxScore: 5
     }
   ],
   scoring: {
@@ -721,9 +867,12 @@ export const enhancedRelationshipAssessment: Assessment = {
       ],
       summary: 'Your relationship attachment style reveals a complex interplay of security needs, emotional patterns, and interpersonal dynamics. The analysis shows that while certain patterns may create challenges, understanding these tendencies opens the door to conscious relationship choices. With awareness and effort, attachment styles can evolve, leading to healthier, more fulfilling partnerships that meet your emotional needs while allowing for genuine connection and intimacy.'
     }
-  }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
+// Enhanced Stress Assessment with 10 questions - FIXED VERSION
 export const enhancedStressAssessment: Assessment = {
   id: 'stress-level-check',
   title: 'Stress Level Assessment',
@@ -737,61 +886,81 @@ export const enhancedStressAssessment: Assessment = {
       id: 's1',
       text: 'Over the past week, how often have you felt overwhelmed?',
       type: 'single',
-      options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Daily']
+      options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Daily'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's2',
       text: 'Physical symptoms you\'ve experienced recently:',
       type: 'multiple',
-      options: ['Headaches', 'Sleep problems', 'Muscle tension', 'Fatigue', 'Digestive issues', 'None of these']
+      options: ['Headaches', 'Sleep problems', 'Muscle tension', 'Fatigue', 'Digestive issues', 'None of these'],
+      value: 1,
+      maxScore: 6
     },
     {
       id: 's3',
       text: 'When under stress, which coping strategy do you use most?',
       type: 'single',
-      options: ['Deep breathing or meditation', 'Exercise or physical activity', 'Talking to friends/family', 'Forcing yourself to work through it', 'Taking time alone', 'Eating or other comfort behaviors']
+      options: ['Deep breathing or meditation', 'Exercise or physical activity', 'Talking to friends/family', 'Forcing yourself to work through it', 'Taking time alone', 'Eating or other comfort behaviors'],
+      value: 1,
+      maxScore: 6
     },
     {
       id: 's4',
       text: 'How often do you experience racing thoughts?',
       type: 'single',
-      options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Most of the time']
+      options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Most of the time'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's5',
       text: 'Rate your usual sleep quality when stressed:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] }
+      scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's6',
       text: 'How do you typically react to unexpected challenges?',
       type: 'single',
-      options: ['Address them immediately and systematically', 'Feel overwhelmed but eventually handle them', 'Ask others for help or advice', 'Avoid dealing with them as long as possible', 'Feel anxious but stay focused on solutions']
+      options: ['Address them immediately and systematically', 'Feel overwhelmed but eventually handle them', 'Ask others for help or advice', 'Avoid dealing with them as long as possible', 'Feel anxious but stay focused on solutions'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's7',
       text: 'Rate your ability to relax and unwind after a stressful day:',
       type: 'scale',
-      scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] }
+      scale: { min: 1, max: 5, labels: ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'] },
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's8',
       text: 'Which environment feels most stressful to you?',
       type: 'single',
-      options: ['Work or professional settings', 'Social situations or parties', 'Public speaking or presentations', 'Family conflicts or expectations', 'Personal health or relationship concerns']
+      options: ['Work or professional settings', 'Social situations or parties', 'Public speaking or presentations', 'Family conflicts or expectations', 'Personal health or relationship concerns'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's9',
       text: 'How often do you practice stress management activities?',
       type: 'single',
-      options: ['Daily', 'A few times a week', 'Once a week', 'Rarely', 'Never']
+      options: ['Daily', 'A few times a week', 'Once a week', 'Rarely', 'Never'],
+      value: 1,
+      maxScore: 5
     },
     {
       id: 's10',
       text: 'Rate your current ability to cope with daily challenges:',
       type: 'scale',
-      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] }
+      scale: { min: 1, max: 10, labels: ['Very poor', '', '', '', 'Average', '', '', '', '', 'Excellent'] },
+      value: 1,
+      maxScore: 10
     }
   ],
   scoring: {
@@ -837,5 +1006,23 @@ export const enhancedStressAssessment: Assessment = {
       ],
       summary: 'Your stress profile indicates you\'re experiencing moderate to high stress levels with identifiable patterns in coping and recovery. The analysis reveals both effective coping mechanisms you already use and areas where additional strategies could significantly improve your resilience. Consistent implementation of stress management techniques combined with lifestyle adjustments could help you maintain better balance and prevent stress from impacting your health and productivity.'
     }
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
+};
+
+// Assessment Database Export - FIXED VERSION
+export const assessmentDB = {
+  assessments: {
+    'personality-basics': enhancedPersonalityAssessment,
+    'decision-making-style': enhancedDecisionMakingAssessment,
+    'communication-style': enhancedCommunicationAssessment,
+    'life-balance-check': enhancedLifeBalanceAssessment,
+    'relationship-style': enhancedRelationshipAssessment,
+    'stress-level-check': enhancedStressAssessment
   }
 };
+
+
+// Type for assessment IDs
+export type AssessmentId = keyof typeof assessmentDB.assessments;

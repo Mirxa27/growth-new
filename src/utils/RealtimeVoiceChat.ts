@@ -11,6 +11,7 @@ export class RealtimeVoiceChat {
   private onMessageCallback: (data: unknown) => void;
   private onTranscriptCallback: (text: string, isFinal: boolean) => void;
   private onSpeakingChangeCallback: (isSpeaking: boolean) => void;
+  private lastVoiceActive: boolean = false;
 
   constructor(
     onMessage: (data: unknown) => void,
@@ -135,11 +136,37 @@ export class RealtimeVoiceChat {
         this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'audio-processor');
         
         this.audioWorkletNode.port.onmessage = (event) => {
-          if (event.data.type === 'audio-data' && this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-              type: 'input_audio_buffer.append',
-              audio: event.data.audio
-            }));
+          const data = event.data as {
+            audioData?: Int16Array;
+            isVoiceActive?: boolean;
+            audioLevel?: number;
+            type?: string;
+            audio?: string;
+          };
+
+          // Support both typed and untyped messages
+          if (data?.audioData && this.ws?.readyState === WebSocket.OPEN) {
+            // Convert Int16Array to base64 PCM16
+            const uint8 = new Uint8Array(data.audioData.buffer);
+            let binary = '';
+            for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+            const base64Audio = btoa(binary);
+            this.ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64Audio }));
+          } else if (data?.type === 'audio-data' && typeof data.audio === 'string' && this.ws?.readyState === WebSocket.OPEN) {
+            // Backward compatibility if worklet already emits base64
+            this.ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.audio }));
+          }
+
+          if (typeof data?.isVoiceActive === 'boolean') {
+            // Notify UI and auto-commit when transitioning from speaking -> silence
+            this.onSpeakingChangeCallback(data.isVoiceActive);
+            if (this.lastVoiceActive && !data.isVoiceActive && this.ws?.readyState === WebSocket.OPEN) {
+              try {
+                this.ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+                this.ws.send(JSON.stringify({ type: 'response.create' }));
+              } catch {}
+            }
+            this.lastVoiceActive = data.isVoiceActive;
           }
         };
 

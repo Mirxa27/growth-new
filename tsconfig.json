@@ -27,6 +27,6 @@
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": ["src", "src/types", "vitest.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }],
-  "exclude": ["node_modules", "supabase/functions"]
+  "exclude": ["node_modules", "supabase/functions"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

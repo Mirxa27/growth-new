@@ -53,7 +53,7 @@ export interface AssessmentResult {
   totalScore: number;
   percentage: number;
   personalityType?: string;
-  responses: Record<string, any>;
+  responses: Record<string, string | number | boolean | string[]>;
   insights: string[];
   recommendations: string[];
   completedAt: string;
@@ -85,13 +85,13 @@ export interface AssessmentSubmissionParams {
   assessmentId: string;
   userId?: string;
   visitorSessionId?: string;
-  responses: Record<string, any>;
+  responses: Record<string, string | number | boolean | string[]>;
 }
 
 export interface AssessmentError extends Error {
   code: string;
   statusCode: number;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface AssessmentScoringResult {

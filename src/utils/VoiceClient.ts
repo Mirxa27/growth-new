@@ -124,7 +124,7 @@ export class VoiceClient {
     if (this.audioContext.audioWorklet) {
       try {
         await this.audioContext.audioWorklet.addModule('/audio-worklet-processor.js');
-        this.audioWorklet = new AudioWorkletNode(this.audioContext, 'opus-encoder');
+        this.audioWorklet = new AudioWorkletNode(this.audioContext, 'voice-processor');
       } catch (error) {
         console.warn('Audio worklet not available, using fallback encoding');
       }

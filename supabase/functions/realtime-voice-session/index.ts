@@ -24,7 +24,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-2024-12-17",
+        model: "gpt-realtime-2025-08-28", // Standardized realtime model
         voice: "alloy",
         instructions: `You are NewMe, an AI companion designed to guide women on transformative journeys of self-discovery. You are emotionally intelligent, empathetic, and wise. 
 

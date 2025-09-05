@@ -136,15 +136,22 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
         <h2 className="text-heading mb-2">Take Assessment</h2>
         {onBack && <Button type="button" variant="ghost" onClick={onBack}>Back</Button>}
       </div>
-      {questions.map(q => (
-        <div key={q.id} className="mb-4">
-          <div
-            className="mb-1 font-semibold"
-            role="heading"
-            aria-level={2}
-          >
-            {q.position}. {q.question_text}
-          </div>
+      {questions.length === 0 ? (
+        <div className="glass-card p-4 text-center">
+          <p className="text-muted-foreground">No questions available for this assessment.</p>
+        </div>
+      ) : (
+        questions
+          .filter(q => q && q.question_text) // Filter out null/invalid questions
+          .map(q => (
+            <div key={q.id} className="mb-4">
+              <div
+                className="mb-1 font-semibold"
+                role="heading"
+                aria-level={2}
+              >
+                {q.position || 'Q'}. {q.question_text}
+              </div>
           {q.question_type === 'multiple_choice' && (
             <div className="flex flex-col gap-2">
               {options[q.id]?.map(opt => (
@@ -184,7 +191,8 @@ const AssessmentTaker = ({ assessmentId, userId, onComplete, onBack }: Assessmen
             />
           )}
         </div>
-      ))}
+          ))
+      )}
       <button
         type="submit"
         className={cn(

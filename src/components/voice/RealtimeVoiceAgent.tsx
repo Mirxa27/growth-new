@@ -32,6 +32,11 @@ interface TranscriptEntry {
   timestamp: Date;
 }
 
+interface RealtimeMessage {
+  type: string;
+  [key: string]: unknown;
+}
+
 const RealtimeVoiceAgent: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -65,25 +70,17 @@ const RealtimeVoiceAgent: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      // Load realtime settings
+      // Load realtime settings with admin configuration
       const settings = await loadRealtimeSettings();
       realtimeSettingsRef.current = settings;
 
-      // Request Realtime session token from Edge Function
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authSession.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create voice session');
-      }
-
-      const sessionData: VoiceSession = await response.json();
+      // Ensure we're using the standardized model
+      const sessionData: VoiceSession = {
+        session_id: crypto.randomUUID(),
+        client_secret: settings.api_key,
+        model: 'gpt-realtime-2025-08-28', // Always use standardized model
+        expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
+      };
 
       // Initialize WebRTC or WebSocket connection to OpenAI Realtime API
       if (settings.connectionMethod === 'webrtc') {
@@ -100,12 +97,13 @@ const RealtimeVoiceAgent: React.FC = () => {
         description: "You can now start your voice session.",
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Voice session initialization error:', error);
       setConnectionStatus('error');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to voice assistant.';
       toast({
         title: "Connection Failed",
-        description: error.message || "Failed to connect to voice assistant.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -129,26 +127,36 @@ const RealtimeVoiceAgent: React.FC = () => {
         } 
       });
 
-      // Create WebSocket connection to OpenAI Realtime API
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=${sessionData.model}`;
-      // Use insecure subprotocol with client_secret obtained from server function
-      wsRef.current = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
+      // Create WebSocket connection to OpenAI Realtime API using admin-configured base URL
+      const settings = realtimeSettingsRef.current!;
+      const wsUrl = `${settings.base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/realtime?model=${sessionData.model}`;
+      
+      // Create WebSocket with proper authorization
+      wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
         
-        // Send authentication / session config
+        // Send authentication and session config with standardized settings
         wsRef.current?.send(JSON.stringify({
           type: 'session.update',
           session: {
-            model: sessionData.model,
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
-            voice: realtimeSettingsRef.current?.voice || 'alloy',
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16',
+            model: 'gpt-realtime-2025-08-28', // Standardized model
+            instructions: settings.instructions,
+            voice: settings.voice,
+            input_audio_format: settings.inputFormat,
+            output_audio_format: settings.outputFormat,
             input_audio_transcription: {
-              model: 'whisper-1'
-            }
+              model: settings.sttModel
+            },
+            turn_detection: {
+              type: settings.vad.type,
+              threshold: settings.vad.threshold,
+              prefix_padding_ms: settings.vad.prefixPaddingMs,
+              silence_duration_ms: settings.vad.silenceDurationMs
+            },
+            temperature: settings.temperature,
+            max_tokens: settings.max_tokens
           }
         }));
 
@@ -226,17 +234,28 @@ const RealtimeVoiceAgent: React.FC = () => {
       // Data channel for events
       dcRef.current = pcRef.current.createDataChannel('oai-events');
       dcRef.current.onopen = () => {
+        const settings = realtimeSettingsRef.current!;
         const sessionUpdate = {
           type: 'session.update',
           session: {
-            model: sessionData.model,
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
-            voice: realtimeSettingsRef.current?.voice || 'alloy'
+            model: 'gpt-realtime-2025-08-28', // Standardized model
+            instructions: settings.instructions,
+            voice: settings.voice,
+            turn_detection: {
+              type: settings.vad.type,
+              threshold: settings.vad.threshold,
+              prefix_padding_ms: settings.vad.prefixPaddingMs,
+              silence_duration_ms: settings.vad.silenceDurationMs
+            },
+            temperature: settings.temperature,
+            max_tokens: settings.max_tokens
           }
         };
         try {
           dcRef.current?.send(JSON.stringify(sessionUpdate));
-        } catch {}
+        } catch (error) {
+          console.warn('Failed to send session update:', error);
+        }
       };
       pcRef.current.ondatachannel = (ev) => {
         // If server opens channels, capture them if needed
@@ -284,43 +303,58 @@ const RealtimeVoiceAgent: React.FC = () => {
       let silenceTimer: number | null = null;
       let lastLevel = 0;
       audioWorkletRef.current.port.onmessage = (event) => {
-        if (event.data.type === 'audio-data' && isMicEnabled && wsRef.current?.readyState === WebSocket.OPEN) {
-          // Send audio data to Realtime API
-          wsRef.current.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: event.data.audio
-          }));
-        } else if (event.data.type === 'audio-data' && isMicEnabled && pcRef.current) {
-          // For WebRTC path, append as media stream is already attached; no need to forward audio chunks
-        } else if (event.data.type === 'audio-level') {
-          const level = event.data.level as number;
+        const data = event.data as {
+          type?: string;
+          audio?: string;
+          audioData?: Int16Array;
+          level?: number;
+          audioLevel?: number;
+        };
+
+        // Prefer raw PCM16 from worklet and encode here
+        if (data?.audioData && isMicEnabled && wsRef.current?.readyState === WebSocket.OPEN) {
+          const uint8 = new Uint8Array(data.audioData.buffer);
+          let binary = '';
+          for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+          const base64Audio = btoa(binary);
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64Audio }));
+          return;
+        }
+
+        // Backward compatibility if the worklet posts base64 itself
+        if (data?.type === 'audio-data' && typeof data.audio === 'string' && isMicEnabled && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.audio }));
+          return;
+        }
+
+        // Handle audio level updates (typed or untyped)
+        const level = typeof data?.audioLevel === 'number' ? data.audioLevel : (typeof data?.level === 'number' ? data.level : undefined);
+        if (typeof level === 'number') {
           setAudioLevel(level);
           // Basic silence detection: when level drops below threshold after being higher, commit
           const threshold = 0.02; // tune if needed
           const nowSpeaking = level > threshold;
           const wasSpeaking = lastLevel > threshold;
           lastLevel = level;
- 
+
           if (wasSpeaking && !nowSpeaking && wsRef.current?.readyState === WebSocket.OPEN) {
-            // debounce commit slightly to avoid chopping words
-            if (silenceTimer) {
-              clearTimeout(silenceTimer);
-            }
+            if (silenceTimer) clearTimeout(silenceTimer);
             silenceTimer = window.setTimeout(() => {
               try {
                 wsRef.current?.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
                 wsRef.current?.send(JSON.stringify({ type: 'response.create' }));
-              } catch {}
+              } catch (error) {
+                console.warn('Failed to play audio delta:', error);
+              }
             }, 200);
           } else if (wasSpeaking && !nowSpeaking && dcRef.current && dcRef.current.readyState === 'open') {
-            // For WebRTC path, trigger response on silence
-            if (silenceTimer) {
-              clearTimeout(silenceTimer);
-            }
+            if (silenceTimer) clearTimeout(silenceTimer);
             silenceTimer = window.setTimeout(() => {
-              try {
-                dcRef.current?.send(JSON.stringify({ type: 'response.create' }));
-              } catch {}
+              try { 
+                dcRef.current?.send(JSON.stringify({ type: 'response.create' })); 
+              } catch (error) {
+                console.warn('Failed to send response.create:', error);
+              }
             }, 200);
           }
         }
@@ -347,12 +381,14 @@ const RealtimeVoiceAgent: React.FC = () => {
     
     // Monitor audio levels
     const monitorAudioLevel = () => {
-      if (!analyserRef.current || !dataArrayRef.current) return;
+      if (!analyserRef.current) return;
       
-      analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+      // Create a fresh array for the frequency data
+      const frequencyData = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(frequencyData);
       
       // Calculate average volume
-      const average = dataArrayRef.current.reduce((sum, value) => sum + value, 0) / dataArrayRef.current.length;
+      const average = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length;
       const normalizedLevel = average / 255;
       
       setAudioLevel(normalizedLevel);
@@ -365,20 +401,24 @@ const RealtimeVoiceAgent: React.FC = () => {
     monitorAudioLevel();
   };
 
-  const handleRealtimeMessage = (message: any) => {
+  const handleRealtimeMessage = (message: RealtimeMessage) => {
     console.log('Received Realtime message:', message);
 
     switch (message.type) {
       case 'conversation.item.input_audio_transcription.completed':
-        addTranscriptEntry('user', message.transcript);
+        if (typeof message.transcript === 'string') {
+          addTranscriptEntry('user', message.transcript);
+        }
         break;
 
       case 'response.audio_transcript.delta':
-        updateAssistantTranscript(message.delta);
+        if (typeof message.delta === 'string') {
+          updateAssistantTranscript(message.delta);
+        }
         break;
 
       case 'response.audio.delta':
-        if (isSpeakerEnabled) {
+        if (isSpeakerEnabled && typeof message.delta === 'string') {
           playAudioDelta(message.delta);
         }
         break;
@@ -387,14 +427,22 @@ const RealtimeVoiceAgent: React.FC = () => {
         console.log('Response completed');
         break;
 
-      case 'error':
+      case 'error': {
         console.error('Realtime API error:', message.error);
+        const errorMessage = message.error && 
+          typeof message.error === 'object' && 
+          'message' in message.error && 
+          typeof message.error.message === 'string' 
+          ? message.error.message 
+          : "An error occurred during conversation.";
+        
         toast({
           title: "Voice Assistant Error",
-          description: message.error.message || "An error occurred during conversation.",
+          description: errorMessage,
           variant: "destructive"
         });
         break;
+      }
     }
   };
 
@@ -476,12 +524,20 @@ const RealtimeVoiceAgent: React.FC = () => {
     }
 
     if (dcRef.current) {
-      try { dcRef.current.close(); } catch {}
+      try { 
+        dcRef.current.close(); 
+      } catch (error) {
+        console.warn('Failed to close data channel:', error);
+      }
       dcRef.current = null;
     }
 
     if (pcRef.current) {
-      try { pcRef.current.close(); } catch {}
+      try { 
+        pcRef.current.close(); 
+      } catch (error) {
+        console.warn('Failed to close peer connection:', error);
+      }
       pcRef.current = null;
     }
 

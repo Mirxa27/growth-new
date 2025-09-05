@@ -60,7 +60,6 @@ export default defineConfig({
             '@radix-ui/react-tooltip'
           ],
           'supabase': ['@supabase/supabase-js'],
-          'ai-services': ['openai'],
           'utils': ['date-fns', 'clsx', 'zod']
         }
       }

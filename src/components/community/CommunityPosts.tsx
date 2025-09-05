@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useEnhancedToast } from '@/hooks/useEnhancedToast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MessageSquare, 
@@ -32,58 +32,76 @@ interface CommunityPost {
 }
 
 export const CommunityPosts = () => {
-  const { toast } = useToast();
+  const { error: showError, success: showSuccess } = useEnhancedToast();
   const { user } = useAuth();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [newPost, setNewPost] = useState('');
   const [selectedType, setSelectedType] = useState('general');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       setLoading(true);
       
-      const { data: postsData, error } = await supabase
-        .from('community_posts_with_profiles')
-        .select()
+      // Simplified approach: Query community_posts directly first
+      const { data: postsData, error: postsError } = await supabase
+        .from('community_posts')
+        .select('*')
         .eq('is_approved', true)
         .eq('visibility', 'public')
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (postsError) throw postsError;
 
-      const transformedPosts: CommunityPost[] = (postsData || []).map((post: any) => ({
-        id: post.id,
-        user_id: post.user_id,
-        content: post.content,
-        post_type: post.post_type,
-        likes_count: post.likes_count,
-        comments_count: post.comments_count,
-        created_at: post.created_at,
-        tags: post.tags || [],
-        user_profile: {
-          display_name: post.profiles?.display_name || 'Anonymous',
-          avatar_url: post.profiles?.avatar_url
+      // If we have posts, get the user profiles separately
+      let profilesData: { id: string; display_name: string | null; avatar_url?: string | null }[] = [];
+      if (postsData && postsData.length > 0) {
+        const userIds = [...new Set(postsData.map(post => post.user_id))];
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+        
+        if (!profilesError && profiles) {
+          profilesData = profiles;
         }
-      }));
+      }
+
+      // Transform and combine the data
+      const transformedPosts: CommunityPost[] = (postsData || []).map((post) => {
+        const userProfile = profilesData.find(profile => profile.id === post.user_id);
+        return {
+          id: post.id,
+          user_id: post.user_id,
+          content: post.content,
+          post_type: post.post_type,
+          likes_count: post.likes_count || 0,
+          comments_count: post.comments_count || 0,
+          created_at: post.created_at,
+          tags: post.tags || [],
+          user_profile: {
+            display_name: userProfile?.display_name || 'Anonymous User'
+          }
+        };
+      });
 
       setPosts(transformedPosts);
-    } catch (error: any) {
-      console.error('Error loading posts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load community posts. Please try again.",
-        variant: "destructive"
-      });
+    } catch (error: unknown) {
+      console.error('Detailed error loading posts:', error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      showError(
+        "Unable to load posts",
+        `Connection to the community failed. Details: ${message}`
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
 
   const createPost = async () => {
     if (!newPost.trim() || !user) return;
@@ -126,26 +144,25 @@ export const CommunityPosts = () => {
         created_at: newPostData.created_at,
         tags: newPostData.tags || [],
         user_profile: {
-          display_name: (newPostData as any).profiles?.display_name || user.user_metadata.display_name || 'Anonymous',
-          avatar_url: (newPostData as any).profiles?.avatar_url
+          display_name: (newPostData as { profiles?: { display_name?: string; avatar_url?: string } }).profiles?.display_name || user.user_metadata.display_name || 'Anonymous',
+          avatar_url: (newPostData as { profiles?: { display_name?: string; avatar_url?: string } }).profiles?.avatar_url
         }
       };
 
       setPosts(prev => [transformedPost, ...prev]);
       setNewPost('');
       
-      toast({
-        title: "Post shared! ✨",
-        description: "Your post has been shared with the community.",
-      });
+      showSuccess(
+        "Post shared! ✨",
+        "Your post has been shared with the community."
+      );
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating post:', error);
-      toast({
-        title: "Share failed",
-        description: error.message || "Failed to share your post. Please try again.",
-        variant: "destructive"
-      });
+      showError(
+        "Share failed",
+        "Failed to share your post. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -153,7 +170,22 @@ export const CommunityPosts = () => {
 
   const likePost = async (postId: string) => {
     try {
-      const { error } = await supabase.rpc('increment_post_likes', { post_id: postId });
+      // Get current post data
+      const { data: post, error: fetchError } = await supabase
+        .from('community_posts')
+        .select('likes_count')
+        .eq('id', postId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update likes count
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ 
+          likes_count: (post.likes_count || 0) + 1
+        })
+        .eq('id', postId);
 
       if (error) throw error;
 
@@ -163,17 +195,16 @@ export const CommunityPosts = () => {
           : post
       ));
 
-      toast({
-        title: "💝 Liked!",
-        description: "Your support has been shared.",
-      });
-    } catch (error: any) {
+      showSuccess(
+        "💝 Liked!",
+        "Your support has been shared."
+      );
+    } catch (error: unknown) {
       console.error('Error liking post:', error);
-      toast({
-        title: "Like failed",
-        description: "Failed to like the post. Please try again.",
-        variant: "destructive"
-      });
+      showError(
+        "Like failed",
+        "Failed to like the post. Please try again."
+      );
     }
   };
 

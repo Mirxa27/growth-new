@@ -7,7 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   CheckCircle, 
-  XCircle, 
   Clock, 
   Sparkles, 
   ArrowLeft
@@ -15,44 +14,26 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Tables, TablesInsert } from '@/integrations/supabase/types';
-
-type Quiz = Tables<'quizzes'> & {
-  quiz_questions: Array<{
-    id: string;
-    question_text: string;
-    points?: number;
-    quiz_question_options: Array<{
-      id: string;
-      option_text: string;
-      is_correct: boolean;
-    }>;
-  }>;
-};
-type QuizAnswerInsert = TablesInsert<'quiz_answers'>;
+import { Assessment } from '@/types/assessment';
 
 interface QuizTakerProps {
-  quiz: Quiz;
-  onComplete: (results: any) => void;
+  assessment: Assessment;
+  onComplete: (results: { score: number; totalQuestions: number; percentage: number }) => void;
   onBack: () => void;
 }
 
-const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
+const QuizTaker: React.FC<QuizTakerProps> = ({ assessment, onComplete, onBack }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [timeLeft, setTimeLeft] = useState(quiz.time_limit_minutes ? quiz.time_limit_minutes * 60 : Infinity);
+  const [timeLeft, setTimeLeft] = useState(assessment.estimatedTime ? assessment.estimatedTime * 60 : Infinity);
   const [isFinished, setIsFinished] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
+  const [results, setResults] = useState<{ score: number; totalQuestions: number; percentage: number } | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (user) {
-      startQuizAttempt();
-    }
-    if (quiz.time_limit_minutes) {
+    if (assessment.estimatedTime && assessment.estimatedTime > 0) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -67,28 +48,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [quiz.time_limit_minutes, user]);
-
-  const startQuizAttempt = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('quiz_attempts')
-        .insert([{
-          user_id: user.id,
-          quiz_id: quiz.id,
-          status: 'in-progress'
-        }])
-        .select('id')
-        .single();
-      
-      if (error) throw error;
-      setQuizAttemptId(data.id);
-    } catch (error) {
-      console.error('Error starting quiz attempt:', error);
-      toast({ title: "Error", description: "Could not start quiz attempt.", variant: "destructive" });
-    }
-  };
+  }, [assessment.estimatedTime]);
 
   const handleAnswer = (questionId: string, answer: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -100,82 +60,97 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
 
     let score = 0;
     let correctAnswers = 0;
-    const answerInserts: QuizAnswerInsert[] = [];
 
-    quiz.quiz_questions.forEach(q => {
-      const userAnswer = answers[q.id];
-      const correctAnswer = q.quiz_question_options.find(opt => opt.is_correct)?.id;
-      const isCorrect = userAnswer === correctAnswer;
-      if (isCorrect) {
-        score += q.points || 1;
-        correctAnswers++;
-      }
-      if (userAnswer && quizAttemptId) {
-        answerInserts.push({
-          quiz_attempt_id: quizAttemptId,
-          quiz_question_id: q.id,
-          user_answer: userAnswer,
-          is_correct: isCorrect,
-          points_earned: isCorrect ? (q.points || 1) : 0
-        });
-      }
-    });
+    // Calculate score based on assessment type
+    if (assessment.scoring.type === 'cumulative') {
+      assessment.questions.forEach((question, index) => {
+        const userAnswer = answers[question.id];
+        if (userAnswer) {
+          // For now, we'll count any answer as correct for scoring purposes
+          // In a real implementation, you'd have correct answers defined
+          score += 1;
+          correctAnswers++;
+        }
+      });
+    } else if (assessment.scoring.type === 'personality') {
+      // Personality assessments don't have right/wrong answers
+      score = assessment.questions.length;
+      correctAnswers = assessment.questions.length;
+    } else {
+      // Default scoring
+      assessment.questions.forEach(question => {
+        if (answers[question.id]) {
+          score += 1;
+          correctAnswers++;
+        }
+      });
+    }
 
     const finalResults = {
       score,
-      correctAnswers,
-      totalQuestions: quiz.quiz_questions.length,
-      passed: score >= (quiz.passing_score || 0),
-      timeTaken: quiz.time_limit_minutes ? (quiz.time_limit_minutes * 60) - timeLeft : null
+      totalQuestions: assessment.questions.length,
+      percentage: Math.round((score / assessment.questions.length) * 100)
     };
+    
     setResults(finalResults);
 
-    if (user && quizAttemptId) {
+    // Save results to database if user is logged in
+    if (user) {
       try {
-        // Update quiz attempt
-        const { error: attemptError } = await supabase
-          .from('quiz_attempts')
-          .update({
-            status: 'completed',
+        const { data, error } = await supabase
+          .from('assessment_results')
+          .insert({
+            user_id: user.id,
+            assessment_id: parseInt(assessment.id),
             score: finalResults.score,
-            completed_at: new Date().toISOString(),
-            time_taken_seconds: finalResults.timeTaken
+            percentage: finalResults.percentage,
+            answers: answers,
+            submitted_at: new Date().toISOString()
           })
-          .eq('id', quizAttemptId);
-        if (attemptError) throw attemptError;
+          .select('id')
+          .single();
 
-        // Insert answers
-        const { error: answersError } = await supabase
-          .from('quiz_answers')
-          .insert(answerInserts);
-        if (answersError) throw answersError;
-
-        toast({ title: "Quiz completed!", description: "Your results have been saved." });
+        if (error) throw error;
+        toast({ title: "Assessment completed!", description: "Your results have been saved." });
       } catch (error) {
-        console.error('Error saving quiz results:', error);
+        console.error('Error saving assessment results:', error);
         toast({ title: "Error", description: "Could not save your results.", variant: "destructive" });
       }
     }
+    
     onComplete(finalResults);
   };
 
-  const currentQuestion = quiz.quiz_questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / quiz.quiz_questions.length) * 100;
+  const currentQuestion = assessment.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / assessment.questions.length) * 100;
 
   if (isFinished && results) {
     return (
       <Card className="glass-card border-glass">
         <CardHeader>
-          <CardTitle>Quiz Results: {quiz.title}</CardTitle>
+          <CardTitle>Assessment Results: {assessment.title}</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto ${results.passed ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-            {results.passed ? <CheckCircle className="w-12 h-12 text-green-500" /> : <XCircle className="w-12 h-12 text-red-500" />}
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto ${results.percentage >= 70 ? 'bg-green-500/20' : 'bg-orange-500/20'}`}>
+            {results.percentage >= 70 ? <CheckCircle className="w-12 h-12 text-green-500" /> : <CheckCircle className="w-12 h-12 text-orange-500" />}
           </div>
-          <h3 className="text-2xl font-bold">{results.passed ? 'Congratulations!' : 'Keep Trying!'}</h3>
-          <p>You scored {results.score} points ({results.correctAnswers}/{results.totalQuestions} correct).</p>
-          <Badge>{results.passed ? 'Passed' : 'Failed'}</Badge>
+          <h3 className="text-2xl font-bold">Assessment Complete!</h3>
+          <p>You scored {results.score} out of {results.totalQuestions} questions.</p>
+          <Badge variant={results.percentage >= 70 ? "default" : "secondary"}>
+            {results.percentage}% Complete
+          </Badge>
           <Button onClick={onBack} className="w-full">Back to Hub</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <Card className="glass-card border-glass">
+        <CardContent className="text-center py-8">
+          <p>No questions available for this assessment.</p>
+          <Button onClick={onBack} className="mt-4">Back to Hub</Button>
         </CardContent>
       </Card>
     );
@@ -185,9 +160,11 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
     <Card className="glass-card border-glass">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>
-          <CardTitle>{quiz.title}</CardTitle>
-          {quiz.time_limit_minutes && (
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <CardTitle>{assessment.title}</CardTitle>
+          {assessment.estimatedTime && assessment.estimatedTime > 0 && (
             <div className="flex items-center gap-2 text-sm">
               <Clock className="w-4 h-4" />
               <span>{Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}</span>
@@ -200,17 +177,17 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold mb-4">
-              <span className="text-primary">{currentQuestionIndex + 1}.</span> {currentQuestion.question_text}
+              <span className="text-primary">{currentQuestionIndex + 1}.</span> {currentQuestion.text}
             </h3>
             <RadioGroup
               value={answers[currentQuestion.id] || ''}
               onValueChange={(value) => handleAnswer(currentQuestion.id, value)}
               className="space-y-3"
             >
-              {currentQuestion.quiz_question_options.map((opt) => (
-                <Label key={opt.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-primary/5">
-                  <RadioGroupItem value={opt.id} />
-                  <span>{opt.option_text}</span>
+              {currentQuestion.options?.map((option, optIndex) => (
+                <Label key={`${currentQuestion.id}-option-${optIndex}`} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-primary/5">
+                  <RadioGroupItem value={option} />
+                  <span>{option}</span>
                 </Label>
               ))}
             </RadioGroup>
@@ -223,12 +200,12 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onComplete, onBack }) => {
             >
               Previous
             </Button>
-            {currentQuestionIndex < quiz.quiz_questions.length - 1 ? (
+            {currentQuestionIndex < assessment.questions.length - 1 ? (
               <Button onClick={() => setCurrentQuestionIndex(prev => prev + 1)}>Next</Button>
             ) : (
               <Button onClick={finishQuiz} className="bg-gradient-primary">
                 <Sparkles className="w-4 h-4 mr-2" />
-                Finish Quiz
+                Finish Assessment
               </Button>
             )}
           </div>

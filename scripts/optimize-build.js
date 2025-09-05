@@ -12,9 +12,7 @@ async function optimizeBuild() {
   const distPath = path.join(__dirname, '..', 'dist');
   const unnecessaryFiles = [
     '*.map',
-    '*.LICENSE.txt',
-    'audio-worklet-processor.js',
-    'audio-processor.js'
+    '*.LICENSE.txt'
   ];
   
   try {

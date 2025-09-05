@@ -60,7 +60,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
     name: '', 
     provider: 'openai', 
     voice: 'alloy', 
-    model: 'gpt-4o-mini', 
+    model: 'gpt-realtime-2025-08-28', // Standardized realtime model 
     temperature: 0.7, 
     instructions: '', 
     is_active: true,

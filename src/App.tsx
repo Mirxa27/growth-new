@@ -28,6 +28,7 @@ import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
 import VoiceAssistantDemo from "./pages/VoiceAssistantDemo";
+import NotificationTestPage from "./pages/NotificationTestPage";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +113,11 @@ const App = () => {
               <Route path="/voice-demo" element={
                 <ProtectedRoute>
                   <VoiceAssistantDemo />
+                </ProtectedRoute>
+              } />
+              <Route path="/notifications-test" element={
+                <ProtectedRoute>
+                  <NotificationTestPage />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

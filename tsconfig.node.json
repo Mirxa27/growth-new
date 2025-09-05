@@ -11,7 +11,6 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "moduleDetection": "force",
     "isolatedModules": true,
-    "noEmit": true,
 
     /* Linting */
     "strict": true,

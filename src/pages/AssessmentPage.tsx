@@ -88,19 +88,22 @@ const AssessmentPage = () => {
         }
 
         // Transform assessment questions to match the component's expected Question type
-        const formattedQuestions: Question[] = assessmentData.questions.map((q, index) => ({
-          id: q.id || `question-${index}`,
-          question_text: q.text,
-          question_type: (q.type === 'text' || q.type === 'scale') ? 'free_text' : 'multiple_choice',
-          position: index + 1,
-          explanation: '', // Default empty explanation
-          options: (q.options || []).map((optText, optIndex) => ({
-            id: `option-${index}-${optIndex}`,
-            option_text: optText,
-            position: optIndex + 1,
-            is_correct: false, // Default value
-          })),
-        }));
+        const formattedQuestions: Question[] = assessmentData.questions.map((q, index) => {
+          const questionData = q as unknown as Record<string, unknown>;
+          return {
+            id: (questionData.id as string) || `question-${index}`,
+            question_text: (questionData.text as string) || (questionData.question_text as string) || 'Question',
+            question_type: ((questionData.type as string) === 'text' || (questionData.type as string) === 'scale') ? 'free_text' : 'multiple_choice',
+            position: index + 1,
+            explanation: '', // Default empty explanation
+            options: ((questionData.options as string[]) || []).map((optText: string, optIndex: number) => ({
+              id: `option-${index}-${optIndex}`,
+              option_text: typeof optText === 'string' ? optText : String(optText),
+              position: optIndex + 1,
+              is_correct: false, // Default value
+            })),
+          };
+        });
 
         // Safely cast assessmentData to ExtendedAssessment
         const extendedAssessment = {

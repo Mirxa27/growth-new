@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch active voice agent configuration with full details (serviceClient)
-    let model = 'gpt-4o-realtime-preview-2024-10-01'
+    let model = 'gpt-realtime-2025-08-28' // Standardized realtime model
     let voice = 'alloy'
     let systemPrompt = "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful."
     let temperature = 0.7

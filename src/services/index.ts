@@ -1,11 +1,9 @@
 // Services barrel export
 export { supabase } from '@/integrations/supabase/client';
 
-// API Services
-export * from './api/assessment.service';
-export * from './api/community.service';
+// API Services (export selectively to avoid name collisions)
+export { voiceService } from './api/voice.service';
 export * from './api/admin.service';
-export * from './api/voice.service';
 export * from './api/payment.service';
 export * from './api/client.service';
 export * from './api/base.service';

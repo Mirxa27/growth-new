@@ -132,9 +132,9 @@ export const MobileAssessmentCard: React.FC<AssessmentCardProps> = ({
               {getAssessmentTypeLabel(assessment.type)}
             </Badge>
           </div>
-          {(assessment as any).difficulty && (
-            <Badge className={`text-xs font-medium ${getDifficultyColor((assessment as any).difficulty)}`}>
-              {(assessment as any).difficulty}
+          {(assessment as Assessment & { difficulty?: string }).difficulty && (
+            <Badge className={`text-xs font-medium ${getDifficultyColor((assessment as Assessment & { difficulty?: string }).difficulty)}`}>
+              {(assessment as Assessment & { difficulty?: string }).difficulty}
             </Badge>
           )}
         </div>

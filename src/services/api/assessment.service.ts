@@ -28,7 +28,7 @@ export class AssessmentError extends Error {
 }
 
 // Cache management
-const cache = new Map<string, { data: any; timestamp: number }>();
+const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Realtime subscriptions
@@ -38,7 +38,7 @@ let realtimeChannel: RealtimeChannel | null = null;
 const getFromCache = <T>(key: string): T | null => {
   const cached = cache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+    return cached.data as T;
   }
   cache.delete(key);
   return null;
@@ -313,6 +313,7 @@ export const submitAssessmentResult = async (params: AssessmentSubmissionParams)
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error('No data returned from assessment result insertion');
 
     return transformResultRow(data);
   } catch (error) {
@@ -405,7 +406,7 @@ export const subscribeToAssessments = (
         
         // Invalidate relevant caches
         invalidateCache('assessments');
-        if (payload.new?.id) {
+        if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
           invalidateCache(`assessment-${payload.new.id}`);
         }
       }
@@ -470,28 +471,28 @@ function transformAssessmentRow(row: AssessmentRow): Assessment {
 }
 
 function transformResultRow(row: AssessmentResultRow): AssessmentResult {
-  // Handle the answers which could be Json type - safely cast to any first
-  const rawData = row as any;
-  let responses: Record<string, any> = {};
+  // Handle the answers which could be Json type - safely cast to unknown first
+  const rawData = row as unknown as Record<string, unknown>;
+  let responses: Record<string, string | number | boolean | string[]> = {};
   
   if (rawData.answers && typeof rawData.answers === 'object' && rawData.answers !== null) {
-    responses = rawData.answers as Record<string, any>;
+    responses = rawData.answers as Record<string, string | number | boolean | string[]>;
   }
 
   return {
-    id: rawData.id?.toString() || '0',
-    assessmentId: rawData.assessment_id?.toString(),
-    userId: rawData.user_id || '',
+    id: (rawData.id as number)?.toString() || '0',
+    assessmentId: (rawData.assessment_id as number)?.toString(),
+    userId: (rawData.user_id as string) || '',
     visitorSessionId: undefined, // Not available in current schema
-    score: rawData.score || 0,
-    totalScore: rawData.total_points || 100,
-    percentage: rawData.percentage || 0,
+    score: (rawData.score as number) || 0,
+    totalScore: (rawData.total_points as number) || 100,
+    percentage: (rawData.percentage as number) || 0,
     personalityType: undefined, // Not available in current schema
     responses,
     insights: [], // Not available in current schema
     recommendations: [], // Not available in current schema
-    completedAt: rawData.submitted_at,
-    createdAt: rawData.created_at || rawData.submitted_at, // Use submitted_at as fallback
+    completedAt: (rawData.submitted_at as string) || new Date().toISOString(),
+    createdAt: (rawData.created_at as string) || (rawData.submitted_at as string) || new Date().toISOString(), // Use submitted_at as fallback
     assessment: undefined // Would need to fetch separately if needed
   };
 }

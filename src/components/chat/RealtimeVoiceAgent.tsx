@@ -185,14 +185,28 @@ const RealtimeVoiceAgent: React.FC = () => {
       audioWorkletRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
       
       audioWorkletRef.current.port.onmessage = (event) => {
-        if (event.data.type === 'audio-data' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
-          // Send audio data to Realtime API
-          wsRef.current.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: event.data.audio
-          }));
-        } else if (event.data.type === 'audio-level') {
-          setAudioLevel(event.data.level);
+        const data = event.data as { type?: string; audio?: string; audioData?: Int16Array; level?: number; audioLevel?: number };
+
+        // Prefer raw PCM16 from worklet and encode here
+        if (data?.audioData && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
+          const uint8 = new Uint8Array(data.audioData.buffer);
+          let binary = '';
+          for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+          const base64Audio = btoa(binary);
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64Audio }));
+          return;
+        }
+
+        // Backward compatibility for pre-encoded messages
+        if (data?.type === 'audio-data' && typeof data.audio === 'string' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.audio }));
+          return;
+        }
+
+        // Audio level updates
+        const level = typeof data?.audioLevel === 'number' ? data.audioLevel : (typeof data?.level === 'number' ? data.level : undefined);
+        if (typeof level === 'number') {
+          setAudioLevel(level);
         }
       };
 
