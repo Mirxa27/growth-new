@@ -69,8 +69,9 @@ const VOICE_OPTIONS = [
 ];
 
 const MODEL_OPTIONS = [
-  { value: 'gpt-4o-realtime-preview', label: 'GPT-4o Realtime (Latest)' },
-  { value: 'gpt-4o-mini-realtime-preview', label: 'GPT-4o Mini Realtime (Fast)' }
+  { value: 'gpt-realtime-2025-08-28', label: 'GPT Realtime (Standardized)' },
+  { value: 'gpt-4o-realtime-preview', label: 'GPT-4o Realtime (Legacy)' },
+  { value: 'gpt-4o-mini-realtime-preview', label: 'GPT-4o Mini Realtime (Legacy Fast)' }
 ];
 
 const AUDIO_FORMAT_OPTIONS = [
@@ -81,7 +82,7 @@ const AUDIO_FORMAT_OPTIONS = [
 
 const DEFAULT_CONFIG: VoiceConfig = {
   name: 'Default NewMe Configuration',
-  model: 'gpt-4o-realtime-preview',
+  model: 'gpt-realtime-2025-08-28',
   voice: 'alloy',
   instructions: `You are NewMe, a supportive AI companion specifically designed for women's personal growth and empowerment. 
 

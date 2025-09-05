@@ -26,14 +26,14 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
   const { toast } = useToast();
 
   // Generate client token from Supabase
-  const generateClientToken = useCallback(async (): Promise<string> => {
+  const generateClientToken = useCallback(async (): Promise<{ clientSecret: string; model: string }> => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session) {
         throw new Error('User not authenticated for voice token generation.');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice-token`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -46,8 +46,10 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
         throw new Error(errorData.error || 'Failed to generate client token');
       }
 
-      const data: ClientTokenResponse = await response.json();
-      return data.client_secret.value;
+      const data = await response.json();
+      const clientSecret = data.client_secret?.value || data.client_secret;
+      if (!clientSecret) throw new Error('No client secret received');
+      return { clientSecret, model: data.model || 'gpt-realtime-2025-08-28' };
     } catch (error) {
       console.error('Error generating client token:', error);
       throw error;
@@ -59,12 +61,12 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
     try {
       setState(prev => ({ ...prev, error: null }));
       
-      const clientToken = await generateClientToken();
+      const { clientSecret, model } = await generateClientToken();
       
       // Create WebSocket connection to OpenAI Realtime API
-      const ws = new WebSocket(`wss://api.openai.com/v1/realtime?model=${config.model || 'gpt-4o-realtime-preview-2024-10-01'}`, [
-        'realtime-api',
-        `openai-insecure-api-key.${clientToken}`
+      const ws = new WebSocket(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(config.model || model || 'gpt-realtime-2025-08-28')}`, [
+        'realtime',
+        `openai-insecure-api-key.${clientSecret}`
       ]);
 
       ws.onopen = () => {
@@ -77,8 +79,17 @@ export const useVoiceAgent = (config: VoiceAgentConfig): UseVoiceAgentReturn => 
             modalities: ['text', 'audio'],
             instructions: config.instructions,
             voice: config.voice || 'alloy',
+            input_audio_format: 'pcm16',
+            output_audio_format: 'pcm16',
+            input_audio_transcription: { model: 'whisper-1' },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
+            },
             temperature: config.temperature || 0.7,
-            max_tokens: config.maxTokens || 1000,
+            max_response_output_tokens: config.maxTokens || 1000,
           }
         }));
 

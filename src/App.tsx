@@ -27,8 +27,10 @@ import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
+import AssessmentTestPage from "./pages/AssessmentTestPage";
 import VoiceAssistantDemo from "./pages/VoiceAssistantDemo";
 import NotificationTestPage from "./pages/NotificationTestPage";
+import AssessmentSystemDemo from "./pages/AssessmentSystemDemo";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +112,8 @@ const App = () => {
                   <AdminDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/assessment-test" element={<AssessmentTestPage />} />
+              <Route path="/assessment-demo" element={<AssessmentSystemDemo />} />
               <Route path="/voice-demo" element={
                 <ProtectedRoute>
                   <VoiceAssistantDemo />

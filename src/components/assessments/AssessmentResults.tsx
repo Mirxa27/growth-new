@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Target, TrendingUp, Share2, Download, Home, RefreshCw } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Share2, Home, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getAssessmentById } from '@/services/api/assessment.service';
-import { Assessment } from '@/types/assessment';
+import RealAssessmentService from '@/services/realAssessmentService';
+import type { Assessment } from '../../types/assessment';
 
 interface AssessmentResultsProps {
   assessmentId: string;
@@ -39,7 +39,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
 
   useEffect(() => {
     const fetchAssessment = async () => {
-      const data = await getAssessmentById(assessmentId);
+      const data = await RealAssessmentService.getAssessmentById(assessmentId);
       setAssessment(data);
     };
 
@@ -59,6 +59,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   };
 
   const handleShare = async () => {
+    const assessmentTitle = assessment?.title || 'Assessment';
     const shareData = {
       title: `My ${assessmentTitle} Results: ${percentage}%`,
       text: `I scored ${percentage}% (${score}/${totalPoints}) on "${assessmentTitle}"!`,
@@ -72,7 +73,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
         setShareStatus('Link copied to clipboard');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setShareStatus('Sharing failed');
       console.error('Share error', err);
     }
@@ -87,7 +88,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
           <Trophy className="w-12 h-12 mx-auto mb-4 text-primary" />
           <CardTitle className="text-2xl">Assessment Complete!</CardTitle>
           <CardDescription className="text-lg mt-2">
-            {assessmentTitle}
+            {assessment?.title || 'Assessment'}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">

@@ -16,7 +16,7 @@ export async function runVoiceSessionsMigration() {
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
           name TEXT NOT NULL DEFAULT 'Default Voice Agent',
           provider TEXT NOT NULL DEFAULT 'openai',
-          model TEXT NOT NULL DEFAULT 'gpt-4o-realtime-preview-2024-10-01',
+          model TEXT NOT NULL DEFAULT 'gpt-realtime-2025-08-28',
           voice TEXT NOT NULL DEFAULT 'alloy',
           temperature DECIMAL(3,2) NOT NULL DEFAULT 0.70,
           instructions TEXT DEFAULT 'You are a helpful AI assistant.',
@@ -44,7 +44,7 @@ export async function runVoiceSessionsMigration() {
       name: 'Insert default voice configuration',
       sql: `
         INSERT INTO public.voice_agent_configs (name, provider, model, voice, temperature, instructions, is_active)
-        SELECT 'Default Voice Agent', 'openai', 'gpt-4o-realtime-preview-2024-10-01', 'alloy', 0.70, 
+        SELECT 'Default Voice Agent', 'openai', 'gpt-realtime-2025-08-28', 'alloy', 0.70, 
                'You are a helpful AI assistant focused on personal growth and well-being.', true
         WHERE NOT EXISTS (SELECT 1 FROM public.voice_agent_configs LIMIT 1)
       `
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.voice_agent_configs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL DEFAULT 'Default Voice Agent',
     provider TEXT NOT NULL DEFAULT 'openai',
-    model TEXT NOT NULL DEFAULT 'gpt-4o-realtime-preview-2024-10-01',
+    model TEXT NOT NULL DEFAULT 'gpt-realtime-2025-08-28',
     voice TEXT NOT NULL DEFAULT 'alloy',
     temperature DECIMAL(3,2) NOT NULL DEFAULT 0.70,
     instructions TEXT DEFAULT 'You are a helpful AI assistant.',
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS public.voice_sessions (
 
 -- Add default configuration
 INSERT INTO public.voice_agent_configs (name, provider, model, voice, temperature, instructions, is_active)
-SELECT 'Default Voice Agent', 'openai', 'gpt-4o-realtime-preview-2024-10-01', 'alloy', 0.70, 
+SELECT 'Default Voice Agent', 'openai', 'gpt-realtime-2025-08-28', 'alloy', 0.70, 
        'You are a helpful AI assistant focused on personal growth and well-being.', true
 WHERE NOT EXISTS (SELECT 1 FROM public.voice_agent_configs LIMIT 1);
 

@@ -7,6 +7,8 @@ import { QuestionDisplay } from '@/components/assessments/QuestionDisplay';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import RealAssessmentService from '@/services/realAssessmentService';
+import { Assessment } from '@/types/assessment';
 
 // Interface for a formatted question used within the component state
 interface Question {
@@ -75,8 +77,7 @@ const AssessmentPage = () => {
         setIsLoading(true);
 
         // Use the assessment service instead of direct Supabase query
-        const { getAssessmentById } = await import('@/services/api/assessment.service');
-        const assessmentData = await getAssessmentById(assessmentId.toString());
+        const assessmentData = await RealAssessmentService.getAssessmentById(assessmentId.toString());
 
         if (!assessmentData) {
           throw new Error('Assessment not found');
@@ -123,11 +124,13 @@ const AssessmentPage = () => {
 
         setAssessment(extendedAssessment);
         setQuestions(formattedQuestions);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error loading assessment:', err);
+        const error = err as { code?: string; message?: string };
+        const message = (error?.code === 'FORBIDDEN') ? 'You do not have access to this assessment.' : 'Failed to load the assessment.';
         toast({
-          title: "Error",
-          description: "Failed to load the assessment.",
+          title: (error?.code === 'FORBIDDEN') ? 'Access Restricted' : 'Error',
+          description: message,
           variant: "destructive",
         });
         navigate('/mobile-assessment-hub');

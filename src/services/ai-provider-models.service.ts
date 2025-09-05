@@ -3,12 +3,8 @@
  * Fetches available models and voices from different AI providers
  */
 
-import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import { openaiService } from '@/services/ai/openai.service';
-import { anthropicService } from '@/services/ai/anthropic.service';
-import { googleAIService } from '@/services/ai/google.service';
-import { getAllOpenAIModels, getRealtimeModels, OPENAI_VOICES } from '@/services/ai/openai-models-fix';
+import { getAllOpenAIModels } from '@/services/ai/openai-models-fix';
 
 export interface AIModel {
   id: string;
@@ -42,26 +38,37 @@ class AIProviderModelsService {
 
       // Add all models from the fixed list
       for (const model of fixedModels) {
+        const modelData = model as any;
+        const maxTokens = modelData.max_tokens || this.getMaxTokens(modelData.id);
+        const supportsVoice = modelData.supports_voice !== undefined ? modelData.supports_voice : false;
+        const supportsVision = modelData.supports_vision !== undefined ? modelData.supports_vision : false;
+        const costPer1kTokens = modelData.cost_per_1k_tokens || this.getModelCost(modelData.id);
+        
         models.push({
-          id: model.id,
-          name: model.name || this.formatModelName(model.id),
-          description: model.description || this.getModelDescription(model.id),
+          id: modelData.id,
+          name: modelData.name || this.formatModelName(modelData.id),
+          description: modelData.description || this.getModelDescription(modelData.id),
           provider_type: 'openai',
-          max_tokens: model.max_tokens || this.getMaxTokens(model.id),
-          supports_voice: model.supports_voice || false,
-          supports_vision: model.supports_vision || false,
-          cost_per_1k_tokens: model.cost_per_1k_tokens || this.getModelCost(model.id)
+          max_tokens: maxTokens,
+          supports_voice: supportsVoice,
+          supports_vision: supportsVision,
+          cost_per_1k_tokens: costPer1kTokens
         });
       }
 
       // Try to fetch from API as well (but don't fail if it doesn't work)
       try {
-        // Set the API key temporarily for this request
-        const originalKey = openaiService.getApiKey();
-        openaiService.setApiKey(apiKey);
-        
-        try {
-          const apiModels = await openaiService.getModels();
+        // Use the provided API key for the request
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const apiModels = data.data || [];
           
           // Add any models from API that aren't in our fixed list
           for (const apiModel of apiModels) {
@@ -78,15 +85,10 @@ class AIProviderModelsService {
               });
             }
           }
-        } finally {
-          // Restore original API key
-          if (originalKey) {
-            openaiService.setApiKey(originalKey);
-          }
         }
       } catch (apiError) {
         // Log but don't throw - we have the fixed models as fallback
-        logger.warn('Failed to fetch models from OpenAI API, using fixed list', 'AIProviderModelsService', apiError);
+        logger.warn('Failed to fetch models from OpenAI API, using fixed list');
       }
 
       return models.sort((a, b) => {
@@ -101,18 +103,21 @@ class AIProviderModelsService {
         return getOrder(a.id) - getOrder(b.id);
       });
     } catch (error) {
-      logger.error('Failed to fetch OpenAI models', 'AIProviderModelsService', error);
+      logger.error('Failed to fetch OpenAI models');
       // Return the fixed models list as fallback
-      return getAllOpenAIModels().map(model => ({
-        id: model.id,
-        name: model.name || this.formatModelName(model.id),
-        description: model.description || this.getModelDescription(model.id),
-        provider_type: 'openai',
-        max_tokens: model.max_tokens || this.getMaxTokens(model.id),
-        supports_voice: model.supports_voice || false,
-        supports_vision: model.supports_vision || false,
-        cost_per_1k_tokens: model.cost_per_1k_tokens || this.getModelCost(model.id)
-      }));
+      return getAllOpenAIModels().map(model => {
+        const modelData = model as any;
+        return {
+          id: modelData.id,
+          name: modelData.name || this.formatModelName(modelData.id),
+          description: modelData.description || this.getModelDescription(modelData.id),
+          provider_type: 'openai',
+          max_tokens: modelData.max_tokens || this.getMaxTokens(modelData.id),
+          supports_voice: modelData.supports_voice || false,
+          supports_vision: modelData.supports_vision || false,
+          cost_per_1k_tokens: modelData.cost_per_1k_tokens || this.getModelCost(modelData.id)
+        };
+      });
     }
   }
 
@@ -136,69 +141,70 @@ class AIProviderModelsService {
    */
   async fetchAnthropicModels(apiKey: string): Promise<AIModel[]> {
     try {
-      // Set the API key temporarily
-      const originalKey = anthropicService.getApiKey();
-      anthropicService.setApiKey(apiKey);
-      
-      try {
-        const models = await anthropicService.getModels();
+      // Try to fetch from Anthropic API
+      const response = await fetch('https://api.anthropic.com/v1/models', {
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const models = data.models || [];
         
-        return models.map(model => {
-          const price = anthropicService.getModelPricing(model.id);
+        return models.map((model: any) => {
           return {
             id: model.id,
-            name: model.name,
-            description: model.description,
+            name: model.display_name || model.id,
+            description: model.description || 'Anthropic AI model',
             provider_type: 'anthropic',
             max_tokens: model.id.includes('claude-3-5') ? 200000 : 
                        model.id.includes('claude-3') ? 200000 : 
                        model.id.includes('claude-2') ? 100000 : 100000,
             supports_voice: false,
             supports_vision: model.id.includes('claude-3'),
-            cost_per_1k_tokens: price.output
+            cost_per_1k_tokens: this.getAnthropicModelCost(model.id)
           };
         });
-      } finally {
-        if (originalKey) {
-          anthropicService.setApiKey(originalKey);
-        }
       }
     } catch (error) {
-      logger.error('Failed to fetch Anthropic models', 'AIProviderModelsService', error);
-      // Return fallback models
-      return [
-        {
-          id: 'claude-3-5-sonnet-20241022',
-          name: 'Claude 3.5 Sonnet',
-          description: 'Most capable model for complex tasks',
-          provider_type: 'anthropic',
-          max_tokens: 200000,
-          supports_voice: false,
-          supports_vision: true,
-          cost_per_1k_tokens: 0.003
-        },
-        {
-          id: 'claude-3-opus-20240229',
-          name: 'Claude 3 Opus',
-          description: 'Powerful model for complex analysis',
-          provider_type: 'anthropic',
-          max_tokens: 200000,
-          supports_voice: false,
-          supports_vision: true,
-          cost_per_1k_tokens: 0.015
-        },
-        {
-          id: 'claude-3-haiku-20240307',
-          name: 'Claude 3 Haiku',
-          description: 'Fast and cost-effective',
-          provider_type: 'anthropic',
-          max_tokens: 200000,
-          supports_voice: false,
-          supports_vision: false,
-          cost_per_1k_tokens: 0.00025
-        }
-      ];
+      logger.error('Failed to fetch Anthropic models');
     }
+    
+    // Return fallback models if API fails
+    return [
+      {
+        id: 'claude-3-5-sonnet-20241022',
+        name: 'Claude 3.5 Sonnet',
+        description: 'Most capable model for complex tasks',
+        provider_type: 'anthropic',
+        max_tokens: 200000,
+        supports_voice: false,
+        supports_vision: true,
+        cost_per_1k_tokens: 0.003
+      },
+      {
+        id: 'claude-3-opus-20240229',
+        name: 'Claude 3 Opus',
+        description: 'Powerful model for complex analysis',
+        provider_type: 'anthropic',
+        max_tokens: 200000,
+        supports_voice: false,
+        supports_vision: true,
+        cost_per_1k_tokens: 0.015
+      },
+      {
+        id: 'claude-3-haiku-20240307',
+        name: 'Claude 3 Haiku',
+        description: 'Fast and cost-effective',
+        provider_type: 'anthropic',
+        max_tokens: 200000,
+        supports_voice: false,
+        supports_vision: false,
+        cost_per_1k_tokens: 0.00025
+      }
+    ];
   }
 
   /**
@@ -206,33 +212,41 @@ class AIProviderModelsService {
    */
   async fetchGoogleModels(apiKey: string): Promise<AIModel[]> {
     try {
-      // Set the API key temporarily
-      const originalKey = googleAIService.getApiKey();
-      googleAIService.setApiKey(apiKey);
-      
-      try {
-        const models = await googleAIService.getModels();
-        
-        return models.map(model => {
-          const price = googleAIService.getModelPricing(model.id);
-          return {
-            id: model.id,
-            name: model.name,
-            description: model.description,
-            provider_type: 'google',
-            max_tokens: model.id.includes('1.5') ? 1048576 : 30720,
-            supports_voice: false,
-            supports_vision: model.id.includes('vision'),
-            cost_per_1k_tokens: price.output
-          };
-        });
-      } finally {
-        if (originalKey) {
-          googleAIService.setApiKey(originalKey);
+      // Google AI models are typically hardcoded since they don't have a dynamic models endpoint
+      return [
+        {
+          id: 'gemini-pro',
+          name: 'Gemini Pro',
+          description: 'Best for text-only prompts',
+          provider_type: 'google',
+          max_tokens: 30720,
+          supports_voice: false,
+          supports_vision: false,
+          cost_per_1k_tokens: 0.0015
+        },
+        {
+          id: 'gemini-pro-vision',
+          name: 'Gemini Pro Vision',
+          description: 'Best for text and image prompts',
+          provider_type: 'google',
+          max_tokens: 30720,
+          supports_voice: false,
+          supports_vision: true,
+          cost_per_1k_tokens: 0.0025
+        },
+        {
+          id: 'gemini-1.5-pro',
+          name: 'Gemini 1.5 Pro',
+          description: 'Advanced model with long context',
+          provider_type: 'google',
+          max_tokens: 1048576,
+          supports_voice: false,
+          supports_vision: true,
+          cost_per_1k_tokens: 0.0035
         }
-      }
+      ];
     } catch (error) {
-      logger.error('Failed to fetch Google models', 'AIProviderModelsService', error);
+      logger.error('Failed to fetch Google models');
       // Return fallback models
       return [
         {
@@ -290,7 +304,7 @@ class AIProviderModelsService {
 
       return voices;
     } catch (error) {
-      logger.error('Failed to fetch ElevenLabs voices', 'AIProviderModelsService', error);
+      logger.error('Failed to fetch ElevenLabs voices');
       // Return some default voices if API fails
       return [
         { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Soft and warm', gender: 'female' },
@@ -307,7 +321,7 @@ class AIProviderModelsService {
    */
   async fetchModelsForProvider(providerType: string, apiKey?: string): Promise<AIModel[]> {
     if (!apiKey) {
-      logger.warn(`No API key provided for ${providerType}`, 'AIProviderModelsService');
+      logger.warn(`No API key provided for ${providerType}`);
       return this.getDefaultModels(providerType);
     }
 
@@ -369,7 +383,38 @@ class AIProviderModelsService {
           }
         ];
       case 'anthropic':
-        return this.fetchAnthropicModels('');
+        return [
+          {
+            id: 'claude-3-5-sonnet-20241022',
+            name: 'Claude 3.5 Sonnet',
+            description: 'Most capable model for complex tasks',
+            provider_type: 'anthropic',
+            max_tokens: 200000,
+            supports_voice: false,
+            supports_vision: true,
+            cost_per_1k_tokens: 0.003
+          },
+          {
+            id: 'claude-3-opus-20240229',
+            name: 'Claude 3 Opus',
+            description: 'Powerful model for complex analysis',
+            provider_type: 'anthropic',
+            max_tokens: 200000,
+            supports_voice: false,
+            supports_vision: true,
+            cost_per_1k_tokens: 0.015
+          },
+          {
+            id: 'claude-3-haiku-20240307',
+            name: 'Claude 3 Haiku',
+            description: 'Fast and cost-effective',
+            provider_type: 'anthropic',
+            max_tokens: 200000,
+            supports_voice: false,
+            supports_vision: false,
+            cost_per_1k_tokens: 0.00025
+          }
+        ];
       case 'google':
         return [
           {
@@ -457,6 +502,13 @@ class AIProviderModelsService {
     if (modelName.includes('gemini-pro')) return 0.0005;
     if (modelName.includes('gemini-1.5')) return 0.002;
     return 0.001;
+  }
+
+  private getAnthropicModelCost(modelId: string): number {
+    if (modelId.includes('claude-3-5-sonnet')) return 0.003;
+    if (modelId.includes('claude-3-opus')) return 0.015;
+    if (modelId.includes('claude-3-haiku')) return 0.00025;
+    return 0.01;
   }
 }
 

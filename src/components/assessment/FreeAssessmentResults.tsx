@@ -17,7 +17,7 @@ import {
   Award,
   BookOpen
 } from 'lucide-react';
-import { Assessment } from '@/data/assessments';
+import { Assessment } from '@/types/assessment';
 
 interface FreeAssessmentResultsProps {
   results: any;

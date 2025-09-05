@@ -1,19 +1,19 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { 
-  getPublicAssessments, 
-  getAssessments, 
-  getAssessmentById, 
-  getUserResults, 
-  submitAssessmentResult, 
+import { Assessment } from '@/types/assessment';
+import { useEffect } from 'react';
+import {
+  getPublicAssessments,
+  getAssessments,
+  getAssessmentById,
+  getUserResults,
+  getAssessmentAnalytics,
   createAssessment,
   updateAssessment,
   deleteAssessment,
-  getAssessmentAnalytics,
+  submitAssessmentResult,
   subscribeToAssessments,
   cleanup
 } from '@/services/api/assessment.service';
-import { Assessment, AssessmentResult } from '@/types/assessment';
-import { useEffect } from 'react';
 
 // Query keys factory
 const queryKeys = {
@@ -31,7 +31,7 @@ export const usePublicAssessments = () => {
     queryFn: getPublicAssessments,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: { statusCode?: number }) => {
       if (error.statusCode === 404) return false;
       return failureCount < 3;
     },
@@ -63,7 +63,7 @@ export const useAssessment = (id: string) => {
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: { statusCode?: number }) => {
       if (error.statusCode === 404) return false;
       return failureCount < 2;
     },
@@ -211,7 +211,7 @@ export const useLoadingState = () => {
 
 // Error handling helper
 export const useAssessmentErrorHandler = () => {
-  const handleError = (error: any) => {
+  const handleError = (error: { statusCode?: number; message?: string }) => {
     console.error('Assessment error:', error);
     
     if (error.statusCode === 404) {

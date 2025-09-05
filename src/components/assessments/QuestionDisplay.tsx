@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, Circle } from 'lucide-react';
-import { getFullAssessment } from '@/services/api/assessment.service';
+import RealAssessmentService from '@/services/realAssessmentService';
 
 interface QuestionDisplayProps {
   assessmentId: string;
@@ -38,7 +38,7 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   useEffect(() => {
     const fetchAssessment = async () => {
       try {
-        const data = await getFullAssessment(assessmentId);
+        const data = await RealAssessmentService.getAssessmentById(assessmentId);
         setAssessment(data);
         if (data && data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
           const questionIndex = questionNumber - 1;

@@ -3,19 +3,37 @@
  * Comprehensive type definitions for assessment system
  */
 
+export interface AssessmentOption {
+  id: string;
+  text: string;
+  value: number;
+  category?: string;
+}
+
 export interface AssessmentQuestion {
   id: string;
   text: string;
   type: 'single' | 'multiple' | 'scale' | 'text';
-  options?: string[];
+  options?: AssessmentOption[];
   scale?: { min: number; max: number; labels: string[] };
   category?: string;
+  maxScore?: number;
+  keywords?: string[];
+  factor?: string;
 }
 
 export interface AIAnalysis {
   insights: string[];
   recommendations: string[];
   summary: string;
+}
+
+export interface AssessmentScoring {
+  type: 'cumulative' | 'categorical' | 'personality';
+  categories?: string[];
+  interpretation?: Record<string, string>;
+  weights?: Record<string, number>;
+  personalityTypes?: Record<string, Record<string, number>>;
 }
 
 export interface Assessment {
@@ -27,11 +45,7 @@ export interface Assessment {
   visibility: 'public' | 'users' | 'premium';
   estimatedTime: number;
   questions: AssessmentQuestion[];
-  scoring: {
-    type: 'cumulative' | 'categorical' | 'personality';
-    categories?: string[];
-    interpretation?: Record<string, string>;
-  };
+  scoring: AssessmentScoring;
   results: {
     summary: string;
     insights: string[];
@@ -108,7 +122,7 @@ export interface AssessmentScoringResult {
 export interface AssessmentScoringConfig {
   type: 'summation' | 'average' | 'weighted' | 'percentile' | 'personality' | 'composite';
   weights?: Record<string, number>;
-  personalityTypes?: Record<string, any>;
+  personalityTypes?: Record<string, Record<string, number>>;
   categories?: string[];
   interpretation?: Record<string, string>;
 }

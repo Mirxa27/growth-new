@@ -29,8 +29,8 @@ async function fixedVerificationTests() {
       console.log('      Available columns: id, user_id, assessment_id, score, submitted_at, answers, completed');
       successCount++;
     }
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -55,8 +55,8 @@ async function fixedVerificationTests() {
       }
       successCount++;
     }
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -85,8 +85,8 @@ async function fixedVerificationTests() {
       console.log(`      Results: ${resultCount || 0}`);
       successCount++;
     }
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -105,8 +105,8 @@ async function fixedVerificationTests() {
       console.log(`      Admin check result: ${adminCheck}`);
       successCount++;
     }
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -147,8 +147,8 @@ async function fixedVerificationTests() {
       console.log(`      Total Options: ${totalOptions}`);
       successCount++;
     }
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -173,8 +173,8 @@ async function fixedVerificationTests() {
       console.log(`   ✅ Passed: Good database performance (${responseTime}ms)`);
     }
     successCount++;
-  } catch (error: any) {
-    console.log('   ❌ Failed:', error.message);
+  } catch (error: unknown) {
+    console.log('   ❌ Failed:', (error as Error).message);
     failureCount++;
   }
 
@@ -204,7 +204,7 @@ fixedVerificationTests()
     console.log(`\n🏁 Verification complete with ${result.successRate}% success rate`);
     process.exit(result.failureCount > 3 ? 1 : 0);
   })
-  .catch(error => {
+  .catch((error: Error) => {
     console.error('💥 Verification script failed:', error);
     process.exit(1);
   });

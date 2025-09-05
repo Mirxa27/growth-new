@@ -50,7 +50,7 @@ const assessmentSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   type: z.enum(['quiz', 'personality', 'test']),
-  visibility: z.enum(['public', 'private']),
+  visibility: z.enum(['public', 'users', 'premium']),
   ai_provider: z.string().optional(),
   ai_model: z.string().optional(),
   ai_prompt: z.string().optional(),
@@ -63,7 +63,7 @@ type Assessment = {
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'users' | 'premium';
   question_count: number;
   completion_count: number;
   ai_provider?: string;
@@ -94,7 +94,7 @@ interface AssessmentForm {
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'users' | 'premium';
   ai_provider: string;
   ai_model: string;
   ai_prompt: string;
@@ -117,7 +117,7 @@ export const AssessmentManager: React.FC = () => {
     title: '',
     description: '',
     type: 'quiz',
-    visibility: 'private',
+    visibility: 'users',
     ai_provider: 'openai',
     ai_model: 'gpt-4o-mini',
     ai_prompt: '',
@@ -222,7 +222,7 @@ export const AssessmentManager: React.FC = () => {
       title: '',
       description: '',
       type: 'quiz',
-      visibility: 'private',
+      visibility: 'users',
       ai_provider: 'openai',
       ai_model: 'gpt-4o-mini',
       ai_prompt: '',
@@ -473,7 +473,7 @@ export const AssessmentManager: React.FC = () => {
         title: `${assessment.title} (Copy)`,
         description: assessment.description,
         type: assessment.type,
-        visibility: 'private',
+        visibility: 'users',
         ai_provider: assessment.ai_provider || 'openai',
         ai_model: assessment.ai_model || 'gpt-4o-mini',
         ai_prompt: assessment.ai_prompt || '',
@@ -590,8 +590,9 @@ export const AssessmentManager: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="public">Public</SelectItem>
-                <SelectItem value="private">Private</SelectItem>
+                <SelectItem value="public">Public (Visitors)</SelectItem>
+                <SelectItem value="users">Users (Logged-in)</SelectItem>
+                <SelectItem value="premium">Premium (Subscribers)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -626,7 +627,7 @@ export const AssessmentManager: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Visibility:</span>
-                  <Badge variant={assessment.visibility === 'public' ? 'default' : 'secondary'}>
+                  <Badge variant={assessment.visibility === 'public' ? 'default' : (assessment.visibility === 'users' ? 'secondary' : 'outline')}>
                     {assessment.visibility}
                   </Badge>
                 </div>
@@ -753,13 +754,18 @@ export const AssessmentManager: React.FC = () => {
                 />
               </div>
               
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="visibility"
-                  checked={assessmentForm.visibility === 'public'}
-                  onCheckedChange={(checked) => setAssessmentForm(prev => ({ ...prev, visibility: checked ? 'public' : 'private' }))}
-                />
-                <Label htmlFor="visibility">Make this assessment public</Label>
+              <div>
+                <Label>Visibility</Label>
+                <Select value={assessmentForm.visibility} onValueChange={(value: 'public' | 'users' | 'premium') => setAssessmentForm(prev => ({ ...prev, visibility: value }))}>
+                  <SelectTrigger className="glass">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public (Visitors)</SelectItem>
+                    <SelectItem value="users">Users (Logged-in)</SelectItem>
+                    <SelectItem value="premium">Premium (Subscribers)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </TabsContent>
             

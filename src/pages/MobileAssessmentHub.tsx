@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { MobileAssessmentCard } from '@/components/assessments/MobileAssessmentCard';
-import { getPublicAssessments } from '@/services/api/assessment.service';
-import { Assessment } from '@/data/assessments';
+import RealAssessmentService from '@/services/realAssessmentService';
+import { Assessment } from '@/types/assessment';
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,8 +17,8 @@ const MobileAssessmentHub: React.FC = () => {
       if (showLoading) setIsLoading(true);
       setError(null);
       
-      const publicAssessments = await getPublicAssessments();
-      setAssessments(publicAssessments);
+      const accessible = await RealAssessmentService.getPublicAssessments();
+      setAssessments(accessible);
     } catch (err) {
       console.error('Failed to load assessments:', err);
       setError(err instanceof Error ? err.message : 'Failed to load assessments. Please try again.');
@@ -119,7 +119,7 @@ const MobileAssessmentHub: React.FC = () => {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {assessments.map((assessment) => (
-          <MobileAssessmentCard key={assessment.id} assessment={assessment} isPublic />
+          <MobileAssessmentCard key={assessment.id} assessment={assessment} isPublic={assessment.visibility === 'public'} />
         ))}
       </div>
       

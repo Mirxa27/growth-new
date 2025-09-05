@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../integrations/supabase/client';
-import { getPublicAssessments } from '@/data/assessments';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
-import { Tables } from '@/integrations/supabase/types';
 
-type Assessment = Tables<'assessments'>;
+type Assessment = {
+  id: number;
+  title: string;
+  description: string | null;
+  type: string;
+};
 
 interface AssessmentBrowserProps {
   onAssessmentSelect?: (assessment: Assessment) => void;
@@ -37,9 +40,10 @@ export const AssessmentBrowser: React.FC<AssessmentBrowserProps> = ({ onAssessme
         }
 
         setAssessments(data || []);
-      } catch (err: any) {
-        console.error('Failed to fetch assessments from supabase.', err?.message || err);
-        setError((err && err.message) || String(err));
+      } catch (err: unknown) {
+        console.error('Failed to fetch assessments from supabase.', err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
         setAssessments([]);
       } finally {
         setLoading(false);

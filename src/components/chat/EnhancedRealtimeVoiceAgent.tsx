@@ -113,21 +113,11 @@ const EnhancedRealtimeVoiceAgent: React.FC = () => {
       // Fetch voice configuration
       await fetchVoiceConfig();
 
-      // Request Realtime session token from Edge Function
-      const response = await fetch('/functions/v1/get-realtime-token', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authSession.access_token}`,
-          'Content-Type': 'application/json',
-        },
+      // Request Realtime session token from Edge Function (admin-configured)
+      const { data: sessionData, error } = await supabase.functions.invoke('get-realtime-token', {
+        body: {}
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create voice session');
-      }
-
-      const sessionData: VoiceSession = await response.json();
+      if (error) throw error;
       
       // Initialize WebRTC/WebSocket connection
       await connectToRealtime(sessionData);
@@ -185,7 +175,13 @@ const EnhancedRealtimeVoiceAgent: React.FC = () => {
             voice: voiceConfig?.voice || 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
-            input_audio_transcription: { model: 'whisper-1' }
+            input_audio_transcription: { model: 'whisper-1' },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
+            }
           }
         }));
 
@@ -232,15 +228,38 @@ const EnhancedRealtimeVoiceAgent: React.FC = () => {
       setupAudioLevelMonitoring();
       
       audioWorkletRef.current.port.onmessage = (event) => {
-        if (event.data.type === 'audio-data' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
-          // Send audio data to Realtime API
-          wsRef.current.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: event.data.audio
-          }));
-        } else if (event.data.type === 'audio-level') {
-          setAudioLevel(event.data.level);
+        const data = event.data as { type?: string; audio?: string; audioData?: Int16Array; level?: number; audioLevel?: number };
+
+        // Prefer raw PCM16 data from worklet
+        if (data?.audioData && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
+          // Audio interruptions: cancel assistant speech once on barge-in
+          if (isAssistantSpeaking && !cancelSentRef.current) {
+            try { wsRef.current.send(JSON.stringify({ type: 'response.cancel' })); } catch {}
+            cancelSentRef.current = true;
+            setIsAssistantSpeaking(false);
+          }
+          const uint8 = new Uint8Array(data.audioData.buffer);
+          let binary = '';
+          for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+          const base64Audio = btoa(binary);
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64Audio }));
+          return;
         }
+
+        // Backward compatibility
+        if (data?.type === 'audio-data' && typeof data.audio === 'string' && wsRef.current?.readyState === WebSocket.OPEN && isMicEnabled) {
+          if (isAssistantSpeaking && !cancelSentRef.current) {
+            try { wsRef.current.send(JSON.stringify({ type: 'response.cancel' })); } catch {}
+            cancelSentRef.current = true;
+            setIsAssistantSpeaking(false);
+          }
+          wsRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.audio }));
+          return;
+        }
+
+        // Level updates
+        const level = typeof data?.audioLevel === 'number' ? data.audioLevel : (typeof data?.level === 'number' ? data.level : undefined);
+        if (typeof level === 'number') setAudioLevel(level);
       };
 
       source.connect(audioWorkletRef.current);
@@ -304,7 +323,13 @@ const EnhancedRealtimeVoiceAgent: React.FC = () => {
         break;
 
       case 'response.done':
-        console.log('Response completed');
+        setIsAssistantSpeaking(false);
+        cancelSentRef.current = false;
+        break;
+
+      case 'response.created':
+        setIsAssistantSpeaking(true);
+        cancelSentRef.current = false;
         break;
 
       case 'error':

@@ -74,12 +74,15 @@ const RealtimeVoiceAgent: React.FC = () => {
       const settings = await loadRealtimeSettings();
       realtimeSettingsRef.current = settings;
 
-      // Ensure we're using the standardized model
+      // Request ephemeral client secret from edge function (admin-configured)
+      const { data: tokenData, error } = await supabase.functions.invoke('get-realtime-token', { body: {} });
+      if (error) throw error;
+
       const sessionData: VoiceSession = {
-        session_id: crypto.randomUUID(),
-        client_secret: settings.api_key,
-        model: 'gpt-realtime-2025-08-28', // Always use standardized model
-        expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
+        session_id: tokenData?.session_id || crypto.randomUUID(),
+        client_secret: tokenData?.client_secret?.value || tokenData?.client_secret,
+        model: tokenData?.model || 'gpt-realtime-2025-08-28',
+        expires_at: tokenData?.expires_at || new Date(Date.now() + 3600000).toISOString()
       };
 
       // Initialize WebRTC or WebSocket connection to OpenAI Realtime API
@@ -129,10 +132,10 @@ const RealtimeVoiceAgent: React.FC = () => {
 
       // Create WebSocket connection to OpenAI Realtime API using admin-configured base URL
       const settings = realtimeSettingsRef.current!;
-      const wsUrl = `${settings.base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/realtime?model=${sessionData.model}`;
+      const wsUrl = `${settings.base_url.replace('https://', 'wss://').replace('http://', 'ws://')}/realtime?model=${encodeURIComponent(sessionData.model)}`;
       
-      // Create WebSocket with proper authorization
-      wsRef.current = new WebSocket(wsUrl);
+      // Create WebSocket with proper authorization via subprotocol
+      wsRef.current = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${sessionData.client_secret}`]);
 
       wsRef.current.onopen = () => {
         console.log('Connected to OpenAI Realtime API');

@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles, Save, Plus, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Assessment } from '@/data/assessments';
+import { Assessment } from '@/types/assessment';
 // Removed react-hook-form and zod imports (unused in current implementation)
 
 interface AIAssessmentBuilderProps {

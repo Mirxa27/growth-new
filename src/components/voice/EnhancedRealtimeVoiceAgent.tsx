@@ -66,6 +66,7 @@ export const EnhancedRealtimeVoiceAgent: React.FC = () => {
   // Conversation state
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
+  const cancelSentRef = useRef(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -88,7 +89,7 @@ export const EnhancedRealtimeVoiceAgent: React.FC = () => {
     try {
       // Get ephemeral token from our edge function
       const { data: sessionData, error } = await supabase.functions.invoke('get-realtime-token', {
-        body: { model: 'gpt-4o-realtime-preview' }
+        body: {}
       });
 
       if (error) throw error;
@@ -278,7 +279,7 @@ export const EnhancedRealtimeVoiceAgent: React.FC = () => {
               type: 'server_vad',
               threshold: 0.5,
               prefix_padding_ms: 300,
-              silence_duration_ms: 500
+              silence_duration_ms: 1000
             },
             tools: [],
             tool_choice: 'auto',
@@ -369,6 +370,15 @@ export const EnhancedRealtimeVoiceAgent: React.FC = () => {
 
   const sendAudioToAPI = (audioData: Int16Array) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+    // Audio interruptions: if assistant is speaking, cancel current response once
+    if (isAssistantSpeaking && !cancelSentRef.current) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'response.cancel' }));
+      } catch {}
+      cancelSentRef.current = true;
+      setIsAssistantSpeaking(false);
+    }
 
     // Convert Int16Array to base64
     const uint8Array = new Uint8Array(audioData.buffer);

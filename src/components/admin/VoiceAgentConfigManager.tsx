@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
 import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
+import { voiceService } from '@/services/api/voice.service';
 import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
 
@@ -399,7 +400,6 @@ export const VoiceAgentConfigManager: React.FC = () => {
               <Button 
                 onClick={async () => {
                   if (form.id) {
-                    const { voiceService } = await import('@/services');
                     const result = await voiceService.testConfiguration(form.id);
                     toast({ 
                       title: result.data?.success ? "Test Successful" : "Test Failed",

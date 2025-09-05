@@ -9,18 +9,24 @@ import { Checkbox } from '../ui/checkbox';
 import { Slider } from '../ui/slider';
 import { Textarea } from '../ui/textarea';
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
-import { Assessment, AssessmentQuestion } from '../../data/assessments';
+import { Assessment, AssessmentQuestion, AssessmentOption } from '@/types/assessment';
 import { cn } from '@/lib/utils';
 
 interface LocalAssessmentTakerProps {
   assessment: Assessment;
-  onComplete?: (results: any) => void;
+  onComplete?: (results: AssessmentResults) => void;
   onBack?: () => void;
+}
+
+interface AssessmentResults {
+  answers: Record<string, string | number | string[]>;
+  score?: number;
+  category?: string;
 }
 
 const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmentTakerProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | number | string[]>>({});
   const [showResults, setShowResults] = useState(false);
 
   const currentQuestion = assessment.questions[currentQuestionIndex];
@@ -28,7 +34,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   const isLastQuestion = currentQuestionIndex === assessment.questions.length - 1;
   const canProceed = answers[currentQuestion?.id] !== undefined;
 
-  const handleAnswer = (questionId: string, answer: any) => {
+  const handleAnswer = (questionId: string, answer: string | number | string[]) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
   };
 
@@ -45,17 +51,26 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   };
 
   const completeAssessment = () => {
-    const results = {
-      assessmentId: assessment.id,
+    const results: AssessmentResults = {
       answers,
-      completedAt: new Date().toISOString(),
-      summary: assessment.results.summary,
-      insights: assessment.results.insights,
-      recommendations: assessment.results.recommendations
     };
     
     setShowResults(true);
     onComplete?.(results);
+  };
+
+  const getOptionText = (option: AssessmentOption): string => {
+    if (typeof option === 'string') {
+      return option;
+    }
+    return option.text;
+  };
+
+  const getOptionValue = (option: AssessmentOption): string => {
+    if (typeof option === 'string') {
+      return option;
+    }
+    return String(option.value || option.text);
   };
 
   const renderQuestionInput = (question: AssessmentQuestion) => {
@@ -65,18 +80,18 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
       case 'single':
         return (
           <RadioGroup
-            value={currentAnswer || ''}
+            value={currentAnswer as string || ''}
             onValueChange={(value) => handleAnswer(question.id, value)}
             className="space-y-3"
           >
             {question.options?.map((option, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`${question.id}-${index}`} />
+                <RadioGroupItem value={getOptionValue(option)} id={`${question.id}-${index}`} />
                 <Label 
                   htmlFor={`${question.id}-${index}`} 
                   className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                 >
-                  {option}
+                  {getOptionText(option)}
                 </Label>
               </div>
             ))}
@@ -87,8 +102,9 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
         return (
           <div className="space-y-3">
             {question.options?.map((option, index) => {
-              const selectedOptions = currentAnswer || [];
-              const isChecked = selectedOptions.includes(option);
+              const selectedOptions = (currentAnswer as string[]) || [];
+              const optionValue = getOptionValue(option);
+              const isChecked = selectedOptions.includes(optionValue);
               
               return (
                 <div key={index} className="flex items-center space-x-2">
@@ -97,8 +113,8 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                     checked={isChecked}
                     onCheckedChange={(checked) => {
                       const newSelection = checked
-                        ? [...selectedOptions, option]
-                        : selectedOptions.filter((item: string) => item !== option);
+                        ? [...selectedOptions, optionValue]
+                        : selectedOptions.filter((item: string) => item !== optionValue);
                       handleAnswer(question.id, newSelection);
                     }}
                   />
@@ -106,7 +122,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                     htmlFor={`${question.id}-${index}`} 
                     className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                   >
-                    {option}
+                    {getOptionText(option)}
                   </Label>
                 </div>
               );
@@ -114,14 +130,14 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
           </div>
         );
 
-      case 'scale':
+      case 'scale': {
         const scale = question.scale;
         if (!scale) return null;
         
         return (
           <div className="space-y-4">
             <Slider
-              value={[currentAnswer || scale.min]}
+              value={[Number(currentAnswer) || scale.min]}
               onValueChange={([value]) => handleAnswer(question.id, value)}
               min={scale.min}
               max={scale.max}
@@ -129,7 +145,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               className="w-full"
             />
             <div className="flex justify-between text-sm text-white/60">
-              {scale.labels.map((label, index) => (
+              {scale.labels?.map((label, index) => (
                 <span key={index} className="text-center">
                   {label}
                 </span>
@@ -142,11 +158,12 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
             )}
           </div>
         );
+      }
 
       case 'text':
         return (
           <Textarea
-            value={currentAnswer || ''}
+            value={currentAnswer as string || ''}
             onChange={(e) => handleAnswer(question.id, e.target.value)}
             placeholder="Type your answer here..."
             className="min-h-[100px] bg-white/5 border-white/20 text-white placeholder:text-white/40"
@@ -176,31 +193,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
           <CardContent className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-white mb-3">Summary</h3>
-              <p className="text-white/80">{assessment.results.summary}</p>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-3">Key Insights</h3>
-              <ul className="space-y-2">
-                {assessment.results.insights.map((insight, index) => (
-                  <li key={index} className="flex items-start space-x-2 text-white/80">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0" />
-                    <span>{insight}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-3">Recommendations</h3>
-              <ul className="space-y-2">
-                {assessment.results.recommendations.map((recommendation, index) => (
-                  <li key={index} className="flex items-start space-x-2 text-white/80">
-                    <span className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0" />
-                    <span>{recommendation}</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-white/80">{assessment.description}</p>
             </div>
             
             <div className="flex gap-4 pt-4">
@@ -209,7 +202,6 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               </Button>
               <Button 
                 onClick={() => {
-                  // Could implement sharing or saving functionality here
                   onBack?.();
                 }} 
                 className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600"
@@ -260,11 +252,6 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               <CardTitle className="text-xl text-white">
                 {currentQuestion?.text}
               </CardTitle>
-              {currentQuestion?.category && (
-                <div className="text-sm text-white/60">
-                  Category: {currentQuestion.category}
-                </div>
-              )}
             </CardHeader>
             <CardContent>
               {currentQuestion && renderQuestionInput(currentQuestion)}

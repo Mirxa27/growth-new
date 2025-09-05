@@ -12,6 +12,8 @@ export class RealtimeVoiceChat {
   private onTranscriptCallback: (text: string, isFinal: boolean) => void;
   private onSpeakingChangeCallback: (isSpeaking: boolean) => void;
   private lastVoiceActive: boolean = false;
+  private assistantSpeaking: boolean = false;
+  private cancelSent: boolean = false;
 
   constructor(
     onMessage: (data: unknown) => void,
@@ -52,9 +54,7 @@ export class RealtimeVoiceChat {
       }
 
       const sessionData = await response.json();
-      
-      // Improved error handling for client secret in RealtimeVoiceChat initialization
-      const clientSecret = process.env.CLIENT_SECRET || import.meta.env.VITE_CLIENT_SECRET;
+      const clientSecret = sessionData.client_secret;
       if (!clientSecret) {
         console.error('No client secret received from server');
         throw new Error('No client secret received from server');
@@ -63,7 +63,7 @@ export class RealtimeVoiceChat {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
 
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(sessionData.model || 'gpt-4o-realtime-preview-2024-10-01')}`;
+      const wsUrl = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(sessionData.model || 'gpt-realtime-2025-08-28')}`;
       this.ws = new WebSocket(wsUrl, ['realtime', `openai-insecure-api-key.${clientSecret}`]);
 
       this.ws.onopen = () => {
@@ -76,8 +76,12 @@ export class RealtimeVoiceChat {
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: 'whisper-1'
+            input_audio_transcription: { model: 'whisper-1' },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
             }
           }
         }));
@@ -146,6 +150,12 @@ export class RealtimeVoiceChat {
 
           // Support both typed and untyped messages
           if (data?.audioData && this.ws?.readyState === WebSocket.OPEN) {
+            // If assistant speaking, cancel once to support barge-in
+            if (this.assistantSpeaking && !this.cancelSent) {
+              try { this.ws?.send(JSON.stringify({ type: 'response.cancel' })); } catch {}
+              this.cancelSent = true;
+              this.onSpeakingChangeCallback(false);
+            }
             // Convert Int16Array to base64 PCM16
             const uint8 = new Uint8Array(data.audioData.buffer);
             let binary = '';
@@ -242,10 +252,14 @@ export class RealtimeVoiceChat {
         break;
         
       case 'response.audio.start':
+        this.assistantSpeaking = true;
+        this.cancelSent = false;
         this.onSpeakingChangeCallback(true);
         break;
         
       case 'response.audio.done':
+        this.assistantSpeaking = false;
+        this.cancelSent = false;
         this.onSpeakingChangeCallback(false);
         break;
         

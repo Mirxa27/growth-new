@@ -586,12 +586,36 @@ class NotificationService {
       // Register service worker
       const registration = await navigator.serviceWorker.ready;
 
+      // Validate VAPID key
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+      if (!vapidKey || vapidKey.length < 20) {
+        console.warn('Push registration skipped: VAPID public key missing or invalid');
+        return false;
+      }
+
+      // Reuse existing subscription if available
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        try {
+          const { error } = await supabase
+            .from('push_subscriptions')
+            .upsert([{
+              user_id: this.userId,
+              subscription: existing.toJSON(),
+              user_agent: navigator.userAgent,
+            }] as any);
+          if (error) throw error;
+          this.pushRegistration = existing;
+          return true;
+        } catch (e) {
+          console.warn('Failed to persist existing push subscription, attempting re-subscribe');
+        }
+      }
+
       // Get push subscription
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(
-          import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
-        ) as unknown as BufferSource,
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey) as unknown as BufferSource,
       });
 
       // Save subscription to database

@@ -6,6 +6,7 @@ import {
   AssessmentQuestion
 } from '@/types/assessment';
 import { Database } from '@/integrations/supabase/types';
+import { paymentService } from '@/services/api/payment.service';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Type aliases for better type safety
@@ -114,6 +115,66 @@ export const getPublicAssessments = async (): Promise<Assessment[]> => {
   throw new AssessmentError('Failed to fetch public assessments', 'FETCH_FAILED', 500);
 };
 
+// Determine if current user has an active subscription
+export const hasActiveSubscription = async (): Promise<boolean> => {
+  try {
+    const { data } = await paymentService.getCurrentSubscription();
+    return !!data;
+  } catch {
+    return false;
+  }
+};
+
+// Compute whether current user can access a given assessment by visibility
+export const canAccessAssessment = async (visibility: 'public' | 'users' | 'premium'): Promise<boolean> => {
+  if (visibility === 'public') return true;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const isLoggedIn = !!sessionData.session?.user;
+  if (visibility === 'users') return isLoggedIn;
+  if (visibility === 'premium') {
+    if (!isLoggedIn) return false;
+    return await hasActiveSubscription();
+  }
+  return false;
+};
+
+// Fetch assessments available to the current user (visitor/user/subscriber)
+export const getAccessibleAssessments = async (): Promise<Assessment[]> => {
+  const cacheKey = 'accessible-assessments';
+  const cached = getFromCache<Assessment[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isLoggedIn = !!sessionData.session?.user;
+    const subscribed = isLoggedIn ? await hasActiveSubscription() : false;
+
+    let visibilities: Array<'public' | 'users' | 'premium'> = ['public'];
+    if (isLoggedIn) visibilities = ['public', 'users'];
+    if (subscribed) visibilities = ['public', 'users', 'premium'];
+
+    const { data, error } = await supabase
+      .from('assessments')
+      .select(`
+        *,
+        questions:assessment_questions(
+          *,
+          options:assessment_options(*)
+        )
+      `)
+      .in('visibility', visibilities)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    const assessments = (data || []).map(transformAssessmentRow);
+    setCache(cacheKey, assessments);
+    return assessments;
+  } catch (error) {
+    handleError(error, 'getAccessibleAssessments');
+  }
+  throw new AssessmentError('Failed to fetch accessible assessments', 'FETCH_FAILED', 500);
+};
+
 // Fetch assessments with advanced filtering
 export const getAssessments = async (filters?: {
   category?: string;
@@ -201,6 +262,11 @@ export const getAssessmentById = async (id: string): Promise<Assessment | null> 
     if (!data) return null;
 
     const assessment = transformAssessmentRow(data);
+    // Enforce access control
+    const allowed = await canAccessAssessment(assessment.visibility);
+    if (!allowed) {
+      throw new AssessmentError('You do not have access to this assessment', 'FORBIDDEN', 403, { visibility: assessment.visibility });
+    }
     setCache(cacheKey, assessment);
     return assessment;
   } catch (error) {

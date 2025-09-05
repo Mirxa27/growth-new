@@ -14,7 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { voiceService } from '@/services';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { env } from '@/config/environment';
 
@@ -68,24 +68,32 @@ export const RealtimeVoiceInterface = ({
     setError(null);
     
     try {
-      // Check if voice features are enabled
-      if (!voiceService.isVoiceEnabled()) {
-        throw new Error('Voice features are not enabled. Please configure OpenAI API key in settings.');
+      // Get ephemeral client secret and model from server (admin-configured)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) throw new Error('Authentication required');
+
+      const tokenResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-realtime-token`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!tokenResp.ok) {
+        const err = await tokenResp.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to get realtime token');
       }
-      
-      // Get realtime configuration from service
-      const { data: config, error: configError } = await voiceService.getRealtimeConfig();
-      if (configError || !config) {
-        throw new Error(configError?.message || 'Failed to load voice configuration');
-      }
-      
+      const tokenData = await tokenResp.json();
+      const clientSecret: string = tokenData.client_secret?.value || tokenData.client_secret;
+      const model: string = tokenData.model || 'gpt-realtime-2025-08-28';
+
       // Generate session
       const newSessionId = `voice_session_${Date.now()}`;
       setSessionId(newSessionId);
       
       const ws = new WebSocket(
-        `wss://api.openai.com/v1/realtime?model=${config.model || 'gpt-4o-realtime-preview-2024-10-01'}`,
-        ['realtime', `openai-insecure-api-key.${config.apiKey}`]
+        `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
+        ['realtime', `openai-insecure-api-key.${clientSecret}`]
       );
       
       ws.onopen = () => {
@@ -99,19 +107,18 @@ export const RealtimeVoiceInterface = ({
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: config.instructions || `You are a supportive growth guide dedicated to helping users on their journey of self-discovery and personal growth. Speak warmly and with care.`,
-            voice: config.voice || 'alloy',
+            instructions: `You are a supportive growth guide dedicated to helping users on their journey of self-discovery and personal growth. Speak warmly and with care.`,
+            voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
-            temperature: config.temperature,
-            max_response_output_tokens: config.maxTokens,
+            input_audio_transcription: { model: 'whisper-1' },
             turn_detection: {
               type: 'server_vad',
               threshold: 0.5,
               prefix_padding_ms: 300,
-              silence_duration_ms: 200
+              silence_duration_ms: 1000
             },
-            tools: config.tools || []
+            tools: []
           }
         }));
         

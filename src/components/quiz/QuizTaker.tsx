@@ -186,8 +186,8 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ assessment, onComplete, onBack })
             >
               {currentQuestion.options?.map((option, optIndex) => (
                 <Label key={`${currentQuestion.id}-option-${optIndex}`} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-primary/5">
-                  <RadioGroupItem value={option} />
-                  <span>{option}</span>
+                  <RadioGroupItem value={option.id} />
+                  <span>{option.text}</span>
                 </Label>
               ))}
             </RadioGroup>

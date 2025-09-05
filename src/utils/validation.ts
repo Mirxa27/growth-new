@@ -12,7 +12,7 @@ export const assessmentSchema = z.object({
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
   type: z.enum(['personality', 'cognitive', 'communication', 'lifestyle', 'relationships', 'wellness', 'quiz']),
   category: z.string().min(1, 'Category is required').max(50, 'Category must be 50 characters or less'),
-  visibility: z.enum(['public', 'private', 'premium']),
+  visibility: z.enum(['public', 'users', 'premium']),
   estimatedTime: z.number().min(1, 'Estimated time must be at least 1 minute').max(120, 'Estimated time must be 120 minutes or less'),
   questions: z.array(z.object({
     id: z.string().min(1, 'Question ID is required'),

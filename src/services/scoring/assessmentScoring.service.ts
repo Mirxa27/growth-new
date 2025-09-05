@@ -3,16 +3,13 @@
  * Implements sophisticated scoring algorithms for different assessment types
  */
 
-import { Assessment, AssessmentQuestion, AssessmentResult } from '@/types/assessment';
+import { Assessment, AssessmentQuestion } from '@/types/assessment';
 import { supabase } from '@/integrations/supabase/client';
 
 export enum ScoringAlgorithm {
-  SUMMATION = 'summation',
-  AVERAGE = 'average',
-  WEIGHTED = 'weighted',
-  PERCENTILE = 'percentile',
-  PERSONALITY = 'personality',
-  COMPOSITE = 'composite'
+  SUMMATION = 'cumulative',
+  WEIGHTED = 'categorical',
+  PERSONALITY = 'personality'
 }
 
 export interface ScoringResult {
@@ -41,19 +38,15 @@ export class AssessmentScoringService {
    */
   static calculateScore(
     assessment: Assessment,
-    responses: Record<string, any>
+    responses: Record<string, string | number | boolean | string[]>
   ): ScoringResult {
-    const scoringType = assessment.scoring?.type || 'summation';
+    const scoringType = assessment.scoring?.type || 'cumulative';
     
     switch (scoringType) {
-      case ScoringAlgorithm.PERSONALITY:
+      case 'personality':
         return this.calculatePersonalityScore(assessment, responses);
-      case ScoringAlgorithm.WEIGHTED:
+      case 'categorical':
         return this.calculateWeightedScore(assessment, responses);
-      case ScoringAlgorithm.PERCENTILE:
-        return this.calculatePercentileScore(assessment, responses);
-      case ScoringAlgorithm.COMPOSITE:
-        return this.calculateCompositeScore(assessment, responses);
       default:
         return this.calculateSummationScore(assessment, responses);
     }
@@ -64,7 +57,7 @@ export class AssessmentScoringService {
    */
   private static calculateSummationScore(
     assessment: Assessment,
-    responses: Record<string, any>
+    responses: Record<string, string | number | boolean | string[]>
   ): ScoringResult {
     let totalScore = 0;
     let maxScore = 0;
@@ -101,7 +94,7 @@ export class AssessmentScoringService {
    */
   private static calculateWeightedScore(
     assessment: Assessment,
-    responses: Record<string, any>
+    responses: Record<string, string | number | boolean | string[]>
   ): ScoringResult {
     const weights = assessment.scoring?.weights || {};
     let weightedScore = 0;
@@ -145,7 +138,7 @@ export class AssessmentScoringService {
    */
   private static calculatePersonalityScore(
     assessment: Assessment,
-    responses: Record<string, any>
+    responses: Record<string, string | number | boolean | string[]>
   ): ScoringResult {
     const personalityTypes = assessment.scoring?.personalityTypes || {};
     const scores: Record<string, number> = {};
@@ -161,8 +154,9 @@ export class AssessmentScoringService {
 
       // Apply personality type mapping
       Object.entries(personalityTypes).forEach(([type, mapping]) => {
-        if (mapping[question.id]) {
-          scores[type] += questionScore * (mapping[question.id] || 1);
+        const mappingRecord = mapping as Record<string, number>;
+        if (mappingRecord[question.id]) {
+          scores[type] += questionScore * (mappingRecord[question.id] || 1);
         }
       });
     });
@@ -192,39 +186,46 @@ export class AssessmentScoringService {
   /**
    * Calculate score for individual question
    */
-  private static getQuestionScore(question: AssessmentQuestion, answer: any): number {
+  private static getQuestionScore(question: AssessmentQuestion, answer: string | number | boolean | string[]): number {
     if (!answer) return 0;
 
     switch (question.type) {
-      case 'multiple_choice':
+      case 'multiple':
         return this.calculateMultipleChoiceScore(question, answer);
       case 'scale':
         return this.calculateScaleScore(question, answer);
-      case 'boolean':
+      case 'single':
         return this.calculateBooleanScore(question, answer);
       case 'text':
         return this.calculateTextScore(question, answer);
-      case 'matrix':
-        return this.calculateMatrixScore(question, answer);
       default:
         return 0;
     }
   }
 
-  private static calculateMultipleChoiceScore(question: AssessmentQuestion, answer: string): number {
-    const option = question.options.find(opt => opt.id === answer);
-    return option ? parseInt(option.value) || 1 : 0;
+  private static calculateMultipleChoiceScore(question: AssessmentQuestion, answer: string | number | boolean | string[]): number {
+    if (typeof answer !== 'string') return 0;
+    const option = question.options?.find(opt => opt.id === answer);
+    return option ? parseInt(option.value.toString()) || 1 : 0;
   }
 
-  private static calculateScaleScore(question: AssessmentQuestion, answer: string): number {
-    return parseInt(answer) || 0;
+  private static calculateScaleScore(question: AssessmentQuestion, answer: string | number | boolean | string[]): number {
+    if (typeof answer !== 'string' && typeof answer !== 'number') return 0;
+    return parseInt(answer.toString()) || 0;
   }
 
-  private static calculateBooleanScore(question: AssessmentQuestion, answer: boolean): number {
+  private static calculateBooleanScore(question: AssessmentQuestion, answer: string | number | boolean | string[]): number {
+    if (typeof answer !== 'boolean') return 0;
     return answer ? 1 : 0;
   }
 
-  private static calculateTextScore(question: AssessmentQuestion, answer: string): number {
+  private static calculateTextScore(question: AssessmentQuestion, answer: string | number | boolean | string[]): number {
+    if (Array.isArray(answer)) {
+      answer = answer.join(' ');
+    } else if (typeof answer !== 'string') {
+      return 0;
+    }
+    
     // For text questions, score based on length or keyword analysis
     const keywords = question.keywords || [];
     let score = 0;
@@ -238,26 +239,16 @@ export class AssessmentScoringService {
     return Math.min(score, question.maxScore || 5);
   }
 
-  private static calculateMatrixScore(question: AssessmentQuestion, answer: Record<string, string>): number {
-    let total = 0;
-    Object.values(answer).forEach(value => {
-      total += parseInt(value) || 0;
-    });
-    return total;
-  }
-
   private static getQuestionMaxScore(question: AssessmentQuestion): number {
     switch (question.type) {
-      case 'multiple_choice':
-        return Math.max(...question.options.map(opt => parseInt(opt.value) || 1));
+      case 'multiple':
+        return Math.max(...(question.options?.map(opt => parseInt(opt.value.toString()) || 1) || [1]));
       case 'scale':
         return question.maxScore || 10;
       case 'boolean':
         return 1;
       case 'text':
         return question.maxScore || 5;
-      case 'matrix':
-        return (question.maxScore || 10) * Object.keys(question.options).length;
       default:
         return 1;
     }
@@ -267,7 +258,7 @@ export class AssessmentScoringService {
     return maxScore > 0 ? score / maxScore : 0;
   }
 
-  private static calculateConfidenceLevel(responses: Record<string, any>): number {
+  private static calculateConfidenceLevel(responses: Record<string, string | number | boolean | string[]>): number {
     const answeredQuestions = Object.keys(responses).length;
     const requiredQuestions = Object.keys(responses).length; // This should be actual total
     
@@ -276,7 +267,7 @@ export class AssessmentScoringService {
     return Math.min((answeredQuestions / requiredQuestions) * 100, 100);
   }
 
-  private static extractFactors(assessment: Assessment, responses: Record<string, any>): Record<string, number> {
+  private static extractFactors(assessment: Assessment, responses: Record<string, string | number | boolean | string[]>): Record<string, number> {
     const factors: Record<string, number> = {};
     
     assessment.questions.forEach(question => {
@@ -315,7 +306,7 @@ export class AssessmentScoringService {
         .filter(q => q.category === category)
         .reduce((sum, q) => sum + this.getQuestionMaxScore(q), 0);
       
-      const categoryPercentage = maxCategoryScore > 0 ? (score / maxCategoryScore) * 100 : 0;
+      const categoryPercentage = maxCategoryScore > 0 ? (Number(score) / maxCategoryScore) * 100 : 0;
       
       if (categoryPercentage < 60) {
         insights.push(`Focus on improving ${category.replace('_', ' ')} skills`);
@@ -377,10 +368,10 @@ export class AssessmentScoringService {
 
       if (error) throw error;
 
-      const scores = (data || []).map(r => r.score).sort((a, b) => a - b);
+      const scores = (data || []).map(r => r.score).filter(s => s !== null).sort((a, b) => (a || 0) - (b || 0));
       if (scores.length === 0) return 50;
 
-      const rank = scores.filter(s => s <= score).length;
+      const rank = scores.filter(s => s !== null && s <= score).length;
       return Math.round((rank / scores.length) * 100);
     } catch (error) {
       console.error('Error calculating percentile:', error);

@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Clock, Target, Brain, Heart, Star, Sparkles, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Assessment } from '@/data/assessments';
+import { Assessment } from '@/types/assessment';
 import { useToast } from '@/hooks/use-toast';
 
 interface AssessmentCardProps {
-  assessment: Assessment & { difficulty?: string };
+  assessment: Assessment;
   isPublic?: boolean;
   onAssessmentClick?: (assessmentId: string) => void;
 }

@@ -15,7 +15,7 @@ import {
   Clock,
   ArrowLeft
 } from 'lucide-react';
-import { Assessment } from '@/data/assessments';
+import { Assessment } from '@/types/assessment';
 import { useToast } from '@/hooks/use-toast';
 
 interface FreeAssessmentTakerProps {
@@ -179,9 +179,9 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
             >
               {currentQuestion.options?.map((option, index) => (
                 <div key={index} className="flex items-center space-x-3 mb-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
-                  <RadioGroupItem value={option} id={`option-${index}`} />
+                  <RadioGroupItem value={option.id} id={`option-${index}`} />
                   <Label htmlFor={`option-${index}`} className="cursor-pointer text-sm text-foreground">
-                    {option}
+                    {option.text}
                   </Label>
                 </div>
               ))}
@@ -194,17 +194,17 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
                 <div key={index} className="flex items-center space-x-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
                   <Checkbox
                     id={`multi-${index}`}
-                    checked={currentAnswer?.includes(option) || false}
+                    checked={currentAnswer?.includes(option.id) || false}
                     onCheckedChange={(checked) => {
                       const currentAnswers = currentAnswer || [];
                       const newAnswers = checked
-                        ? [...currentAnswers, option]
-                        : currentAnswers.filter((a: string) => a !== option);
+                        ? [...currentAnswers, option.id]
+                        : currentAnswers.filter((a: string) => a !== option.id);
                       handleAnswer(currentQuestion.id, newAnswers);
                     }}
                   />
                   <Label htmlFor={`multi-${index}`} className="cursor-pointer text-sm text-foreground">
-                    {option}
+                    {option.text}
                   </Label>
                 </div>
               ))}

@@ -21,7 +21,7 @@ const VoiceAssistantDemo: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            OpenAI GPT-4o Realtime Voice Assistant
+            OpenAI GPT Realtime Voice Assistant
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Experience the future of conversational AI with real-time voice interaction, 
@@ -32,7 +32,7 @@ const VoiceAssistantDemo: React.FC = () => {
           <div className="flex flex-wrap justify-center gap-2">
             <Badge variant="secondary" className="flex items-center gap-1">
               <Brain className="h-3 w-3" />
-              GPT-4o Realtime
+              GPT Realtime
             </Badge>
             <Badge variant="secondary" className="flex items-center gap-1">
               <Mic className="h-3 w-3" />
@@ -60,7 +60,7 @@ const VoiceAssistantDemo: React.FC = () => {
               <Brain className="h-8 w-8 mx-auto mb-2 text-purple-600" />
               <h3 className="font-semibold">Advanced AI</h3>
               <p className="text-sm text-muted-foreground">
-                Latest GPT-4o with realtime capabilities
+                Standardized GPT Realtime with audio streaming
               </p>
             </CardContent>
           </Card>
