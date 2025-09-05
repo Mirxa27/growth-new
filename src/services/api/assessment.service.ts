@@ -20,7 +20,7 @@ export class AssessmentError extends Error {
     message: string,
     public code: string,
     public statusCode: number = 500,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'AssessmentError';

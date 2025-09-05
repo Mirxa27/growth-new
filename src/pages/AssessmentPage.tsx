@@ -26,21 +26,6 @@ interface Option {
   is_correct?: boolean;
 }
 
-// Interface for the raw question structure coming from Supabase JSON
-interface AssessmentQuestion {
-  id: string;
-  text: string;
-  type: 'multiple_choice' | 'free_text';
-  position: number;
-  explanation?: string;
-  options: {
-    id: string;
-    text: string;
-    position: number;
-    is_correct?: boolean;
-  }[];
-}
-
 // Extended Assessment type to include typed questions and scoring info
 type ExtendedAssessment = Database['public']['Tables']['assessments']['Row'] & {
   questions?: Json;
@@ -89,41 +74,51 @@ const AssessmentPage = () => {
       try {
         setIsLoading(true);
 
-        // Fetch assessment details from Supabase
-        const { data, error } = await supabase
-          .from('assessments')
-          .select('*')
-          .eq('id', assessmentId)
-          .single();
+        // Use the assessment service instead of direct Supabase query
+        const { getAssessmentById } = await import('@/services/api/assessment.service');
+        const assessmentData = await getAssessmentById(assessmentId.toString());
 
-        if (error || !data) {
+        if (!assessmentData) {
           throw new Error('Assessment not found');
         }
-        
-        const assess = data as ExtendedAssessment;
 
-        // Cast questions from JSON to a typed array
-        const rawQuestions = assess.questions as unknown as AssessmentQuestion[];
-        if (!Array.isArray(rawQuestions)) {
-          throw new Error('Invalid questions format');
+        // Check if questions exist and are properly formatted
+        if (!assessmentData.questions || !Array.isArray(assessmentData.questions)) {
+          throw new Error('Invalid questions format: questions must be an array');
         }
 
-        // Format the raw questions into the structure used by the component state
-        const formattedQuestions: Question[] = rawQuestions.map(q => ({
-          id: q.id,
+        // Transform assessment questions to match the component's expected Question type
+        const formattedQuestions: Question[] = assessmentData.questions.map((q, index) => ({
+          id: q.id || `question-${index}`,
           question_text: q.text,
-          question_type: q.type,
-          position: q.position,
-          explanation: q.explanation,
-          options: q.options.map(opt => ({
-            id: opt.id,
-            option_text: opt.text,
-            position: opt.position,
-            is_correct: opt.is_correct ?? false,
+          question_type: (q.type === 'text' || q.type === 'scale') ? 'free_text' : 'multiple_choice',
+          position: index + 1,
+          explanation: '', // Default empty explanation
+          options: (q.options || []).map((optText, optIndex) => ({
+            id: `option-${index}-${optIndex}`,
+            option_text: optText,
+            position: optIndex + 1,
+            is_correct: false, // Default value
           })),
         }));
 
-        setAssessment(assess as ExtendedAssessment);
+        // Safely cast assessmentData to ExtendedAssessment
+        const extendedAssessment = {
+          ...assessmentData,
+          // Add missing properties for ExtendedAssessment type
+          created_at: assessmentData.createdAt || new Date().toISOString(),
+          updated_at: assessmentData.updatedAt || new Date().toISOString(),
+          created_by: null,
+          ai_model: null,
+          ai_prompt: null,
+          ai_provider: null,
+          difficulty: 'intermediate',
+          estimated_time: assessmentData.estimatedTime || 5,
+          // Keep the questions in the format expected by component
+          questions: formattedQuestions
+        } as unknown as ExtendedAssessment;
+
+        setAssessment(extendedAssessment);
         setQuestions(formattedQuestions);
       } catch (err) {
         console.error('Error loading assessment:', err);
