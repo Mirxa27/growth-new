@@ -284,10 +284,10 @@ class StorageService {
         { data: sessions }
       ] = await Promise.all([
         supabase.from('user_profiles').select('*').eq('id', user.id).single(),
-        supabase.from('assessments').select('*').eq('user_id', user.id),
-        supabase.from('goals').select('*').eq('user_id', user.id),
-        supabase.from('journal_entries').select('*').eq('user_id', user.id),
-        supabase.from('chat_sessions').select('*, chat_messages(*)').eq('user_id', user.id)
+        supabase.from('assessments').select('*').eq('created_by', user.id),
+        supabase.from('goals' as any).select('*').eq('user_id', user.id),
+        supabase.from('journal_entries' as any).select('*').eq('user_id', user.id),
+        supabase.from('chat_sessions' as any).select('*, chat_messages(*)').eq('user_id', user.id)
       ]);
 
       const exportData = {

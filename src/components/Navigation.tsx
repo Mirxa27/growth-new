@@ -64,24 +64,24 @@ export const Navigation = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
+    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-3 sm:px-6 sm:py-4">
       <div className="max-w-7xl mx-auto">
-        <div className="glass-strong rounded-2xl px-6 py-4 flex items-center justify-between">
+        <div className="glass-strong rounded-2xl px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
           {/* Logo */}
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
               <ResponsiveImage
                 src="/symbol.svg"
                 alt="Newomen Logo"
-                className="w-8 h-8"
+                className="w-6 h-6 sm:w-8 sm:h-8"
                 loadingType="eager"
-                sizes="32px"
+                sizes="(max-width: 640px) 24px, 32px"
               />
             </div>
-            <span className="text-xl font-bold text-hero bg-gradient-primary bg-clip-text text-transparent">
+            <span className="text-lg sm:text-xl font-bold text-hero bg-gradient-primary bg-clip-text text-transparent">
               Newomen
             </span>
           </button>
@@ -104,7 +104,7 @@ export const Navigation = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground hidden lg:block">
                   Welcome back!
                 </span>
                 <Button
@@ -128,6 +128,7 @@ export const Navigation = () => {
                   variant="glass"
                   size="sm"
                   onClick={handleSignIn}
+                  className="hidden lg:flex"
                 >
                   Sign In
                 </Button>
@@ -144,28 +145,28 @@ export const Navigation = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-3 rounded-lg glass-button interactive hover:scale-105 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="md:hidden lg:hidden p-2 sm:p-3 rounded-xl glass-button interactive hover:scale-105 transition-transform min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle mobile menu"
           >
-            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {isMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden mt-4">
-            <div className="glass-strong rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-5 duration-300 ease-in-out">
+          <div className="md:hidden lg:hidden mt-3 sm:mt-4">
+            <div className="glass-strong rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4 animate-in slide-in-from-top-5 duration-300 ease-in-out mx-2 sm:mx-0">
               {navItems.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => handleNavClick(item.href)}
-                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium py-3 w-full text-left hover:scale-105 transition-transform min-h-[44px] flex items-center"
+                  className="block text-muted-foreground hover:text-foreground transition-all duration-200 font-medium py-3 px-2 w-full text-left hover:scale-105 min-h-[44px] flex items-center rounded-xl hover:bg-white/10"
                 >
                   {item.name}
                 </button>
               ))}
-              <div className="pt-4 border-t border-border flex flex-col gap-3">
+              <div className="pt-3 sm:pt-4 border-t border-border/50 flex flex-col gap-3">
                 {user ? (
                   <>
                     <Button
@@ -174,13 +175,13 @@ export const Navigation = () => {
                         navigate('/dashboard');
                         setIsMenuOpen(false);
                       }}
-                      className="w-full"
+                      className="w-full h-12 text-base"
                     >
                       Dashboard
                     </Button>
                     <Button
                       variant="glass"
-                      className="w-full"
+                      className="w-full h-12 text-base"
                       onClick={() => {
                         signOut();
                         setIsMenuOpen(false);
@@ -193,7 +194,7 @@ export const Navigation = () => {
                   <>
                     <Button
                       variant="glass"
-                      className="w-full"
+                      className="w-full h-12 text-base"
                       onClick={() => {
                         handleSignIn();
                         setIsMenuOpen(false);
@@ -203,7 +204,7 @@ export const Navigation = () => {
                     </Button>
                     <Button
                       variant="hero"
-                      className="w-full"
+                      className="w-full h-12 text-base"
                       onClick={() => {
                         handleAuthAction();
                         setIsMenuOpen(false);

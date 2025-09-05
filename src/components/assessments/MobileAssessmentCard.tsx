@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Clock, Target, Brain, Heart, Star, Sparkles } from 'lucide-react';
+import { ArrowRight, Clock, Target, Brain, Heart, Star, Sparkles, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getPublicAssessments } from '@/services/api/assessment.service';
-import { Assessment } from '@/types/assessment';
+import { Assessment } from '@/data/assessments';
+import { useToast } from '@/hooks/use-toast';
 
 interface AssessmentCardProps {
-  assessment: Assessment;
+  assessment: Assessment & { difficulty?: string };
   isPublic?: boolean;
+  onAssessmentClick?: (assessmentId: string) => void;
 }
 
 const getCategoryIcon = (category?: string) => {
@@ -44,72 +45,145 @@ const getDifficultyColor = (difficulty?: string) => {
   }
 };
 
-export const MobileAssessmentCard: React.FC<AssessmentCardProps> = ({ assessment, isPublic = false }) => {
+const getCategoryColor = (category?: string) => {
+  switch (category?.toLowerCase()) {
+    case 'personal development':
+    case 'confidence':
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
+    case 'emotional intelligence':
+    case 'relationships':
+      return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100';
+    case 'wellness':
+    case 'health':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
+    case 'purpose':
+    case 'career':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
+  }
+};
+
+export const MobileAssessmentCard: React.FC<AssessmentCardProps> = ({ 
+  assessment, 
+  isPublic = false,
+  onAssessmentClick 
+}) => {
   const navigate = useNavigate();
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const { toast } = useToast();
+  const [isStarting, setIsStarting] = useState(false);
 
-  useEffect(() => {
-    const fetchAssessments = async () => {
-      const data = await getPublicAssessments();
-      setAssessments(data);
-    };
+  const handleStart = useCallback(async () => {
+    if (isStarting) return;
+    
+    setIsStarting(true);
+    try {
+      if (onAssessmentClick) {
+        onAssessmentClick(assessment.id);
+      } else {
+        await navigate(`/assessment/${assessment.id}`);
+      }
+    } catch (error) {
+      console.error('Failed to start assessment:', error);
+      toast({
+        title: "Unable to Start Assessment",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  }, [assessment.id, isStarting, navigate, onAssessmentClick, toast]);
 
-    fetchAssessments();
-  }, []);
-
-  const handleStart = () => {
-    if (isPublic) {
-      navigate(`/assessment/${assessment.id}`);
-    } else {
-      navigate(`/assessment/${assessment.id}`);
+  const getAssessmentTypeLabel = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'quiz':
+        return 'Quiz';
+      case 'exploration':
+        return 'Exploration';
+      case 'personality':
+        return 'Personality Test';
+      case 'cognitive':
+        return 'Cognitive Assessment';
+      case 'communication':
+        return 'Communication Style';
+      case 'lifestyle':
+        return 'Lifestyle Check';
+      default:
+        return 'Assessment';
     }
   };
 
+  const formatEstimatedTime = (minutes: number) => {
+    if (minutes < 1) return '< 1 min';
+    if (minutes === 1) return '1 min';
+    return `${minutes} min`;
+  };
+
   return (
-    <Card className="glass-card border-glass hover:shadow-lg transition-all duration-300 touch-manipulation">
+    <Card className="glass-card border-glass hover:shadow-lg transition-all duration-300 touch-manipulation group">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            {getCategoryIcon(assessment.category)}
-            <Badge variant="secondary" className="text-xs">
-              {assessment.type === 'quiz' ? 'Quiz' : assessment.type === 'exploration' ? 'Exploration' : 'Assessment'}
+            <div className={`p-2 rounded-lg ${getCategoryColor(assessment.category)}`}>
+              {getCategoryIcon(assessment.category)}
+            </div>
+            <Badge variant="secondary" className="text-xs font-medium">
+              {getAssessmentTypeLabel(assessment.type)}
             </Badge>
           </div>
-          {assessment.difficulty && (
-            <Badge className={`text-xs ${getDifficultyColor(assessment.difficulty)}`}>
-              {assessment.difficulty}
+          {(assessment as any).difficulty && (
+            <Badge className={`text-xs font-medium ${getDifficultyColor((assessment as any).difficulty)}`}>
+              {(assessment as any).difficulty}
             </Badge>
           )}
         </div>
-        <CardTitle className="text-lg line-clamp-2">{assessment.title}</CardTitle>
-        <CardDescription className="text-sm line-clamp-3 mt-1">
+        <CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
+          {assessment.title}
+        </CardTitle>
+        <CardDescription className="text-sm line-clamp-3 mt-2 leading-relaxed">
           {assessment.description}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
           <div className="flex items-center gap-4">
-            {assessment.question_count && (
-              <span className="flex items-center gap-1">
+            {assessment.questions?.length && (
+              <span className="flex items-center gap-1 font-medium">
                 <Target className="w-3 h-3" />
-                {assessment.question_count} questions
+                {assessment.questions.length} questions
               </span>
             )}
-            {assessment.estimated_time && (
-              <span className="flex items-center gap-1">
+            {assessment.estimatedTime && (
+              <span className="flex items-center gap-1 font-medium">
                 <Clock className="w-3 h-3" />
-                {assessment.estimated_time} min
+                {formatEstimatedTime(assessment.estimatedTime)}
               </span>
             )}
           </div>
+          {assessment.category && (
+            <Badge variant="outline" className="text-xs">
+              {assessment.category}
+            </Badge>
+          )}
         </div>
         <Button 
           onClick={handleStart}
-          className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
+          className="w-full bg-gradient-primary hover:opacity-90 transition-all duration-200 group-hover:shadow-glow"
           size="sm"
+          disabled={isStarting}
         >
-          {isPublic ? 'Start Free Assessment' : 'Begin Assessment'}
-          <ArrowRight className="w-4 h-4 ml-2" />
+          {isStarting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Starting...
+            </>
+          ) : (
+            <>
+              {isPublic ? 'Start Free Assessment' : 'Begin Assessment'}
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>

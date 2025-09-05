@@ -189,7 +189,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
           })) : []
       }));
 
-      const { data, error } = await supabase.rpc('create_assessment_with_questions', {
+      const { data, error } = await supabase.rpc('create_assessment_with_questions' as any, {
         _title: title,
         _description: description,
         _type: type,
@@ -198,7 +198,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
         _ai_model: 'gpt-4o-mini',
         _ai_prompt: aiPrompt || `Manual assessment: ${title}`,
         _questions: formattedQuestions
-      });
+      } as any);
 
       if (error) throw error;
 

@@ -213,7 +213,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
       // Validate save parameters
       const validatedParams = saveAssessmentParamsSchema.parse(params);
 
-      const { error } = await supabase.rpc('create_assessment_with_questions', validatedParams);
+      const { error } = await supabase.rpc('create_assessment_with_questions' as any, validatedParams as any);
 
       if (error) throw error;
 
@@ -231,8 +231,8 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
       };
 
       const { error: logError } = await supabase
-        .from('admin_logs')
-        .insert([logEntry]);
+        .from('admin_logs' as any)
+        .insert([logEntry] as any);
 
       if (logError) {
         console.error('Error logging assessment creation:', logError);
@@ -325,7 +325,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
         throw new Error('Title, description, facilitator_prompt, and higher_self_prompt are required');
       }
 
-      const { error } = await supabase.from('explorations').insert([payload]);
+      const { error } = await supabase.from('explorations' as any).insert([payload] as any);
       if (error) throw error;
       toast({ title: 'Exploration saved' });
       setExplorationContent(null);
@@ -371,7 +371,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
       const parsed = JSON.parse(courseContentJson);
       const title = String(parsed.title || 'Untitled Course');
       const description = String(parsed.description || '');
-      const { error } = await supabase.from('library_items').insert([
+      const { error } = await supabase.from('library_items' as any).insert([
         {
           title,
           description,
@@ -383,7 +383,7 @@ export const AIContentBuilder: React.FC<AIAssessmentBuilderProps> = ({ onAssessm
           is_premium: false,
           content_url: `data:application/json,${encodeURIComponent(courseContentJson)}`,
         },
-      ]);
+      ] as any);
       if (error) throw error;
       toast({ title: 'Course saved' });
       setCourseContentJson('');

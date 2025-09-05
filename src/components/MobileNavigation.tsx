@@ -1,28 +1,42 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, BookOpen, Users, User } from 'lucide-react';
+import { Home, BookOpen, Users, User, Brain } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export const MobileNavigation: React.FC = () => {
+  const { user } = useAuth();
+
+  const tabs = [
+    { name: 'Home', href: '/dashboard', icon: Home },
+    { name: 'Assess', href: '/assessment', icon: Brain },
+    { name: 'Learn', href: '/library', icon: BookOpen },
+    { name: 'Community', href: '/community', icon: Users },
+    { name: 'Profile', href: user ? '/profile' : '/auth', icon: User },
+  ];
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg md:hidden">
-      <div className="flex justify-around py-2">
-        <NavLink to="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-primary">
-          <Home className="w-6 h-6" />
-          <span className="text-xs">Home</span>
-        </NavLink>
-        <NavLink to="/library" className="flex flex-col items-center text-gray-600 hover:text-primary">
-          <BookOpen className="w-6 h-6" />
-          <span className="text-xs">Library</span>
-        </NavLink>
-        <NavLink to="/community" className="flex flex-col items-center text-gray-600 hover:text-primary">
-          <Users className="w-6 h-6" />
-          <span className="text-xs">Community</span>
-        </NavLink>
-        <NavLink to="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
-          <User className="w-6 h-6" />
-          <span className="text-xs">Profile</span>
-        </NavLink>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 p-4 md:hidden" role="navigation" aria-label="Mobile Navigation">
+      <div className="glass-strong rounded-2xl mx-2 p-2">
+        <div className="flex justify-around">
+          {tabs.map((tab) => (
+            <NavLink
+              key={tab.name}
+              to={tab.href}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-200 min-h-[56px] min-w-[56px] group ${
+                  isActive
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/10'
+                }`
+              }
+              aria-current={undefined}
+            >
+              <tab.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+              <span className="text-xs font-medium mt-1">{tab.name}</span>
+            </NavLink>
+          ))}
+        </div>
       </div>
-    </div>
+    </nav>
   );
 };

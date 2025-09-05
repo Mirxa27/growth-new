@@ -6,19 +6,17 @@ import { useNavigate } from "react-router-dom";
 export const Features = () => {
   const navigate = useNavigate();
 
-  const handleStartDiscovery = () => {
-    console.log('Navigating to /mobile-assessment-hub');
+  const handleStartDiscovery = async () => {
     try {
-      navigate("/mobile-assessment-hub");
+      await navigate("/mobile-assessment-hub");
     } catch (error) {
       console.error('Navigation error:', error);
     }
   };
 
-  const handleAuth = () => {
-    console.log('Navigating to /auth');
+  const handleAuth = async () => {
     try {
-      navigate("/auth");
+      await navigate("/auth");
     } catch (error) {
       console.error('Navigation error:', error);
     }

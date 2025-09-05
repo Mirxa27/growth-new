@@ -124,9 +124,6 @@ export const sanitizeUsername = (username: string): string => {
 export const sanitizeRichText = (content: string): string => {
   if (typeof content !== 'string') return '';
   
-  // Allow basic HTML tags for rich text
-  const allowedTags = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a'];
-  
   return content
     .trim()
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -140,17 +137,17 @@ export const sanitizeRichText = (content: string): string => {
 // XSS protection
 export const escapeHtml = (unsafe: string): string => {
   return unsafe
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, """)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 };
 
 // Input length validation
-export const validateLength = (input: string, min: number, max: number): boolean => {
-  const trimmed = input?.trim();
-  return trimmed && trimmed.length >= min && trimmed.length <= max;
+export const validateLength = (input: string | undefined | null, min: number, max: number): boolean => {
+  const trimmed = typeof input === 'string' ? input.trim() : '';
+  return trimmed.length >= min && trimmed.length <= max;
 };
 
 // File upload validation
@@ -193,30 +190,30 @@ export const validateAge = (birthDate: string, minAge: number = 13): boolean => 
 };
 
 // Validate and sanitize form data
-export const validateAndSanitize = <T extends Record<string, any>>(
-  data: T,
-  schema: z.ZodSchema<T>
-): { success: boolean; data?: T; errors?: Record<string, string> } => {
+export const validateAndSanitize = (
+  data: Record<string, unknown>,
+  schema: z.ZodSchema<unknown>
+): { success: boolean; data?: Record<string, unknown>; errors?: Record<string, string> } => {
   try {
-    const validated = schema.parse(data);
-    
-    // Sanitize string fields
-    const sanitized = Object.entries(validated).reduce((acc, [key, value]) => {
+    const validated = schema.parse(data) as Record<string, unknown>;
+
+    // Sanitize string fields into a plain record
+    const sanitized: Record<string, unknown> = {};
+    Object.entries(validated).forEach(([key, value]) => {
       if (typeof value === 'string') {
-        acc[key] = sanitizeInput(value);
+        sanitized[key] = sanitizeInput(value as string);
       } else {
-        acc[key] = value;
+        sanitized[key] = value;
       }
-      return acc;
-    }, {} as T);
-    
+    });
+
     return { success: true, data: sanitized };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
       error.errors.forEach((err) => {
         if (err.path.length > 0) {
-          errors[err.path[0].toString()] = err.message;
+          errors[err.path.toString()] = err.message;
         }
       });
       return { success: false, errors };

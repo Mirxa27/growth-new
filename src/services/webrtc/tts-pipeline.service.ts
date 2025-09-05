@@ -279,9 +279,10 @@ export class TTSPipeline extends EventEmitter {
     try {
       const startTime = Date.now();
       
-      const audioData = await openaiService.textToSpeech(text, {
+      const audioData = await openaiService.textToSpeech({
         model: this.config.model || 'tts-1',
         voice: this.config.voice || 'alloy',
+        input: text,
         speed: this.config.speed,
         response_format: this.config.format
       });

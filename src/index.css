@@ -348,7 +348,33 @@
   /* Micro-interactions */
   .micro-bounce:active {
     transform: scale(0.95);
-    transition: var(--transition-smooth);
+  }
+
+  /* Mobile-specific glass styles for better mobile appearance */
+  @media (max-width: 768px) {
+    .glass-strong {
+      background: rgba(var(--glass-strong));
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(var(--glass-border));
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    }
+
+    .glass-button {
+      background: rgba(var(--glass-bg));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(var(--glass-border));
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .glass-nav {
+      background: rgba(var(--glass-strong));
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(var(--glass-border));
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
   }
 
   /* Ensure all buttons are clickable */

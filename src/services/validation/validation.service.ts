@@ -375,7 +375,7 @@ class ValidationService {
    * Sanitize HTML content
    */
   public sanitizeHtml(html: string, options?: any): string {
-    return DOMPurify.sanitize(html, options);
+    return DOMPurify.sanitize(html, options) as string;
   }
 
   /**

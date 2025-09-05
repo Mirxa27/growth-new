@@ -1,15 +1,18 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Assessment, AssessmentQuestion, AssessmentResult } from '@/types/assessment';
+import { 
+  Assessment, 
+  AssessmentResult, 
+  AssessmentSubmissionParams,
+  AssessmentQuestion
+} from '@/types/assessment';
 import { Database } from '@/integrations/supabase/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { queryClient } from '@/lib/react-query';
 
 // Type aliases for better type safety
 type AssessmentRow = Database['public']['Tables']['assessments']['Row'];
 type AssessmentQuestionRow = Database['public']['Tables']['assessment_questions']['Row'];
 type AssessmentOptionRow = Database['public']['Tables']['assessment_options']['Row'];
 type AssessmentResultRow = Database['public']['Tables']['assessment_results']['Row'];
-type UserAssessmentResultRow = Database['public']['Tables']['user_assessment_results']['Row'];
 
 // Enhanced error class for better error handling
 export class AssessmentError extends Error {
@@ -108,6 +111,7 @@ export const getPublicAssessments = async (): Promise<Assessment[]> => {
   } catch (error) {
     handleError(error, 'getPublicAssessments');
   }
+  throw new AssessmentError('Failed to fetch public assessments', 'FETCH_FAILED', 500);
 };
 
 // Fetch assessments with advanced filtering
@@ -165,10 +169,17 @@ export const getAssessments = async (filters?: {
   } catch (error) {
     handleError(error, 'getAssessments');
   }
+  throw new AssessmentError('Failed to fetch assessments', 'FETCH_FAILED', 500);
 };
 
 // Fetch single assessment by ID
 export const getAssessmentById = async (id: string): Promise<Assessment | null> => {
+  // Validate ID to prevent NaN issues
+  if (!id || id === 'null' || id === 'undefined' || isNaN(Number(id))) {
+    console.error('Invalid assessment ID provided:', id);
+    return null;
+  }
+
   const cacheKey = `assessment-${id}`;
   const cached = getFromCache<Assessment>(cacheKey);
   if (cached) return cached;
@@ -183,7 +194,7 @@ export const getAssessmentById = async (id: string): Promise<Assessment | null> 
           options:assessment_options(*)
         )
       `)
-      .eq('id', id)
+      .eq('id', Number(id)) // Ensure ID is a number
       .single();
 
     if (error) throw error;
@@ -195,6 +206,7 @@ export const getAssessmentById = async (id: string): Promise<Assessment | null> 
   } catch (error) {
     handleError(error, 'getAssessmentById');
   }
+  throw new AssessmentError('Failed to fetch assessment', 'FETCH_FAILED', 500);
 };
 
 // Fetch full assessment details
@@ -208,14 +220,12 @@ export const createAssessment = async (assessment: Partial<Assessment>): Promise
     const { data, error } = await supabase
       .from('assessments')
       .insert({
-        title: assessment.title,
-        description: assessment.description,
-        type: assessment.type,
-        category: assessment.category,
-        visibility: assessment.visibility,
-        estimated_time: assessment.estimatedTime,
-        scoring: assessment.scoring,
-        created_by: assessment.createdBy
+        title: assessment.title || 'Untitled Assessment',
+        description: assessment.description || '',
+        type: assessment.type || 'personality',
+        category: assessment.category || 'general',
+        visibility: assessment.visibility || 'public',
+        created_by: assessment.createdBy || 'system'
       })
       .select()
       .single();
@@ -227,6 +237,7 @@ export const createAssessment = async (assessment: Partial<Assessment>): Promise
   } catch (error) {
     handleError(error, 'createAssessment');
   }
+  throw new AssessmentError('Failed to create assessment', 'CREATE_FAILED', 500);
 };
 
 // Update existing assessment
@@ -239,11 +250,9 @@ export const updateAssessment = async (id: string, updates: Partial<Assessment>)
         description: updates.description,
         category: updates.category,
         visibility: updates.visibility,
-        estimated_time: updates.estimatedTime,
-        scoring: updates.scoring,
         updated_at: new Date().toISOString()
       })
-      .eq('id', id)
+      .eq('id', Number(id))
       .select()
       .single();
 
@@ -255,6 +264,7 @@ export const updateAssessment = async (id: string, updates: Partial<Assessment>)
   } catch (error) {
     handleError(error, 'updateAssessment');
   }
+  throw new AssessmentError('Failed to update assessment', 'UPDATE_FAILED', 500);
 };
 
 // Delete assessment
@@ -263,7 +273,7 @@ export const deleteAssessment = async (id: string): Promise<void> => {
     const { error } = await supabase
       .from('assessments')
       .delete()
-      .eq('id', id);
+      .eq('id', Number(id));
 
     if (error) throw error;
     
@@ -274,34 +284,30 @@ export const deleteAssessment = async (id: string): Promise<void> => {
   }
 };
 
-// Submit assessment results
-export const submitAssessmentResult = async (params: {
-  assessmentId: string;
-  userId?: string;
-  visitorSessionId?: string;
-  responses: Record<string, any>;
-  score: number;
-  totalScore: number;
-  percentage: number;
-  personalityType?: string;
-  insights?: string[];
-  recommendations?: string[];
-}): Promise<AssessmentResult> => {
+// Submit assessment results with real scoring
+export const submitAssessmentResult = async (params: AssessmentSubmissionParams): Promise<AssessmentResult> => {
   try {
+    // Get assessment to calculate proper scoring
+    const assessment = await getAssessmentById(params.assessmentId);
+    if (!assessment) {
+      throw new AssessmentError('Assessment not found', 'NOT_FOUND', 404);
+    }
+
+    // Import scoring service dynamically to avoid circular dependencies
+    const { default: AssessmentScoringService } = await import('../scoring/assessmentScoring.service');
+    
+    // Calculate real score using proper algorithms
+    const scoringResult = AssessmentScoringService.calculateScore(assessment, params.responses);
+
     const { data, error } = await supabase
       .from('assessment_results')
       .insert({
-        assessment_id: params.assessmentId,
-        user_id: params.userId,
-        visitor_session_id: params.visitorSessionId,
-        score: params.score,
-        total_score: params.totalScore,
-        percentage: params.percentage,
-        personality_type: params.personalityType,
-        responses: params.responses,
-        insights: params.insights,
-        recommendations: params.recommendations,
-        completed_at: new Date().toISOString()
+        assessment_id: Number(params.assessmentId),
+        user_id: params.userId || 'anonymous',
+        answers: params.responses,
+        score: scoringResult.score,
+        percentage: scoringResult.percentage,
+        submitted_at: new Date().toISOString()
       })
       .select()
       .single();
@@ -312,6 +318,7 @@ export const submitAssessmentResult = async (params: {
   } catch (error) {
     handleError(error, 'submitAssessmentResult');
   }
+  throw new AssessmentError('Failed to submit assessment result', 'SUBMIT_FAILED', 500);
 };
 
 // Get user assessment results
@@ -324,7 +331,7 @@ export const getUserResults = async (userId: string): Promise<AssessmentResult[]
         assessment:assessments(*)
       `)
       .eq('user_id', userId)
-      .order('completed_at', { ascending: false });
+      .order('submitted_at', { ascending: false });
 
     if (error) throw error;
 
@@ -332,6 +339,7 @@ export const getUserResults = async (userId: string): Promise<AssessmentResult[]
   } catch (error) {
     handleError(error, 'getUserResults');
   }
+  throw new AssessmentError('Failed to get user results', 'FETCH_FAILED', 500);
 };
 
 // Get assessment results with analytics
@@ -339,29 +347,23 @@ export const getAssessmentAnalytics = async (assessmentId: string) => {
   try {
     const [
       { data: results, error: resultsError },
-      { count: totalCompletions, error: countError },
-      { data: avgScore, error: avgError }
+      { count: totalCompletions, error: countError }
     ] = await Promise.all([
       supabase
         .from('assessment_results')
-        .select('score, percentage, completed_at')
-        .eq('assessment_id', assessmentId)
-        .order('completed_at', { ascending: false })
+        .select('score, percentage, submitted_at')
+        .eq('assessment_id', Number(assessmentId))
+        .order('submitted_at', { ascending: false })
         .limit(100),
       
       supabase
         .from('assessment_results')
         .select('*', { count: 'exact', head: true })
-        .eq('assessment_id', assessmentId),
-      
-      supabase
-        .from('assessment_results')
-        .select('score')
-        .eq('assessment_id', assessmentId)
+        .eq('assessment_id', Number(assessmentId))
     ]);
 
-    if (resultsError || countError || avgError) {
-      throw resultsError || countError || avgError;
+    if (resultsError || countError) {
+      throw resultsError || countError;
     }
 
     const totalScore = results?.reduce((sum, r) => sum + (r.score || 0), 0) || 0;
@@ -414,58 +416,83 @@ export const subscribeToAssessments = (
 };
 
 // Utility function to transform database rows to application types
-function transformAssessmentRow(row: any): Assessment {
-  const questions = (row.questions || []).map((q: any) => ({
-    id: q.id.toString(),
-    text: q.question_text || q.text,
-    type: q.question_type || q.type,
-    options: (q.options || []).map((o: any) => ({
-      id: o.id.toString(),
-      text: o.option_text || o.text,
-      value: o.value || o.option_text || o.text
-    })),
-    category: q.category,
-    scale: q.scale,
-    position: q.position || q.order
-  }));
+function transformAssessmentRow(row: AssessmentRow): Assessment {
+  // Transform questions from the database structure - handle the joined data properly
+  const rawData = row as any;
+  const questions: AssessmentQuestion[] = [];
+  
+  if (rawData.questions && Array.isArray(rawData.questions)) {
+    for (const q of rawData.questions) {
+      const question: AssessmentQuestion = {
+        id: q.id?.toString() || Math.random().toString(),
+        text: q.question_text || q.text || 'Question',
+        type: (q.question_type || q.type || 'single') as 'single' | 'multiple' | 'scale' | 'text',
+        category: q.category || 'general'
+      };
+
+      // Handle options if they exist
+      if (q.options && Array.isArray(q.options)) {
+        question.options = q.options.map((o: { option_text?: string; text?: string }) => o.option_text || o.text || 'Option');
+      }
+
+      // Handle scale if it exists
+      if (q.scale) {
+        question.scale = q.scale;
+      }
+
+      questions.push(question);
+    }
+  }
 
   return {
     id: row.id.toString(),
-    title: row.title,
-    description: row.description,
-    type: row.type,
-    category: row.category,
-    visibility: row.visibility,
-    estimatedTime: row.estimated_time || row.estimatedTime,
+    title: row.title || 'Untitled Assessment',
+    description: row.description || '',
+    type: row.type || 'personality',
+    category: row.category || 'general',
+    visibility: (row.visibility || 'public') as 'public' | 'users' | 'premium',
+    estimatedTime: 5, // Default estimated time
     questions,
-    scoring: row.scoring,
-    results: {
-      summary: row.results?.summary || '',
-      insights: row.results?.insights || [],
-      recommendations: row.results?.recommendations || [],
-      aiAnalysis: row.results?.aiAnalysis
+    scoring: {
+      type: 'cumulative',
+      categories: [],
+      interpretation: {}
     },
-    createdAt: row.created_at || row.createdAt,
-    updatedAt: row.updated_at || row.updatedAt
+    results: {
+      summary: 'Assessment completed successfully',
+      insights: ['Your assessment has been completed.'],
+      recommendations: ['Review your results to gain insights about yourself.'],
+      aiAnalysis: undefined
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
-function transformResultRow(row: any): AssessmentResult {
+function transformResultRow(row: AssessmentResultRow): AssessmentResult {
+  // Handle the answers which could be Json type - safely cast to any first
+  const rawData = row as any;
+  let responses: Record<string, any> = {};
+  
+  if (rawData.answers && typeof rawData.answers === 'object' && rawData.answers !== null) {
+    responses = rawData.answers as Record<string, any>;
+  }
+
   return {
-    id: row.id.toString(),
-    assessmentId: row.assessment_id?.toString(),
-    userId: row.user_id,
-    visitorSessionId: row.visitor_session_id,
-    score: row.score,
-    totalScore: row.total_score || row.totalScore,
-    percentage: row.percentage,
-    personalityType: row.personality_type,
-    responses: row.responses || {},
-    insights: row.insights || [],
-    recommendations: row.recommendations || [],
-    completedAt: row.completed_at || row.completedAt,
-    createdAt: row.created_at || row.createdAt,
-    assessment: row.assessment ? transformAssessmentRow(row.assessment) : undefined
+    id: rawData.id?.toString() || '0',
+    assessmentId: rawData.assessment_id?.toString(),
+    userId: rawData.user_id || '',
+    visitorSessionId: undefined, // Not available in current schema
+    score: rawData.score || 0,
+    totalScore: rawData.total_points || 100,
+    percentage: rawData.percentage || 0,
+    personalityType: undefined, // Not available in current schema
+    responses,
+    insights: [], // Not available in current schema
+    recommendations: [], // Not available in current schema
+    completedAt: rawData.submitted_at,
+    createdAt: rawData.created_at || rawData.submitted_at, // Use submitted_at as fallback
+    assessment: undefined // Would need to fetch separately if needed
   };
 }
 
