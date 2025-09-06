@@ -55,8 +55,28 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Hero Background */}
+        <div 
+          className="fixed inset-0 -z-10"
+          style={{
+            backgroundImage: 'url(/hero-meditation.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        
+        {/* Deep Purple Glassmorphism Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-violet-900/90 to-indigo-900/95" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-purple-900/30 to-transparent" />
+        <div className="absolute inset-0 backdrop-blur-[2px]" />
+
+        <div className="min-h-screen flex items-center justify-center relative z-10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+            <LoadingSpinner size="lg" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -104,20 +124,45 @@ const Dashboard = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-        <MobileContainer className="py-8">
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Hero Background */}
+        <div 
+          className="fixed inset-0 -z-10"
+          style={{
+            backgroundImage: 'url(/hero-meditation.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        
+        {/* Deep Purple Glassmorphism Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-violet-900/90 to-indigo-900/95" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-purple-900/30 to-transparent" />
+        <div className="absolute inset-0 backdrop-blur-[2px]" />
+
+        {/* Subtle Floating Particles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[15%] left-[10%] w-2 h-2 rounded-full bg-white/20 animate-pulse opacity-40" />
+          <div className="absolute top-[25%] right-[15%] w-1 h-1 rounded-full bg-purple-300/30 animate-pulse delay-1000 opacity-30" />
+          <div className="absolute bottom-[35%] left-[20%] w-1.5 h-1.5 rounded-full bg-white/15 animate-pulse delay-2000 opacity-25" />
+          <div className="absolute top-[60%] right-[10%] w-1 h-1 rounded-full bg-purple-300/25 animate-pulse delay-500 opacity-20" />
+          <div className="absolute bottom-[20%] left-[30%] w-2 h-2 rounded-full bg-white/10 animate-pulse delay-3000 opacity-15" />
+        </div>
+
+        <MobileContainer className="py-8 relative z-10">
           {/* Welcome Section */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={() => navigate('/')}
-                className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
+                className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/20 transition-all border border-white/20"
               >
                 <img src="/symbol.svg" alt="Newomen Logo" className="w-10 h-10" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold">Welcome back!</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl font-bold text-white">Welcome back!</h1>
+                <p className="text-white/70">
                   {user?.email || 'Ready to continue your growth journey?'}
                 </p>
               </div>
@@ -126,39 +171,39 @@ const Dashboard = () => {
 
           {/* Stats Overview */}
           <MobileGrid cols={3} className="mb-8">
-            <MobileCard className="text-center">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Trophy className="w-5 h-5 text-primary" />
+            <MobileCard className="text-center bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-white/20">
+                <Trophy className="w-5 h-5 text-purple-300" />
               </div>
-              <div className="text-2xl font-bold text-primary">{totalPoints}</div>
-              <div className="text-xs text-muted-foreground">Crystals Earned</div>
+              <div className="text-2xl font-bold text-white">{totalPoints}</div>
+              <div className="text-xs text-white/70">Crystals Earned</div>
             </MobileCard>
 
-            <MobileCard className="text-center">
-              <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Target className="w-5 h-5 text-secondary" />
+            <MobileCard className="text-center bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-white/20">
+                <Target className="w-5 h-5 text-blue-300" />
               </div>
-              <div className="text-2xl font-bold text-secondary">{completedAchievements}</div>
-              <div className="text-xs text-muted-foreground">Achievements</div>
+              <div className="text-2xl font-bold text-white">{completedAchievements}</div>
+              <div className="text-xs text-white/70">Achievements</div>
             </MobileCard>
 
-            <MobileCard className="text-center">
-              <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="w-5 h-5 text-accent" />
+            <MobileCard className="text-center bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-white/20">
+                <TrendingUp className="w-5 h-5 text-pink-300" />
               </div>
-              <div className="text-2xl font-bold text-accent">7</div>
-              <div className="text-xs text-muted-foreground">Day Streak</div>
+              <div className="text-2xl font-bold text-white">7</div>
+              <div className="text-xs text-white/70">Day Streak</div>
             </MobileCard>
           </MobileGrid>
 
           {/* Quick Actions */}
-          <Card className="glass-strong mb-8">
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 mb-8">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Sparkles className="w-5 h-5 text-purple-300" />
                 Quick Actions
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white/70">
                 Continue your growth journey with these activities
               </CardDescription>
             </CardHeader>
@@ -168,13 +213,13 @@ const Dashboard = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    className="glass-button h-auto p-4 flex flex-col items-center gap-2"
+                    className="bg-white/5 backdrop-blur-sm border border-white/20 text-white hover:bg-white/10 h-auto p-4 flex flex-col items-center gap-2"
                     onClick={action.action}
                   >
-                    <action.icon className={`w-6 h-6 ${action.color}`} />
+                    <action.icon className="w-6 h-6 text-purple-300" />
                     <div className="text-center">
-                      <div className="font-medium text-sm">{action.title}</div>
-                      <div className="text-xs text-muted-foreground">{action.description}</div>
+                      <div className="font-medium text-sm text-white">{action.title}</div>
+                      <div className="text-xs text-white/70">{action.description}</div>
                     </div>
                   </Button>
                 ))}
@@ -184,63 +229,67 @@ const Dashboard = () => {
 
           {/* Progress Section */}
           <MobileGrid cols={1} className="mb-8">
-            <Card className="glass-strong">
+            <Card className="bg-white/10 backdrop-blur-md border border-white/20">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Brain className="w-5 h-5 text-purple-300" />
                   Your Progress
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-white/70">
                   Track your personal development journey
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <div className="flex justify-between text-sm mb-2">
+                  <div className="flex justify-between text-sm mb-2 text-white">
                     <span>Overall Progress</span>
                     <span>65%</span>
                   </div>
-                  <Progress value={65} className="h-2" />
+                  <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out" style={{ width: '65%' }} />
+                  </div>
                 </div>
                 
                 <div>
-                  <div className="flex justify-between text-sm mb-2">
+                  <div className="flex justify-between text-sm mb-2 text-white">
                     <span>Weekly Goal</span>
                     <span>4/7 days</span>
                   </div>
-                  <Progress value={57} className="h-2" />
+                  <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out" style={{ width: '57%' }} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </MobileGrid>
 
           {/* Achievements */}
-          <Card className="glass-strong mb-8">
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 mb-8">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Trophy className="w-5 h-5 text-purple-300" />
                 Achievements
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white/70">
                 Your milestones and accomplishments
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {achievements.map((achievement, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 glass-subtle rounded-lg">
+                  <div key={index} className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      achievement.completed ? 'bg-primary text-white' : 'bg-muted'
+                      achievement.completed ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/10 border border-white/20'
                     }`}>
                       <Trophy className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="font-medium text-sm">{achievement.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="font-medium text-sm text-white">{achievement.name}</div>
+                      <div className="text-xs text-white/70">
                         {achievement.points} crystals
                       </div>
                     </div>
-                    <Badge variant={achievement.completed ? "default" : "secondary"}>
+                    <Badge className={achievement.completed ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" : "bg-white/20 text-white/70"}>
                       {achievement.completed ? 'Completed' : 'Locked'}
                     </Badge>
                   </div>
@@ -250,36 +299,36 @@ const Dashboard = () => {
           </Card>
 
           {/* Recent Activity */}
-          <Card className="glass-strong">
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Calendar className="w-5 h-5 text-purple-300" />
                 Recent Activity
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
-                  <MessageCircle className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
+                  <MessageCircle className="w-5 h-5 text-purple-300" />
                   <div>
-                    <div className="font-medium text-sm">Completed chat session</div>
-                    <div className="text-xs text-muted-foreground">2 hours ago</div>
+                    <div className="font-medium text-sm text-white">Completed chat session</div>
+                    <div className="text-xs text-white/70">2 hours ago</div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
-                  <Brain className="w-5 h-5 text-secondary" />
+                <div className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
+                  <Brain className="w-5 h-5 text-blue-300" />
                   <div>
-                    <div className="font-medium text-sm">Finished personality assessment</div>
-                    <div className="text-xs text-muted-foreground">1 day ago</div>
+                    <div className="font-medium text-sm text-white">Finished personality assessment</div>
+                    <div className="text-xs text-white/70">1 day ago</div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 p-3 glass-subtle rounded-lg">
-                  <Users className="w-5 h-5 text-accent" />
+                <div className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
+                  <Users className="w-5 h-5 text-pink-300" />
                   <div>
-                    <div className="font-medium text-sm">Joined community discussion</div>
-                    <div className="text-xs text-muted-foreground">3 days ago</div>
+                    <div className="font-medium text-sm text-white">Joined community discussion</div>
+                    <div className="text-xs text-white/70">3 days ago</div>
                   </div>
                 </div>
               </div>
