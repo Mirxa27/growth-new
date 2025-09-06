@@ -80,7 +80,7 @@ class AuthService {
           await this.loadUserProfile(session.user.id);
         } else {
           this.currentState.profile = null;
-          cache.delete('auth:profile');
+          cache.remove('auth:profile');
         }
         
         // Notify listeners
@@ -285,8 +285,15 @@ class AuthService {
       if (error) throw error;
       
       // Clear cache
-      cache.delete('auth:profile');
-      cache.clear(/^auth:/);
+      cache.remove('auth:profile');
+      // Clear auth-related cache entries
+      try {
+        cache.remove('auth:profile');
+        cache.remove('auth:session');
+        cache.remove('auth:user');
+      } catch (cacheError) {
+        console.warn('Cache clearing failed:', cacheError);
+      }
       
       return { error: null };
     } catch (error) {

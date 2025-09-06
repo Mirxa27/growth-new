@@ -307,28 +307,32 @@ class ErrorHandlerService {
     this.errorQueue = [];
 
     try {
-      // Log to Supabase error_logs table
-      const { error } = await supabase
-        .from('error_logs')
-        .insert(errors.map(e => ({
-          message: e.message,
-          code: e.code,
-          severity: e.severity,
-          category: e.category,
-          context: e.context,
-          user_id: e.context.userId,
-          created_at: e.createdAt,
-        })));
+      // Log to Supabase using safe database function
+      for (const errorRecord of errors) {
+        try {
+          const { error } = await supabase.rpc('log_error', {
+            message_param: errorRecord.message,
+            code_param: errorRecord.code,
+            severity_param: errorRecord.severity,
+            category_param: errorRecord.category,
+            context_param: errorRecord.context,
+            user_id_param: errorRecord.context.userId || null,
+          });
 
-      if (error) {
-        // If logging fails, put errors back in queue
-        this.errorQueue.unshift(...errors);
-        console.error('Failed to log errors:', error);
+          if (error) {
+            console.warn('Failed to log individual error:', error);
+            // Don't put back in queue, just console log
+            console.error('Unlogged error:', errorRecord);
+          }
+        } catch (individualError) {
+          console.warn('Individual error logging failed:', individualError);
+          console.error('Unlogged error:', errorRecord);
+        }
       }
     } catch (err) {
-      // Put errors back in queue for retry
-      this.errorQueue.unshift(...errors);
-      console.error('Error logging failed:', err);
+      // Don't put errors back in queue to prevent infinite loops
+      console.error('Batch error logging failed:', err);
+      errors.forEach(e => console.error('Unlogged error:', e));
     }
   }
 

@@ -30,18 +30,45 @@ export class NewMeVoiceService {
   }
 
   /**
-   * Initialize audio context for voice processing
+   * Initialize audio context for voice processing (requires user gesture)
    */
   private async initializeAudioContext() {
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Don't initialize AudioContext until user gesture is available
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
       
       // Resume audio context if it's suspended (required by browser policies)
       if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+        console.log('AudioContext suspended, waiting for user gesture to resume');
+        // Don't auto-resume, wait for user interaction
+        return;
       }
     } catch (error) {
       console.error('Failed to initialize audio context:', error);
+    }
+  }
+
+  /**
+   * Resume audio context after user gesture
+   */
+  private async resumeAudioContext(): Promise<boolean> {
+    try {
+      if (!this.audioContext) {
+        await this.initializeAudioContext();
+      }
+      
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+        console.log('AudioContext resumed after user gesture');
+        return true;
+      }
+      
+      return this.audioContext?.state === 'running';
+    } catch (error) {
+      console.error('Failed to resume audio context:', error);
+      return false;
     }
   }
 
@@ -54,6 +81,12 @@ export class NewMeVoiceService {
     error?: string;
   }> {
     try {
+      // Resume audio context with user gesture
+      const audioResumed = await this.resumeAudioContext();
+      if (!audioResumed) {
+        throw new Error('AudioContext could not be resumed. User interaction required.');
+      }
+
       // Request microphone permission
       this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {

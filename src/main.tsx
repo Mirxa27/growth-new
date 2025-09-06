@@ -4,12 +4,14 @@ import App from './App.tsx'
 import './index.css'
 import { initializeSecurity } from './lib/security'
 
-// Initialize security monitoring
-try {
-  initializeSecurity();
-} catch (error) {
-  console.warn('Security initialization failed:', error);
-}
+// Initialize security monitoring after a delay to improve TTFB
+setTimeout(() => {
+  try {
+    initializeSecurity();
+  } catch (error) {
+    console.warn('Security initialization failed:', error);
+  }
+}, 1000);
 
 // Add error boundary for the entire app
 class ErrorBoundary extends React.Component<

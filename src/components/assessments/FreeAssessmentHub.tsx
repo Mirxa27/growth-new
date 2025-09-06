@@ -19,6 +19,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Assessment {
   id: string;
@@ -157,8 +158,30 @@ export const FreeAssessmentHub = () => {
     ? FREE_ASSESSMENTS 
     : FREE_ASSESSMENTS.filter(a => a.category === selectedCategory);
 
-  const handleStartAssessment = (assessmentId: string) => {
-    navigate(`/assessment/${assessmentId}`);
+  const handleStartAssessment = async (assessmentId: string) => {
+    setIsLoading(true);
+    try {
+      // Check if assessment exists in database first
+      const { data: assessment, error } = await supabase
+        .from('assessments')
+        .select('id, title')
+        .eq('id', assessmentId)
+        .single();
+
+      if (error || !assessment) {
+        console.warn('Assessment not found in database, creating placeholder...');
+        // For now, navigate to a general assessment page
+        navigate('/mobile-assessment-hub');
+      } else {
+        navigate(`/assessment/${assessmentId}`);
+      }
+    } catch (error) {
+      console.error('Error checking assessment:', error);
+      // Fallback to general assessment
+      navigate('/mobile-assessment-hub');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
