@@ -4,7 +4,6 @@
  */
 
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logging/logger.service';
 
 export enum ErrorSeverity {
@@ -30,12 +29,12 @@ export interface ErrorContext {
   userId?: string;
   action?: string;
   module?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   stackTrace?: string;
   timestamp?: string;
 
   // Allow additional context properties (e.g., notificationId, providerId, etc.)
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ErrorRecord {
@@ -190,37 +189,46 @@ class ErrorHandlerService {
   /**
    * Extract error code from various error types
    */
-  private extractErrorCode(error: any): string | undefined {
-    if (error?.code) return String(error.code);
-    if (error?.response?.status) return `HTTP_${error.response.status}`;
-    if (error?.statusCode) return `STATUS_${error.statusCode}`;
+  private extractErrorCode(error: unknown): string | undefined {
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      if (err.code) return String(err.code);
+      if (err.response && typeof err.response === 'object') {
+        const response = err.response as Record<string, unknown>;
+        if (response.status) return `HTTP_${response.status}`;
+      }
+      if (err.statusCode) return `STATUS_${err.statusCode}`;
+    }
     return undefined;
   }
 
   /**
    * Categorize error based on its characteristics
    */
-  private categorizeError(error: any): ErrorCategory {
-    const message = error?.message?.toLowerCase() || '';
-    const code = error?.code?.toLowerCase() || '';
+  private categorizeError(error: unknown): ErrorCategory {
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      const message = (err.message as string)?.toLowerCase() || '';
+      const code = (err.code as string)?.toLowerCase() || '';
 
-    if (message.includes('auth') || code.includes('auth')) {
-      return ErrorCategory.AUTHENTICATION;
-    }
-    if (message.includes('permission') || message.includes('forbidden')) {
-      return ErrorCategory.AUTHORIZATION;
-    }
-    if (message.includes('validation') || message.includes('invalid')) {
-      return ErrorCategory.VALIDATION;
-    }
-    if (message.includes('network') || message.includes('fetch')) {
-      return ErrorCategory.NETWORK;
-    }
-    if (message.includes('database') || code.includes('pgrst')) {
-      return ErrorCategory.DATABASE;
-    }
-    if (error?.response || error?.request) {
-      return ErrorCategory.EXTERNAL_API;
+      if (message.includes('auth') || code.includes('auth')) {
+        return ErrorCategory.AUTHENTICATION;
+      }
+      if (message.includes('permission') || message.includes('forbidden')) {
+        return ErrorCategory.AUTHORIZATION;
+      }
+      if (message.includes('validation') || message.includes('invalid')) {
+        return ErrorCategory.VALIDATION;
+      }
+      if (message.includes('network') || message.includes('fetch')) {
+        return ErrorCategory.NETWORK;
+      }
+      if (message.includes('database') || code.includes('pgrst')) {
+        return ErrorCategory.DATABASE;
+      }
+      if (err.response || err.request) {
+        return ErrorCategory.EXTERNAL_API;
+      }
     }
 
     return ErrorCategory.UNKNOWN;
@@ -327,7 +335,7 @@ class ErrorHandlerService {
       const maxAttempts = 3;
       let attempt = 0;
       let logged = false;
-      let lastError: any = null;
+      let lastError: unknown = null;
 
       while (attempt < maxAttempts && !logged) {
         attempt += 1;
@@ -369,10 +377,12 @@ class ErrorHandlerService {
             detail: {
               message: 'Failed to persist error logs after multiple attempts',
               sample: errors.slice(0, 3).map(e => ({ message: e.message, category: e.category, severity: e.severity })),
-              lastError: (lastError && lastError.message) ? lastError.message : String(lastError)
+              lastError: (lastError && typeof lastError === 'object' && 'message' in lastError) 
+                ? (lastError as { message: string }).message 
+                : String(lastError)
             }
           }));
-        } catch (e) {
+        } catch {
           // window may be undefined in some environments; ignore
         }
         // Use logger instead of console.error to centralize output

@@ -152,7 +152,7 @@ export const Navigation = () => {
           >
             {isMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
-        </div>
+        </Glass>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
@@ -216,7 +216,7 @@ export const Navigation = () => {
                   </>
                 )}
               </div>
-            </div>
+            </Glass>
           </div>
         )}
       </div>
