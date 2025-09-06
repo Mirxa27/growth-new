@@ -29,7 +29,7 @@ import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigMana
 import { VoicePlayground } from '@/components/admin/VoicePlayground';
 import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
 import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
-import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
+// import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
@@ -506,7 +506,14 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
       case 'ai-content':
-        return <AIContentBuilder />;
+        return (
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center">
+              <h3 className="text-lg font-semibold mb-2">AI Content Builder</h3>
+              <p className="text-muted-foreground">Content management features coming soon...</p>
+            </CardContent>
+          </Card>
+        );
       case 'settings':
         return <GeneralSettings />;
       case 'ai-providers':

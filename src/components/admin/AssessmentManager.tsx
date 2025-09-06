@@ -26,7 +26,7 @@ import {
   PlusCircle,
   MinusCircle
 } from 'lucide-react';
-import { AIContentBuilder } from './AIContentBuilder';
+// import { AIContentBuilder } from './AIContentBuilder';
 import { Json } from '@/integrations/supabase/types';
 import { z } from 'zod';
 

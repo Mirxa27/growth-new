@@ -15,17 +15,34 @@ import {
   Target,
   Calendar,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  Gift,
+  Flame,
+  Star
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
+import { gamification } from '@/services/gamification/gamification-service';
+import { newMeAI } from '@/services/ai/newme-ai-service';
+
+interface UserStats {
+  currentLevel: number;
+  crystalBalance: number;
+  levelProgress: number;
+  dailyStreak: number;
+  totalAchievements: number;
+  recentAchievements: any[];
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [dailyAffirmation, setDailyAffirmation] = useState<string>('');
+  const [streakBonus, setStreakBonus] = useState<number>(0);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -35,17 +52,53 @@ const Dashboard = () => {
       }
 
       try {
-        // Fetch user data
-        const { error: profilesError } = await supabase
-          .from('profiles')
-          .select('created_at, last_login_at, avatar_url')
-          .eq('user_id', user.id);
-        if (profilesError) throw profilesError;
+        // Update daily streak first
+        const streakResult = await gamification.updateDailyStreak(user.id);
+        setStreakBonus(streakResult.bonusCrystals);
 
-        // Simulate loading user data
-        setTimeout(() => setIsLoading(false), 1000);
+        // Get user progress
+        const progress = await gamification.getUserProgress(user.id);
+        if (progress) {
+          setUserStats({
+            currentLevel: progress.currentLevel,
+            crystalBalance: progress.crystalBalance,
+            levelProgress: progress.levelProgress,
+            dailyStreak: progress.dailyStreak,
+            totalAchievements: progress.achievements.length,
+            recentAchievements: await gamification.getUserAchievements(user.id)
+          });
+        }
+
+        // Get daily affirmation
+        const { data: existingAffirmation } = await supabase
+          .from('daily_affirmations')
+          .select('affirmation_text')
+          .eq('user_id', user.id)
+          .eq('generated_date', new Date().toISOString().split('T')[0])
+          .single();
+
+        if (existingAffirmation) {
+          setDailyAffirmation(existingAffirmation.affirmation_text);
+        } else {
+          // Generate new affirmation
+          const userProfile = await newMeAI.getUserMemoryProfile(user.id);
+          if (userProfile) {
+            const affirmation = await newMeAI.generateDailyAffirmation(userProfile);
+            setDailyAffirmation(affirmation);
+            
+            // Save to database
+            await supabase
+              .from('daily_affirmations')
+              .upsert({
+                user_id: user.id,
+                affirmation_text: affirmation,
+                generated_date: new Date().toISOString().split('T')[0],
+              });
+          }
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -63,18 +116,18 @@ const Dashboard = () => {
 
   const quickActions = [
     {
-      title: 'Start Chat Session',
-      description: 'Start a guided conversation',
+      title: 'Chat with NewMe',
+      description: 'Your AI growth companion',
       icon: MessageCircle,
       color: 'text-primary',
       action: () => navigate('/chat')
     },
     {
-      title: 'Explore Growth',
-      description: 'Discover new explorations',
-      icon: Compass,
+      title: 'Narrative Exploration',
+      description: 'Discover your story patterns',
+      icon: BookOpen,
       color: 'text-secondary',
-      action: () => navigate('/explorations')
+      action: () => navigate('/narrative-identity')
     },
     {
       title: 'Join Community',
@@ -84,9 +137,9 @@ const Dashboard = () => {
       action: () => navigate('/community')
     },
     {
-      title: 'Browse Library',
-      description: 'Access resources and content',
-      icon: BookOpen,
+      title: 'Growth Library',
+      description: 'Audio practices & resources',
+      icon: Brain,
       color: 'text-primary',
       action: () => navigate('/library')
     }
@@ -124,32 +177,94 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Streak Bonus Notification */}
+          {streakBonus > 0 && (
+            <Card className="glass-strong border-primary/30 mb-6">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-primary">Daily Streak Bonus!</p>
+                    <p className="text-sm text-muted-foreground">
+                      You earned {streakBonus} crystals for your {userStats?.dailyStreak}-day streak! ✨
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats Overview */}
           <MobileGrid cols={3} className="mb-8">
             <MobileCard className="text-center">
               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Trophy className="w-5 h-5 text-primary" />
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <div className="text-2xl font-bold text-primary">{totalPoints}</div>
-              <div className="text-xs text-muted-foreground">Crystals Earned</div>
+              <div className="text-2xl font-bold text-primary">{userStats?.crystalBalance || 0}</div>
+              <div className="text-xs text-muted-foreground">Crystals</div>
             </MobileCard>
 
             <MobileCard className="text-center">
               <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Target className="w-5 h-5 text-secondary" />
+                <Trophy className="w-5 h-5 text-secondary" />
               </div>
-              <div className="text-2xl font-bold text-secondary">{completedAchievements}</div>
+              <div className="text-2xl font-bold text-secondary">{userStats?.totalAchievements || 0}</div>
               <div className="text-xs text-muted-foreground">Achievements</div>
             </MobileCard>
 
             <MobileCard className="text-center">
               <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="w-5 h-5 text-accent" />
+                <Flame className="w-5 h-5 text-accent" />
               </div>
-              <div className="text-2xl font-bold text-accent">7</div>
+              <div className="text-2xl font-bold text-accent">{userStats?.dailyStreak || 0}</div>
               <div className="text-xs text-muted-foreground">Day Streak</div>
             </MobileCard>
           </MobileGrid>
+
+          {/* Level Progress */}
+          <Card className="glass-strong mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
+                    <Star className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Level {userStats?.currentLevel || 1}</CardTitle>
+                    <CardDescription>Your growth journey</CardDescription>
+                  </div>
+                </div>
+                <Badge className="bg-primary/20 text-primary">
+                  {userStats?.levelProgress || 0}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Progress value={userStats?.levelProgress || 0} className="h-3" />
+              <p className="text-xs text-muted-foreground mt-2">
+                Keep growing to reach the next level!
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Daily Affirmation */}
+          {dailyAffirmation && (
+            <Card className="glass-strong mb-8 border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-primary">
+                  <Sparkles className="w-5 h-5" />
+                  Today's Affirmation
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-medium italic leading-relaxed">
+                  "{dailyAffirmation}"
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Actions */}
           <Card className="glass-strong mb-8">

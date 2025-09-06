@@ -23,6 +23,9 @@ import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
+import { NewomenOnboardingFlow } from "./components/onboarding/NewomenOnboardingFlow";
+import { NarrativeIdentityExploration } from "./components/exploration/NarrativeIdentityExploration";
+import { FreeAssessmentHub } from "./components/assessments/FreeAssessmentHub";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
@@ -76,9 +79,15 @@ const App = () => {
                   <ExplorationSession />
                 </ProtectedRoute>
               } />
+              <Route path="/narrative-identity" element={
+                <ProtectedRoute>
+                  <NarrativeIdentityExploration />
+                </ProtectedRoute>
+              } />
+              <Route path="/free-assessments" element={<FreeAssessmentHub />} />
               <Route path="/onboarding" element={
                 <ProtectedRoute>
-                  <OnboardingFlow />
+                  <NewomenOnboardingFlow />
                 </ProtectedRoute>
               } />
               <Route path="/chat" element={
