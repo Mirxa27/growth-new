@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
-    <!-- Error handling for unsupported browsers -->
+    <!-- Error handling for unsupported browsers and extension conflicts -->
     <script>
       // Check for basic ES6 support
       try {
@@ -25,6 +25,36 @@
       } catch (e) {
         document.write('<div style="text-align:center;padding:50px;font-family:system-ui;"><h1>Browser Not Supported</h1><p>Please use a modern browser like Chrome, Firefox, Safari, or Edge.</p></div>');
       }
+
+      // Protect against browser extension conflicts
+      window.addEventListener('error', function(event) {
+        // Ignore errors from browser extensions
+        if (event.filename && (
+          event.filename.includes('extension://') ||
+          event.filename.includes('chrome-extension://') ||
+          event.filename.includes('moz-extension://') ||
+          event.filename.includes('safari-extension://')
+        )) {
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+        }
+      });
+
+      // Protect against extension script injection
+      const originalAppend = Document.prototype.appendChild;
+      Document.prototype.appendChild = function(child) {
+        // Block suspicious script injections
+        if (child.tagName === 'SCRIPT' && child.src && (
+          child.src.includes('extension://') ||
+          child.src.includes('chrome-extension://') ||
+          child.src.includes('moz-extension://')
+        )) {
+          console.warn('Blocked extension script injection:', child.src);
+          return child;
+        }
+        return originalAppend.call(this, child);
+      };
     </script>
   </head>
   <body>
