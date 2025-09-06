@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createSSRSafeContext, createSSRSafeHook } from '@/utils/ssr-safe-context';
 
 interface AuthContextType {
   user: User | null;
@@ -12,10 +13,24 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create SSR-safe context
+const AuthContext = createSSRSafeContext<AuthContextType | undefined>(undefined);
 
+// Create SSR-safe hook
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  // Skip context usage during SSR
+  if (typeof window === 'undefined') {
+    return {
+      user: null,
+      session: null,
+      loading: true,
+      signUp: async () => ({ error: null }),
+      signIn: async () => ({ error: null }),
+      signOut: async () => {},
+    };
+  }
+
+  const context = React.useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

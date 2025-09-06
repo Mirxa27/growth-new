@@ -5,12 +5,15 @@ import { type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { toggleVariants } from "@/components/ui/toggle"
 
-const ToggleGroupContext = React.createContext<
-  VariantProps<typeof toggleVariants>
->({
-  size: "default",
-  variant: "default",
-})
+// Safe context creation for SSR environments
+const defaultContextValue = {
+  size: "default" as const,
+  variant: "default" as const,
+};
+
+const ToggleGroupContext = typeof window !== 'undefined' 
+  ? React.createContext<VariantProps<typeof toggleVariants>>(defaultContextValue)
+  : ({} as React.Context<VariantProps<typeof toggleVariants>>)
 
 const ToggleGroup = React.forwardRef<
   React.ElementRef<typeof ToggleGroupPrimitive.Root>,
