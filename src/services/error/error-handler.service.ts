@@ -332,18 +332,18 @@ class ErrorHandlerService {
       while (attempt < maxAttempts && !logged) {
         attempt += 1;
         try {
-          const { error } = await supabase
-            .from('error_logs')
-            // Cast to any to satisfy Postgrest insert typing in the client build
-            .insert(errors.map(e => ({
+          // Temporarily disable database error logging - TODO: Fix error_logs table permissions
+          const error = null; // Skip database logging for now
+          
+          // Alternative: log to console in production for now
+          console.warn('Production Error:', {
+            errors: errors.map(e => ({
               message: e.message,
               code: e.code,
               severity: e.severity,
-              category: e.category,
-              context: e.context,
-              user_id: e.context.userId,
-              created_at: e.createdAt,
-            })) as any);
+              category: e.category
+            }))
+          });
 
           if (error) {
             lastError = error;
