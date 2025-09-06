@@ -3,18 +3,93 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Growth Echo Nexus - Life Navigation System</title>
-    <meta name="description" content="Your personal growth and development companion with AI-powered assessments and voice support" />
+    <title>Newomen - AI-Powered Personal Growth Platform</title>
+    <meta name="description" content="Transform your story with NewMe, your emotionally intelligent AI companion for narrative identity exploration and personal growth" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="theme-color" content="#6366f1" />
+    <meta name="theme-color" content="#d946ef" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Growth Echo Nexus" />
+    <meta name="apple-mobile-web-app-title" content="Newomen" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Error handling for unsupported browsers -->
+    <script>
+      // Check for basic ES6 support
+      try {
+        eval('const test = () => {};');
+      } catch (e) {
+        document.write('<div style="text-align:center;padding:50px;font-family:system-ui;"><h1>Browser Not Supported</h1><p>Please use a modern browser like Chrome, Firefox, Safari, or Edge.</p></div>');
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="./main.tsx"></script>
+    <div id="root">
+      <!-- Loading fallback -->
+      <div id="initial-loading" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1a1a1a, #2d1b69);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-family: system-ui, -apple-system, sans-serif;
+        z-index: 9999;
+      ">
+        <div style="
+          width: 50px;
+          height: 50px;
+          border: 3px solid #d946ef;
+          border-top: 3px solid transparent;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 20px;
+        "></div>
+        <h2 style="margin: 0; font-weight: 300;">Loading Newomen...</h2>
+        <p style="margin: 10px 0 0 0; opacity: 0.7; font-size: 14px;">Your AI growth companion</p>
+      </div>
+      
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+      
+      <script>
+        // Remove loading screen once React app loads
+        setTimeout(() => {
+          const loading = document.getElementById('initial-loading');
+          if (loading && document.querySelector('[data-reactroot], [data-reactroot] *')) {
+            loading.remove();
+          }
+        }, 100);
+        
+        // Fallback removal after 10 seconds
+        setTimeout(() => {
+          const loading = document.getElementById('initial-loading');
+          if (loading) loading.remove();
+        }, 10000);
+      </script>
+    </div>
+    
+    <script type="module" src="./src/main.tsx"></script>
+    
+    <!-- Fallback for JavaScript disabled -->
+    <noscript>
+      <div style="text-align:center;padding:50px;font-family:system-ui;">
+        <h1>JavaScript Required</h1>
+        <p>Please enable JavaScript to use Newomen.</p>
+      </div>
+    </noscript>
   </body>
 </html>
