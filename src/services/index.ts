@@ -69,8 +69,12 @@ export class ServiceLocator {
   }
 }
 
-// Register core services
-ServiceLocator.register('businessLogic', businessLogic);
+// Register core services  
+try {
+  ServiceLocator.register('businessLogic', businessLogic);
+} catch (error) {
+  console.warn('BusinessLogic service registration failed:', error);
+}
 ServiceLocator.register('logger', logger);
 ServiceLocator.register('globalErrorHandler', globalErrorHandler);
 ServiceLocator.register('cache', cache);

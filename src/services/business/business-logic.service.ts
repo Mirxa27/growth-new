@@ -723,6 +723,13 @@ class BusinessLogicService {
   }
 }
 
-// Export singleton instance
+// Export singleton instance and ensure it's available
 export const businessLogic = BusinessLogicService.getInstance();
+
+// Also export as default for compatibility
 export default businessLogic;
+
+// Ensure global availability for debugging
+if (typeof window !== 'undefined') {
+  (window as any).businessLogic = businessLogic;
+}
