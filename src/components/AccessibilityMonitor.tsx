@@ -180,8 +180,8 @@ export const AccessibilityMonitor: React.FC<AccessibilityMonitorProps> = ({
                 <CardTitle className="text-sm font-medium">
                   A11y Monitor
                 </CardTitle>
-                <Badge 
-                  variant={score >= 90 ? 'success' : score >= 70 ? 'warning' : 'destructive'}
+                <Badge
+                  variant={score >= 90 ? 'default' : score >= 70 ? 'secondary' : 'destructive'}
                   className="text-xs"
                 >
                   {score}%
@@ -258,7 +258,7 @@ export const AccessibilityMonitor: React.FC<AccessibilityMonitorProps> = ({
                   {/* WCAG Compliance */}
                   <div className="flex items-center justify-between text-xs">
                     <span>WCAG {wcagLevel} Compliant</span>
-                    <Badge variant={result?.compliance.wcagAA ? 'success' : 'destructive'}>
+                    <Badge variant={result?.compliance.wcagAA ? 'default' : 'destructive'}>
                       {result?.compliance.wcagAA ? 'Yes' : 'No'}
                     </Badge>
                   </div>

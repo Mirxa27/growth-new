@@ -340,18 +340,23 @@ class ErrorHandlerService {
       while (attempt < maxAttempts && !logged) {
         attempt += 1;
         try {
-          // Temporarily disable database error logging - TODO: Fix error_logs table permissions
-          const error = null; // Skip database logging for now
-          
-          // Alternative: log to console in production for now
-          console.warn('Production Error:', {
-            errors: errors.map(e => ({
-              message: e.message,
-              code: e.code,
-              severity: e.severity,
-              category: e.category
-            }))
-          });
+          // Import Supabase client dynamically to avoid circular dependencies
+          const { supabase } = await import('@/integrations/supabase/client');
+
+          // Convert error records to database format
+          const errorLogs = errors.map(error => ({
+            message: error.message,
+            code: error.code,
+            severity: error.severity,
+            category: error.category,
+            context: error.context as any,
+            user_id: error.context.userId || null
+          }));
+
+          // Insert errors into database
+          const { error } = await supabase
+            .from('error_logs')
+            .insert(errorLogs);
 
           if (error) {
             lastError = error;

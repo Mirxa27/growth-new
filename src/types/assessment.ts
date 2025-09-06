@@ -147,3 +147,21 @@ export interface AssessmentUpdateData {
   estimatedTime?: number;
   scoring?: AssessmentScoringConfig;
 }
+
+export interface UserAnswer {
+  questionId: string;
+  answer: string | number | boolean | string[];
+  timestamp: string;
+}
+
+export interface AssessmentAttempt {
+  id: string;
+  assessment_id: string;
+  user_id: string;
+  score: number;
+  max_score: number;
+  status: 'in_progress' | 'completed' | 'failed';
+  started_at: string;
+  completed_at?: string;
+  time_spent?: number;
+}

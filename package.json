@@ -15,7 +15,14 @@
     "test:unit": "vitest src/**/*.test.ts",
     "test:ci": "npm run test:unit --run && npm run test:integration --run && npm run test:e2e",
     "test:integration": "TEST_FUNCTIONS_URL=\"$TEST_FUNCTIONS_URL\" vitest test/integration/**/*.spec.ts",
-    "test:e2e": "playwright test e2e/*.spec.ts"
+    "test:e2e": "playwright test e2e/*.spec.ts",
+    "cap:sync": "cap sync",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:run:ios": "cap run ios",
+    "cap:run:android": "cap run android",
+    "cap:build:ios": "cap build ios",
+    "cap:build:android": "cap build android"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
@@ -25,6 +32,7 @@
     "@tailwindcss/typography": "latest",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/dompurify": "latest",
     "@types/node": "latest",
     "@types/react": "^18.3.24",
@@ -58,6 +66,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
+    "@capacitor/android": "^7.4.3",
     "@capacitor/camera": "^7.0.2",
     "@capacitor/core": "^7.4.3",
     "@capacitor/geolocation": "^7.1.5",
@@ -67,6 +76,7 @@
     "@capacitor/push-notifications": "^7.0.2",
     "@capacitor/splash-screen": "^7.0.2",
     "@capacitor/status-bar": "^7.0.2",
+    "@genkit-ai/mcp": "^1.19.3",
     "@google/generative-ai": "^0.7.0",
     "@kombai/react-error-boundary": "latest",
     "@loadable/component": "^5.16.4",
@@ -136,6 +146,7 @@
     "validator": "latest",
     "vaul": "latest",
     "web-vitals": "^3.5.2",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
   }
 }

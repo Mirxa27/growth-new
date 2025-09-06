@@ -21,7 +21,19 @@
       "Bash(npx supabase:*)",
       "mcp__MCP_DOCKER__list_projects",
       "mcp__filesystem__create_directory",
-      "WebFetch(domain:platform.openai.com)"
+      "WebFetch(domain:platform.openai.com)",
+      "Bash(tree:*)",
+      "Bash(npx cap open:*)",
+      "Bash(npm run --silent)",
+      "Bash(npx cap doctor:*)",
+      "mcp__desktop-commander__list_directory",
+      "mcp__desktop-commander__read_file",
+      "Bash(npm run test)",
+      "Bash(npm test:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npx vitest:*)",
+      "Bash(chmod:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,13 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Assessment, 
-  AssessmentResult, 
+import {
+  Assessment,
+  AssessmentResult,
   AssessmentSubmissionParams,
   AssessmentQuestion
 } from '@/types/assessment';
 import { Database } from '@/integrations/supabase/types';
 import { paymentService } from '@/services/api/payment.service';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { default as AssessmentScoringService } from '../scoring/assessmentScoring.service';
 
 // Type aliases for better type safety
 type AssessmentRow = Database['public']['Tables']['assessments']['Row'];
@@ -363,9 +364,6 @@ export const submitAssessmentResult = async (params: AssessmentSubmissionParams)
       throw new AssessmentError('Assessment not found', 'NOT_FOUND', 404);
     }
 
-    // Import scoring service dynamically to avoid circular dependencies
-    const { default: AssessmentScoringService } = await import('../scoring/assessmentScoring.service');
-    
     // Calculate real score using proper algorithms
     const scoringResult = AssessmentScoringService.calculateScore(assessment, params.responses);
 

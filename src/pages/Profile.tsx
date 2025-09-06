@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, Json } from '@/integrations/supabase/types';
 import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
+import { CameraComponent } from '@/components/mobile';
 
 // Base type from Supabase auto-generated types
 type BaseProfileRow = Tables<'profiles'>;
@@ -280,6 +281,42 @@ const Profile = () => {
                         {isUploadingAvatar ? <LoadingSpinner size="sm" /> : <Camera className="w-4 h-4" />}
                       </Button>
                       <input id="avatar-upload-input" type="file" accept="image/*" className="hidden" onChange={handleAvatarSelected} />
+
+                      {/* Mobile Camera Component */}
+                      <div className="mt-2">
+                        <CameraComponent
+                          onPhotoTaken={async (base64Image) => {
+                            try {
+                              setIsUploadingAvatar(true);
+                              // Convert base64 to blob
+                              const response = await fetch(`data:image/jpeg;base64,${base64Image}`);
+                              const blob = await response.blob();
+                              const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+                              // Upload to Supabase storage
+                              const path = `${user.id}/${Date.now()}-camera-avatar.jpg`;
+                              const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+                              if (uploadError) throw uploadError;
+
+                              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+                              const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', user.id);
+                              if (updateError) throw updateError;
+
+                              setProfile(p => p ? { ...p, avatar_url: publicUrl } : null);
+                              toast({ title: 'Photo updated', description: 'Your profile photo has been updated from camera.' });
+                            } catch (error) {
+                              errorHandler.handleError(error, {
+                                severity: ErrorSeverity.MEDIUM,
+                                category: ErrorCategory.VALIDATION,
+                                showToast: true
+                              });
+                            } finally {
+                              setIsUploadingAvatar(false);
+                            }
+                          }}
+                          className="mt-2"
+                        />
+                      </div>
                     </div>
                     <Badge className="mt-3 bg-primary/20 text-primary">
                       {profile.personality_type || 'Explorer'}

@@ -67,8 +67,13 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   const [visibility, setVisibility] = useState<'public' | 'users' | 'premium'>(assessment?.visibility || 'public');
   const [estimatedTime, setEstimatedTime] = useState(assessment?.estimatedTime || 10);
   const [questions, setQuestions] = useState<Question[]>(
-    (assessment?.questions?.map((q: Partial<Question>) => ({
-      ...q,
+    (assessment?.questions?.map((q: any) => ({
+      id: q.id || '',
+      text: q.text || '',
+      type: q.type || 'text',
+      options: q.options || [],
+      scale: q.scale || undefined,
+      category: q.category || '',
       required: q.required ?? true,
     })) as Question[]) || []
   );

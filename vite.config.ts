@@ -187,8 +187,7 @@ export default defineConfig({
           return `assets/[name]-[hash][extname]`;
         }
       },
-      // Experimental: Enable module preloading for critical chunks
-      experimentalMinChunkSize: 20000, // 20KB minimum chunk size
+      // Note: experimentalMinChunkSize removed as it's no longer supported
       // Enable tree shaking for better dead code elimination
       plugins: []
     },

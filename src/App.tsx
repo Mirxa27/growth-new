@@ -6,7 +6,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AppLevelErrorBoundary, RouteErrorBoundary, ComponentLevelErrorBoundary } from "@/components/error-boundaries";
+import { AssessmentErrorBoundary } from "@/components/error-boundaries/AssessmentErrorBoundary";
+import { AuthErrorBoundary } from "@/components/error-boundaries/AuthErrorBoundary";
+import { NetworkErrorBoundary } from "@/components/error-boundaries/NetworkErrorBoundary";
+import { VoiceErrorBoundary } from "@/components/error-boundaries/VoiceErrorBoundary";
+import { DatabaseErrorBoundary } from "@/components/error-boundaries/DatabaseErrorBoundary";
 import { lazy, Suspense, useEffect } from "react";
 import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
@@ -108,6 +113,11 @@ const NotificationTestPage = createLazyRoute(() => import("./pages/NotificationT
   enablePreload: false
 });
 
+const ErrorBoundaryDemo = createLazyRoute(() => import("./pages/ErrorBoundaryDemo"), {
+  chunkName: 'error-boundary-demo',
+  enablePreload: false
+});
+
 const AssessmentSystemDemo = createLazyRoute(() => import("./pages/AssessmentSystemDemo"), {
   chunkName: 'assessment-demo',
   enablePreload: false
@@ -198,55 +208,87 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <RoutePreloader>
-            <div className="relative">
-              <SkipLink />
-              <ErrorBoundary>
+            {/* Top-level error boundary for the entire application */}
+            <AppLevelErrorBoundary
+              enableRecovery={true}
+              maxRetries={3}
+              reportErrors={true}
+              showDetails={process.env.NODE_ENV === 'development'}
+              component="App"
+            >
+              <div className="relative">
+                <SkipLink />
+                {/* Main content with route-level error boundaries */}
                 <main id="main-content" tabIndex={-1}>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                   {/* Critical routes - loaded immediately */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={
+                    <RouteErrorBoundary routeName="Home">
+                      <Index />
+                    </RouteErrorBoundary>
+                  } />
+                  <Route path="/auth" element={
+                    <AuthErrorBoundary fallbackPath="/auth" allowRetry={true}>
+                      <Auth />
+                    </AuthErrorBoundary>
+                  } />
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
-                      <Dashboard />
+                      <RouteErrorBoundary routeName="Dashboard">
+                        <Dashboard />
+                      </RouteErrorBoundary>
                     </ProtectedRoute>
                   } />
                   
                   {/* Lazy loaded assessment routes */}
                   <Route path="/assessment" element={
                     <Suspense fallback={<PageLoader />}>
-                      <PublicAssessment />
+                      <AssessmentErrorBoundary assessmentId="public" preserveProgress={true}>
+                        <PublicAssessment />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/assessment-hub" element={
                     <Suspense fallback={<PageLoader />}>
-                      <SimpleAssessmentLanding />
+                      <RouteErrorBoundary routeName="Assessment Hub">
+                        <SimpleAssessmentLanding />
+                      </RouteErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/assessment-system" element={
                     <Suspense fallback={<PageLoader />}>
-                      <AssessmentLanding />
+                      <AssessmentErrorBoundary assessmentId="system" preserveProgress={true}>
+                        <AssessmentLanding />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/mobile-assessment" element={
                     <Suspense fallback={<PageLoader />}>
-                      <MobileAssessment />
+                      <AssessmentErrorBoundary assessmentId="mobile" preserveProgress={true}>
+                        <MobileAssessment />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/mobile-assessment-hub" element={
                     <Suspense fallback={<PageLoader />}>
-                      <MobileAssessmentHub />
+                      <RouteErrorBoundary routeName="Mobile Assessment Hub">
+                        <MobileAssessmentHub />
+                      </RouteErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/assessment/:id" element={
                     <Suspense fallback={<PageLoader />}>
-                      <AssessmentPage />
+                      <AssessmentErrorBoundary preserveProgress={true}>
+                        <AssessmentPage />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/results/:id" element={
                     <Suspense fallback={<PageLoader />}>
-                      <ResultsPage />
+                      <AssessmentErrorBoundary>
+                        <ResultsPage />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   
@@ -254,21 +296,27 @@ const App = () => {
                   <Route path="/explorations" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <Explorations />
+                        <RouteErrorBoundary routeName="Explorations">
+                          <Explorations />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/explorations/:explorationId" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <ExplorationSession />
+                        <RouteErrorBoundary routeName="Exploration Session">
+                          <ExplorationSession />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/onboarding" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <OnboardingFlow />
+                        <RouteErrorBoundary routeName="Onboarding">
+                          <OnboardingFlow />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
@@ -277,28 +325,36 @@ const App = () => {
                   <Route path="/chat" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <Chat />
+                        <VoiceErrorBoundary showDiagnostics={process.env.NODE_ENV === 'development'}>
+                          <Chat />
+                        </VoiceErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/library" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <Library />
+                        <RouteErrorBoundary routeName="Library">
+                          <Library />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/community" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <Community />
+                        <RouteErrorBoundary routeName="Community">
+                          <Community />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/profile" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <Profile />
+                        <RouteErrorBoundary routeName="Profile">
+                          <Profile />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
@@ -307,14 +363,18 @@ const App = () => {
                   <Route path="/admin" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <AdminDashboard />
+                        <DatabaseErrorBoundary showHealthStatus={true}>
+                          <AdminDashboard />
+                        </DatabaseErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/assessments" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <AdminDashboard />
+                        <DatabaseErrorBoundary>
+                          <AdminDashboard />
+                        </DatabaseErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
@@ -322,43 +382,67 @@ const App = () => {
                   {/* Demo and test routes - lazy loaded */}
                   <Route path="/assessment-test" element={
                     <Suspense fallback={<PageLoader />}>
-                      <AssessmentTestPage />
+                      <AssessmentErrorBoundary>
+                        <AssessmentTestPage />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/assessment-demo" element={
                     <Suspense fallback={<PageLoader />}>
-                      <AssessmentSystemDemo />
+                      <AssessmentErrorBoundary>
+                        <AssessmentSystemDemo />
+                      </AssessmentErrorBoundary>
                     </Suspense>
                   } />
                   <Route path="/voice-demo" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <VoiceAssistantDemo />
+                        <VoiceErrorBoundary showDiagnostics={true}>
+                          <VoiceAssistantDemo />
+                        </VoiceErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/notifications-test" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <NotificationTestPage />
+                        <RouteErrorBoundary routeName="Notification Test">
+                          <NotificationTestPage />
+                        </RouteErrorBoundary>
                       </Suspense>
                     </ProtectedRoute>
                   } />
+                  <Route path="/error-boundary-demo" element={
+                    <Suspense fallback={<PageLoader />}>
+                      <RouteErrorBoundary routeName="Error Boundary Demo">
+                        <ErrorBoundaryDemo />
+                      </RouteErrorBoundary>
+                    </Suspense>
+                  } />
                   
                   {/* Catch-all route */}
-                  <Route path="*" element={<NotFound />} />
+                  <Route path="*" element={
+                    <RouteErrorBoundary routeName="404">
+                      <NotFound />
+                    </RouteErrorBoundary>
+                  } />
                     </Routes>
                   </Suspense>
                 </main>
-              </ErrorBoundary>
-              <MobileNavigation />
-              <AccessibilityMonitor 
-                enabled={process.env.NODE_ENV === 'development' || process.env.REACT_APP_A11Y_MONITOR === 'true'}
-                position="bottom-right"
-                autoRun={true}
-                showInProduction={process.env.REACT_APP_A11Y_MONITOR === 'true'}
-              />
-            </div>
+
+                {/* Network-level error boundary for mobile navigation */}
+                <NetworkErrorBoundary showNetworkStatus={true} enableAutoRetry={true}>
+                  <MobileNavigation />
+                </NetworkErrorBoundary>
+
+                <AccessibilityMonitor
+                  enabled={process.env.NODE_ENV === 'development' || process.env.REACT_APP_A11Y_MONITOR === 'true'}
+                  position="bottom-right"
+                  autoRun={true}
+                  showInProduction={process.env.REACT_APP_A11Y_MONITOR === 'true'}
+                />
+              </div>
+            </AppLevelErrorBoundary>
           </RoutePreloader>
         </BrowserRouter>
       </TooltipProvider>
