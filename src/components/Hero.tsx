@@ -6,9 +6,9 @@ export const Hero = () => {
   const navigate = useNavigate();
 
   const handleStartDiscovery = () => {
-    console.log('Navigating to /mobile-assessment-hub');
+    console.log('Navigating to free assessments');
     try {
-      navigate("/mobile-assessment-hub");
+      navigate("/free-assessments");
     } catch (error) {
       console.error('Navigation error:', error);
     }
@@ -39,18 +39,18 @@ export const Hero = () => {
         {/* Badge - Improved spacing and responsiveness */}
         <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium text-muted-foreground hover:scale-105 transition-transform">
           <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
-          <span className="hidden xs:inline">Meet NewMe — Your Growth Companion</span>
-          <span className="xs:hidden">NewMe Companion</span>
+          <span className="hidden xs:inline">Meet NewMe — Your AI Growth Companion</span>
+          <span className="xs:hidden">NewMe AI Companion</span>
         </div>
 
         {/* Hero Title - Using clamp() for smoother fluid typography */}
         <h1 className="text-[clamp(1.875rem,5vw,9rem)] font-hero font-bold leading-[1.1] sm:leading-tight px-2 sm:px-4 lg:px-6">
           <span className="text-foreground drop-shadow-2xl shadow-black/50 block sm:inline font-extrabold">
-            Discover Your Hidden Self
+            Transform Your Story
           </span>
           <br className="hidden sm:block" />
           <span className="relative inline-block text-foreground font-extrabold drop-shadow-2xl shadow-black/50 mt-2 sm:mt-0">
-            Unlock Your Natural Talents
+            Unlock Your Potential
             <div className="absolute -inset-2 sm:-inset-4 bg-gradient-glow rounded-lg opacity-20 blur-2xl animate-ping duration-[2000ms] ease-in-out"></div>
             <div className="absolute -inset-1 sm:-inset-2 bg-gradient-primary rounded-lg opacity-5 blur-lg transition-all duration-500"></div>
           </span>
@@ -58,7 +58,7 @@ export const Hero = () => {
 
         {/* Subtitle - Better responsive text sizing */}
         <p className="text-[clamp(1rem,2vw,1.875rem)] text-muted-foreground leading-relaxed max-w-4xl mx-auto px-2 sm:px-4 lg:px-6 text-balance">
-          Discover your hidden self, grow your talents, and become a pro at handling people. A safe, culturally sensitive space for women to learn, connect, and level up in real life.
+          Your AI-powered companion for personal growth through narrative identity exploration. A safe, culturally sensitive space for women to discover their authentic selves and unlock their true potential.
         </p>
 
         {/* CTA Buttons - Enhanced touch targets and responsive layout */}

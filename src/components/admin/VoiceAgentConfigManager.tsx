@@ -133,11 +133,13 @@ export const VoiceAgentConfigManager: React.FC = () => {
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
         const errors: Record<string, string> = {};
-        e.errors.forEach(err => {
-          if (err.path.length > 0) {
-            errors[err.path[0].toString()] = err.message;
-          }
-        });
+        if (e.errors && Array.isArray(e.errors)) {
+          e.errors.forEach(err => {
+            if (err.path && err.path.length > 0) {
+              errors[err.path[0].toString()] = err.message;
+            }
+          });
+        }
         setErrors(errors);
       } else {
         const error = e as Error;

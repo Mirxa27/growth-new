@@ -283,7 +283,8 @@ class StorageService {
         { data: journal },
         { data: sessions }
       ] = await Promise.all([
-        supabase.from('user_profiles').select('*').eq('id', user.id).single(),
+        // Use profiles table instead of user_profiles
+        supabase.from('profiles').select('*').eq('user_id', user.id).single(),
         supabase.from('assessments').select('*').eq('user_id', user.id),
         supabase.from('goals').select('*').eq('user_id', user.id),
         supabase.from('journal_entries').select('*').eq('user_id', user.id),

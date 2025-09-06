@@ -134,6 +134,38 @@
     min-height: -webkit-fill-available;
   }
 
+  /* RTL Support for Arabic */
+  [dir="rtl"] {
+    text-align: right;
+  }
+
+  [dir="rtl"] .flex {
+    flex-direction: row-reverse;
+  }
+
+  [dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 1;
+    margin-right: calc(0.5rem * var(--tw-space-x-reverse));
+    margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
+  }
+
+  /* Use logical properties for better RTL support */
+  .margin-inline-start-auto { margin-inline-start: auto; }
+  .margin-inline-end-auto { margin-inline-end: auto; }
+  .padding-inline-start-4 { padding-inline-start: 1rem; }
+  .padding-inline-end-4 { padding-inline-end: 1rem; }
+  .border-inline-start { border-inline-start-width: 1px; }
+  .border-inline-end { border-inline-end-width: 1px; }
+
+  /* RTL-aware positioning */
+  .rtl-flip {
+    transform: scaleX(-1);
+  }
+
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(1);
+  }
+
   /* Fixed Background with Glassmorphic Blur */
   body::before {
     content: '';

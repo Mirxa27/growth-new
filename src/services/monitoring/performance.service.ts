@@ -320,6 +320,11 @@ class PerformanceMonitoringService {
   private async sendMetrics() {
     if (this.metrics.length === 0) return;
     
+    // Temporarily disable performance metrics to prevent 404 errors
+    console.log('Performance metrics collected but not sent (table not ready):', this.metrics.length);
+    this.metrics = []; // Clear metrics to prevent memory buildup
+    return;
+    
     const metricsToSend = [...this.metrics];
     this.metrics = [];
     

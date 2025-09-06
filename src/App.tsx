@@ -9,20 +9,27 @@ import { MobileNavigation } from "@/components/MobileNavigation";
 import { useEffect } from "react";
 import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import PublicAssessment from "./pages/PublicAssessment";
-import MobileAssessment from "./pages/MobileAssessment";
-import Dashboard from "./pages/Dashboard";
-import Explorations from "./pages/Explorations";
-import Chat from "./pages/Chat";
-import Library from "./pages/Library";
-import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/AdminDashboard";
-import Community from "./pages/Community";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
+// Lazy load pages for better performance
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const PublicAssessment = lazy(() => import("./pages/PublicAssessment"));
+const MobileAssessment = lazy(() => import("./pages/MobileAssessment"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Explorations = lazy(() => import("./pages/Explorations"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Library = lazy(() => import("./pages/Library"));
+const Profile = lazy(() => import("./pages/Profile"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Community = lazy(() => import("./pages/Community"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
+import { NewomenOnboardingFlow } from "./components/onboarding/NewomenOnboardingFlow";
+import { NarrativeIdentityExploration } from "./components/exploration/NarrativeIdentityExploration";
+import { FreeAssessmentHub } from "./components/assessments/FreeAssessmentHub";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
@@ -53,7 +60,15 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <div className="relative">
-            <Routes>
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+                <div className="text-center space-y-4">
+                  <LoadingSpinner size="lg" />
+                  <p className="text-muted-foreground">Loading Newomen...</p>
+                </div>
+              </div>
+            }>
+              <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/assessment" element={<PublicAssessment />} />
@@ -76,9 +91,15 @@ const App = () => {
                   <ExplorationSession />
                 </ProtectedRoute>
               } />
+              <Route path="/narrative-identity" element={
+                <ProtectedRoute>
+                  <NarrativeIdentityExploration />
+                </ProtectedRoute>
+              } />
+              <Route path="/free-assessments" element={<FreeAssessmentHub />} />
               <Route path="/onboarding" element={
                 <ProtectedRoute>
-                  <OnboardingFlow />
+                  <NewomenOnboardingFlow />
                 </ProtectedRoute>
               } />
               <Route path="/chat" element={
@@ -108,7 +129,8 @@ const App = () => {
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </Suspense>
             <MobileNavigation />
           </div>
         </BrowserRouter>
