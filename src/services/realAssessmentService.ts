@@ -108,9 +108,17 @@ export class RealAssessmentService {
    */
   static async getAssessmentById(id: string): Promise<Assessment | null> {
     try {
-      const numericId = parseInt(id);
-      if (isNaN(numericId)) {
-        throw new AssessmentServiceError('Invalid assessment ID', 'INVALID_ID', 400);
+      // Validate ID format (supports both UUID and numeric)
+      if (!id || id === 'null' || id === 'undefined') {
+        throw new AssessmentServiceError('Assessment ID is required', 'INVALID_ID', 400);
+      }
+
+      // Check if it's a UUID or numeric ID
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const queryId = isUUID ? id : parseInt(id);
+
+      if (!isUUID && isNaN(queryId as number)) {
+        throw new AssessmentServiceError('Invalid assessment ID format', 'INVALID_ID', 400);
       }
 
       const { data: assessment, error } = await supabase
@@ -122,7 +130,7 @@ export class RealAssessmentService {
             options:assessment_options(*)
           )
         `)
-        .eq('id', numericId)
+        .eq('id', queryId)
         .single();
 
       if (error) {

@@ -1,269 +1,295 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import AssessmentHub from '@/components/assessment/AssessmentHub';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  Brain, 
-  Heart, 
-  Briefcase, 
-  Users, 
-  Sparkles, 
-  Clock, 
-  CheckCircle2,
-  ArrowRight,
-  Star,
-  Award,
-  Zap
-} from 'lucide-react';
+/**
+ * Assessment Landing Page
+ * Entry point for users to discover and take assessments
+ */
 
-interface AssessmentCategory {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-}
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  BookOpen, 
+  Brain, 
+  Users, 
+  Clock,
+  Star,
+  ChevronRight,
+  Play
+} from 'lucide-react';
+import { getPublicAssessments, getAccessibleAssessments } from '@/services/api/assessment.service';
+import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/services/logging/logger.service';
+import { toast } from 'sonner';
+import type { Assessment } from '@/types/assessment';
 
 const AssessmentLanding: React.FC = () => {
-  const navigate = useNavigate();
-  const [categories, setCategories] = useState<AssessmentCategory[]>([]);
-  const [showAssessments, setShowAssessments] = useState(false);
+  const { user } = useAuth();
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    loadAssessments();
+  }, [user]);
 
-  const loadCategories = async () => {
+  const loadAssessments = async () => {
     try {
-      const { data, error } = await supabase
-        .from('assessment_categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
+      setLoading(true);
+      setError(null);
+      
+      // Load assessments based on user authentication status
+      const data = user ? await getAccessibleAssessments() : await getPublicAssessments();
+      setAssessments(data);
 
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      // Fallback to default categories if database isn't ready
-      setCategories([
-        { id: '1', name: 'Personality', description: 'Discover your unique traits', icon: '🧠', color: '#8B5CF6' },
-        { id: '2', name: 'Emotional Intelligence', description: 'Assess your emotional awareness', icon: '💝', color: '#EC4899' },
-        { id: '3', name: 'Career Development', description: 'Explore your professional path', icon: '💼', color: '#10B981' },
-        { id: '4', name: 'Relationships', description: 'Understand your connection patterns', icon: '💕', color: '#F59E0B' }
-      ]);
+      logger.info('Assessments loaded successfully', {
+        component: 'AssessmentLanding',
+        action: 'loadAssessments',
+        metadata: {
+          count: data.length,
+          userAuthenticated: !!user,
+          userId: user?.id
+        }
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load assessments';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      
+      logger.error('Failed to load assessments', {
+        component: 'AssessmentLanding',
+        action: 'loadAssessments',
+        error: err
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStartAssessment = () => {
-    setShowAssessments(true);
-  };
-
-  const getIconComponent = (iconName: string) => {
-    switch (iconName) {
-      case '🧠': return Brain;
-      case '💝': return Heart;
-      case '💼': return Briefcase;
-      case '💕': return Users;
-      default: return Sparkles;
+  const getAssessmentIcon = (type: string) => {
+    switch (type) {
+      case 'personality': return <Brain className="w-5 h-5 text-purple-600" />;
+      case 'career': return <BookOpen className="w-5 h-5 text-blue-600" />;
+      case 'relationships': return <Users className="w-5 h-5 text-pink-600" />;
+      default: return <Star className="w-5 h-5 text-yellow-600" />;
     }
   };
 
-  if (showAssessments) {
-    return <AssessmentHub />;
+  const getAssessmentColor = (type: string) => {
+    switch (type) {
+      case 'personality': return 'border-purple-200 bg-purple-50';
+      case 'career': return 'border-blue-200 bg-blue-50';
+      case 'relationships': return 'border-pink-200 bg-pink-50';
+      default: return 'border-yellow-200 bg-yellow-50';
+    }
+  };
+
+  const handleStartAssessment = (assessmentId: string) => {
+    logger.info('Assessment started', {
+      component: 'AssessmentLanding',
+      action: 'startAssessment',
+      metadata: { assessmentId, userId: user?.id }
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 sm:p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="text-center mb-12">
+            <Skeleton className="h-12 w-96 mx-auto mb-4" />
+            <Skeleton className="h-6 w-2/3 mx-auto" />
+          </div>
+          
+          {/* Assessment Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <Card key={i} className="glass">
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="glass max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-red-600">Unable to Load Assessments</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-600">{error}</p>
+            <Button onClick={loadAssessments}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-indigo-900/20 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5" />
-      <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-
-      <div className="relative z-10 container mx-auto px-4 py-12">
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex items-center gap-2 glass rounded-full px-6 py-3 mb-6">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium">Free Assessment Platform</span>
-          </div>
-          
-          <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
-            Discover Your True Self
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            Discover Your
+            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"> Authentic Self</span>
           </h1>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
-            Take comprehensive assessments designed specifically for women to unlock your personality, 
-            emotional intelligence, career potential, and relationship patterns with AI-powered insights.
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Take scientifically-designed assessments to uncover your personality, strengths, and growth opportunities. 
+            Start your journey of self-discovery with our AI-powered insights.
           </p>
+          {!user && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-blue-800 font-medium">
+                🌟 Create a free account to save your results and track your growth journey!
+              </p>
+              <Link to="/auth">
+                <Button className="mt-3 bg-blue-600 hover:bg-blue-700">
+                  Sign Up Free
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
 
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
-            <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              <span className="text-sm">100% Free</span>
-            </div>
-            <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
-              <Clock className="w-4 h-4 text-blue-500" />
-              <span className="text-sm">10-15 Minutes</span>
-            </div>
-            <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
-              <Award className="w-4 h-4 text-purple-500" />
-              <span className="text-sm">AI-Powered Results</span>
-            </div>
-            <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
-              <Zap className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm">Instant Insights</span>
-            </div>
+        {/* Assessment Grid */}
+        {assessments.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {assessments.map((assessment) => (
+              <Card 
+                key={assessment.id} 
+                className={`glass hover:shadow-lg transition-all duration-200 hover:scale-105 ${getAssessmentColor(assessment.type)}`}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between mb-2">
+                    {getAssessmentIcon(assessment.type)}
+                    <Badge variant="secondary" className="text-xs">
+                      {assessment.type}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg font-bold text-gray-900 line-clamp-2">
+                    {assessment.title}
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 line-clamp-3">
+                    {assessment.description}
+                  </p>
+                </CardHeader>
+                
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between mb-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{assessment.questions?.length || 10} questions</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4" />
+                      <span>~{Math.ceil((assessment.questions?.length || 10) * 0.5)} min</span>
+                    </div>
+                  </div>
+
+                  <Link to={`/assessment/${assessment.id}`}>
+                    <Button 
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      onClick={() => handleStartAssessment(assessment.id)}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Start Assessment
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </motion.div>
-
-        {/* Assessment Categories */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-16"
-        >
-          <h2 className="text-3xl font-bold text-center mb-4">Choose Your Discovery Path</h2>
-          <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-            Each assessment is scientifically designed with 10-15 questions and provides personalized insights 
-            based on your unique responses.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((category, index) => {
-              const IconComponent = getIconComponent(category.icon);
-              return (
-                <motion.div
-                  key={category.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                >
-                  <Card className="glass-card group hover:shadow-xl transition-all duration-300 cursor-pointer border-0 bg-white/5 backdrop-blur-xl">
-                    <CardHeader className="text-center pb-4">
-                      <div 
-                        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-300 group-hover:scale-110"
-                        style={{ backgroundColor: `${category.color}20` }}
-                      >
-                        <IconComponent 
-                          className="w-8 h-8 transition-all duration-300" 
-                          style={{ color: category.color }}
-                        />
-                      </div>
-                      <CardTitle className="text-lg font-semibold group-hover:text-purple-600 transition-colors">
-                        {category.name}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-center">
-                      <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                        {category.description}
-                      </p>
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-700 border-0"
-                      >
-                        15 Questions
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Features Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mb-16"
-        >
-          <Card className="glass-card border-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-xl">
-            <CardContent className="p-12">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                <div>
-                  <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-8 h-8 text-purple-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">AI-Powered Analysis</h3>
-                  <p className="text-gray-600">
-                    Advanced algorithms analyze your responses to provide deep, personalized insights about your personality and potential.
-                  </p>
-                </div>
-                <div>
-                  <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Star className="w-8 h-8 text-pink-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Personalized Results</h3>
-                  <p className="text-gray-600">
-                    Receive detailed feedback tailored to your unique responses, with actionable recommendations for growth.
-                  </p>
-                </div>
-                <div>
-                  <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Award className="w-8 h-8 text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Instant Insights</h3>
-                  <p className="text-gray-600">
-                    Get immediate results with comprehensive analysis, growth recommendations, and areas for development.
-                  </p>
-                </div>
-              </div>
+        ) : (
+          <Card className="glass text-center py-12">
+            <CardContent>
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Assessments Available</h3>
+              <p className="text-gray-600 mb-6">
+                We're working on adding more assessments. Check back soon!
+              </p>
+              <Button onClick={loadAssessments}>
+                Refresh
+              </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        )}
 
-        {/* Call to Action */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="text-center"
-        >
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Ready to Discover Your Hidden Self?
-            </h2>
-            <p className="text-xl text-gray-600 mb-8">
-              Join thousands of women who've unlocked their potential through our comprehensive assessment platform.
-            </p>
+        {/* Features Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 mt-12">
+          <h2 className="text-2xl font-bold text-center mb-8">Why Choose Our Assessments?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="font-semibold mb-2">AI-Powered Insights</h3>
+              <p className="text-sm text-gray-600">
+                Advanced AI analysis provides personalized insights and recommendations for your growth journey.
+              </p>
+            </div>
             
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="font-semibold mb-2">Scientifically Validated</h3>
+              <p className="text-sm text-gray-600">
+                Our assessments are based on established psychological frameworks and research.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Star className="w-6 h-6 text-pink-600" />
+              </div>
+              <h3 className="font-semibold mb-2">Personalized Results</h3>
+              <p className="text-sm text-gray-600">
+                Get customized feedback and actionable steps tailored to your unique personality and goals.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Call to Action for Visitors */}
+        {!user && (
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-white p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">Ready to Begin Your Growth Journey?</h2>
+            <p className="text-purple-100 mb-6 max-w-2xl mx-auto">
+              Join thousands of women who have discovered their authentic selves through our comprehensive assessments. 
+              Create your free account to save results and track your progress over time.
+            </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                onClick={handleStartAssessment}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-8 py-4 text-lg font-semibold rounded-2xl"
-              >
-                Start Free Assessment
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-              
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => navigate('/auth')}
-                className="glass-button border-purple-200 hover:border-purple-300 px-8 py-4 text-lg font-medium rounded-2xl"
-              >
-                Learn More
+              <Link to="/auth">
+                <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
+                  Sign Up Free
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-purple-600">
+                Learn More About Assessments
               </Button>
             </div>
-
-            <p className="text-sm text-gray-500 mt-6">
-              No signup required • Complete privacy • Instant results
-            </p>
           </div>
-        </motion.div>
+        )}
       </div>
     </div>
   );

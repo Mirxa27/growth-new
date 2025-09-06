@@ -235,8 +235,8 @@ export const getAssessments = async (filters?: {
 
 // Fetch single assessment by ID
 export const getAssessmentById = async (id: string): Promise<Assessment | null> => {
-  // Validate ID to prevent NaN issues
-  if (!id || id === 'null' || id === 'undefined' || isNaN(Number(id))) {
+  // Validate ID format (supports both UUID and numeric)
+  if (!id || id === 'null' || id === 'undefined') {
     console.error('Invalid assessment ID provided:', id);
     return null;
   }
@@ -246,6 +246,10 @@ export const getAssessmentById = async (id: string): Promise<Assessment | null> 
   if (cached) return cached;
 
   try {
+    // Support both UUID and numeric IDs
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const queryId = isUUID ? id : Number(id);
+
     const { data, error } = await supabase
       .from('assessments')
       .select(`
@@ -255,7 +259,7 @@ export const getAssessmentById = async (id: string): Promise<Assessment | null> 
           options:assessment_options(*)
         )
       `)
-      .eq('id', Number(id)) // Ensure ID is a number
+      .eq('id', queryId)
       .single();
 
     if (error) throw error;

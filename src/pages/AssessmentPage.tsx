@@ -51,11 +51,13 @@ const AssessmentPage = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [assessment, setAssessment] = useState<ExtendedAssessment | null>(null);
 
-  // Validate and parse ID from URL params
-  const validateId = (id: string | undefined): number | null => {
-    if (!id) return null;
-    const parsedId = parseInt(id, 10);
-    return isNaN(parsedId) ? null : parsedId;
+  // Validate ID from URL params (now supports UUIDs)
+  const validateId = (id: string | undefined): string | null => {
+    if (!id || id === 'null' || id === 'undefined') return null;
+    // Support both UUID and numeric IDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isNumeric = /^\d+$/.test(id);
+    return (uuidRegex.test(id) || isNumeric) ? id : null;
   };
 
   // Load assessment and questions from the database
@@ -77,7 +79,7 @@ const AssessmentPage = () => {
         setIsLoading(true);
 
         // Use the assessment service instead of direct Supabase query
-        const assessmentData = await RealAssessmentService.getAssessmentById(assessmentId.toString());
+        const assessmentData = await RealAssessmentService.getAssessmentById(assessmentId);
 
         if (!assessmentData) {
           throw new Error('Assessment not found');
