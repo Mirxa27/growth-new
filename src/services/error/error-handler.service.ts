@@ -306,6 +306,16 @@ class ErrorHandlerService {
     const errors = [...this.errorQueue];
     this.errorQueue = [];
 
+    // Temporarily disable database error logging to prevent 404 spam
+    console.log(`Error logging disabled (${errors.length} errors collected but not sent)`);
+    
+    // Just log to console for now
+    errors.forEach(error => {
+      console.error(`[${error.severity}] ${error.category}: ${error.message}`, error.context);
+    });
+
+    return; // Skip database logging until tables are ready
+
     try {
       // Log to Supabase using safe database function
       for (const errorRecord of errors) {

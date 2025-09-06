@@ -1,5 +1,6 @@
 import { OpenAI } from 'openai';
 import { supabase } from '@/integrations/supabase/client';
+import { openaiWrapper } from '@/services/api/openai-wrapper.service';
 
 export interface UserMemoryProfile {
   personalityType: string;
@@ -47,13 +48,15 @@ export class NewMeAIService {
 
   constructor() {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenAI API key is required for NewMe AI service');
+    if (!apiKey || apiKey === 'your-openai-api-key-here') {
+      console.warn('OpenAI API key not configured, NewMe will use fallback responses');
+      this.openai = null as any; // Will use wrapper service instead
+    } else {
+      this.openai = new OpenAI({
+        apiKey,
+        dangerouslyAllowBrowser: true,
+      });
     }
-    this.openai = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true,
-    });
   }
 
   /**
@@ -75,19 +78,15 @@ export class NewMeAIService {
     try {
       const systemPrompt = this.buildDynamicPrompt(context);
       
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 800,
-        presence_penalty: 0.3,
-        frequency_penalty: 0.2,
-      });
-
-      const aiResponse = response.choices[0]?.message?.content || 'I understand you, and I\'m here to support your growth journey.';
+      // Use wrapper service that handles missing API keys gracefully
+      const aiResponse = await openaiWrapper.generateCompletion(
+        `${systemPrompt}\n\nUser: ${message}`,
+        {
+          model: 'gpt-4o-mini',
+          maxTokens: 800,
+          temperature: 0.7
+        }
+      );
       
       // Analyze the conversation for insights and emotional patterns
       const analysis = await this.analyzeConversation(message, aiResponse, context);
