@@ -38,7 +38,7 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
-import { AdvancedVoiceConfigPanel } from '@/components/admin/AdvancedVoiceConfigPanel';
+import EnhancedVoiceAgentConfigManager from '@/components/admin/EnhancedVoiceAgentConfigManager';
 import { EnhancedRealtimeVoiceAgent } from '@/components/voice/EnhancedRealtimeVoiceAgent';
 
 type AdminSection = 
@@ -527,8 +527,8 @@ const AdminDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Advanced Configuration Panel */}
-            <AdvancedVoiceConfigPanel />
+            {/* Enhanced Voice Agent Configuration */}
+            <EnhancedVoiceAgentConfigManager />
 
             {/* Legacy Components */}
             <Card className="glass">

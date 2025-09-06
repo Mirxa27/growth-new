@@ -10,14 +10,30 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
 import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
-import { voiceService } from '@/services/api/voice.service';
 import { z } from 'zod';
-import { TablesInsert } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
+import { adminAPIConfigService } from '@/services/admin/adminAPIConfigService';
 
-type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
+// Define a more specific type for the configuration object that includes optional fields.
+type VoiceAgentConfigWithAdvanced = Tables<'voice_agent_configs'> & {
+  enable_realtime?: boolean;
+  use_proxy?: boolean;
+  proxy_url?: string | null;
+  input_audio_transcription_model?: string | null;
+  language?: string | null;
+  arabic_support?: boolean;
+  emotion_detection?: boolean;
+  input_audio_format?: string | null;
+  output_audio_format?: string | null;
+  turn_detection_type?: string | null;
+  turn_detection_threshold?: number | null;
+  turn_detection_prefix_padding_ms?: number | null;
+  turn_detection_silence_duration_ms?: number | null;
+};
 
 const VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
 
+// Schema for all columns that might exist in the voice_agent_configs table.
 const voiceAgentConfigSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
@@ -27,18 +43,7 @@ const voiceAgentConfigSchema = z.object({
   instructions: z.string().optional(),
   temperature: z.number().min(0).max(1),
   is_active: z.boolean(),
-  
-  // OpenAI API Configuration
-  openai_api_key: z.string().optional(),
-  openai_organization: z.string().optional(),
-  openai_project: z.string().optional(),
-  api_base_url: z.string().url().optional().or(z.literal('')),
-  max_tokens: z.number().min(1).max(8192).optional(),
-  top_p: z.number().min(0).max(1).optional(),
-  frequency_penalty: z.number().min(-2).max(2).optional(),
-  presence_penalty: z.number().min(-2).max(2).optional(),
-  
-  // Voice specific settings
+  // Optional advanced columns
   enable_realtime: z.boolean().optional(),
   use_proxy: z.boolean().optional(),
   proxy_url: z.string().url().optional().or(z.literal('')),
@@ -46,9 +51,24 @@ const voiceAgentConfigSchema = z.object({
   language: z.string().optional(),
   arabic_support: z.boolean().optional(),
   emotion_detection: z.boolean().optional(),
+  input_audio_format: z.string().optional(),
+  output_audio_format: z.string().optional(),
+  turn_detection_type: z.string().optional(),
+  turn_detection_threshold: z.number().optional(),
+  turn_detection_prefix_padding_ms: z.number().optional(),
+  turn_detection_silence_duration_ms: z.number().optional(),
 });
 
 type VoiceAgentConfig = z.infer<typeof voiceAgentConfigSchema>;
+
+// Interface for the OpenAI provider configuration
+interface OpenAIProviderConfiguration {
+  api_key?: string;
+  base_url?: string;
+  organization?: string;
+  project?: string;
+}
+
 
 export const VoiceAgentConfigManager: React.FC = () => {
   const { configs, loading, error: fetchError } = useVoiceAgentConfig();
@@ -61,19 +81,10 @@ export const VoiceAgentConfigManager: React.FC = () => {
     name: '', 
     provider: 'openai', 
     voice: 'alloy', 
-    model: 'gpt-realtime-2025-08-28', // Standardized realtime model 
+    model: 'gpt-realtime-2025-08-28',
     temperature: 0.7, 
     instructions: '', 
     is_active: true,
-    // OpenAI API defaults
-    openai_api_key: '', 
-    openai_organization: '', 
-    openai_project: '', 
-    api_base_url: '',
-    max_tokens: 4096, 
-    top_p: 1, 
-    frequency_penalty: 0, 
-    presence_penalty: 0,
     // Realtime defaults
     enable_realtime: true, 
     use_proxy: true, 
@@ -81,38 +92,44 @@ export const VoiceAgentConfigManager: React.FC = () => {
     input_audio_transcription_model: 'whisper-1', 
     language: 'en', 
     arabic_support: true, 
-    emotion_detection: true
+    emotion_detection: true,
+    input_audio_format: 'pcm16',
+    output_audio_format: 'pcm16',
+    turn_detection_type: 'server_vad',
+    turn_detection_threshold: 0.5,
+    turn_detection_prefix_padding_ms: 300,
+    turn_detection_silence_duration_ms: 1000,
   });
   
   useEffect(() => {
     if (activeConfig) {
       try {
+        // The activeConfig might have fields not strictly defined in the base type.
+        const extendedConfig = activeConfig as VoiceAgentConfigWithAdvanced;
+
         const validatedConfig = voiceAgentConfigSchema.parse({
-          id: activeConfig.id,
-          name: activeConfig.name,
-          provider: activeConfig.provider,
-          voice: activeConfig.voice,
-          model: activeConfig.model,
-          temperature: activeConfig.temperature,
-          instructions: activeConfig.instructions ?? '',
-          is_active: activeConfig.is_active,
-          // OpenAI API fields
-          openai_api_key: (activeConfig as any).openai_api_key ?? '',
-          openai_organization: (activeConfig as any).openai_organization ?? '',
-          openai_project: (activeConfig as any).openai_project ?? '',
-          api_base_url: (activeConfig as any).api_base_url ?? '',
-          max_tokens: (activeConfig as any).max_tokens ?? 4096,
-          top_p: (activeConfig as any).top_p ?? 1,
-          frequency_penalty: (activeConfig as any).frequency_penalty ?? 0,
-          presence_penalty: (activeConfig as any).presence_penalty ?? 0,
-          // Voice settings
-          enable_realtime: (activeConfig as any).enable_realtime ?? true,
-          use_proxy: (activeConfig as any).use_proxy ?? true,
-          proxy_url: (activeConfig as any).proxy_url ?? '',
-          input_audio_transcription_model: (activeConfig as any).input_audio_transcription_model ?? 'whisper-1',
-          language: (activeConfig as any).language ?? 'en',
-          arabic_support: (activeConfig as any).arabic_support ?? true,
-          emotion_detection: (activeConfig as any).emotion_detection ?? true,
+          id: extendedConfig.id,
+          name: extendedConfig.name,
+          provider: extendedConfig.provider,
+          voice: extendedConfig.voice,
+          model: extendedConfig.model,
+          temperature: extendedConfig.temperature,
+          instructions: extendedConfig.instructions ?? '',
+          is_active: extendedConfig.is_active,
+          // Voice settings / advanced with fallbacks to defaults
+          enable_realtime: extendedConfig.enable_realtime ?? true,
+          use_proxy: extendedConfig.use_proxy ?? true,
+          proxy_url: extendedConfig.proxy_url ?? '',
+          input_audio_transcription_model: extendedConfig.input_audio_transcription_model ?? 'whisper-1',
+          language: extendedConfig.language ?? 'en',
+          arabic_support: extendedConfig.arabic_support ?? true,
+          emotion_detection: extendedConfig.emotion_detection ?? true,
+          input_audio_format: extendedConfig.input_audio_format ?? 'pcm16',
+          output_audio_format: extendedConfig.output_audio_format ?? 'pcm16',
+          turn_detection_type: extendedConfig.turn_detection_type ?? 'server_vad',
+          turn_detection_threshold: extendedConfig.turn_detection_threshold ?? 0.5,
+          turn_detection_prefix_padding_ms: extendedConfig.turn_detection_prefix_padding_ms ?? 300,
+          turn_detection_silence_duration_ms: extendedConfig.turn_detection_silence_duration_ms ?? 1000,
         });
         setForm(validatedConfig);
       } catch (e) {
@@ -131,19 +148,39 @@ export const VoiceAgentConfigManager: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const validate = (data: typeof form) => {
-    return voiceAgentConfigSchema.parse(data);
-  };
+  // Admin AI provider config local state
+  const [providerApiKey, setProviderApiKey] = useState<string>('');
+  const [providerBaseUrl, setProviderBaseUrl] = useState<string>('');
+  const [providerOrg, setProviderOrg] = useState<string>('');
+  const [providerProject, setProviderProject] = useState<string>('');
+
+  useEffect(() => {
+    // Load admin provider config for display
+    (async () => {
+      try {
+        const provider = await adminAPIConfigService.getActiveOpenAIProvider();
+        if (provider?.configuration) {
+          const config = provider.configuration as OpenAIProviderConfiguration;
+          setProviderApiKey(config.api_key || '');
+          setProviderBaseUrl(config.base_url || 'https://api.openai.com/v1');
+          setProviderOrg(config.organization || '');
+          setProviderProject(config.project || '');
+        }
+      } catch (_e) {
+        // non-fatal, can be ignored
+      }
+    })();
+  }, []);
 
   const handleSave = async () => {
     setErrors({});
     console.log('Saving voice agent config:', form);
     try {
-      const validatedConfig = validate(form);
+      const validatedConfig = voiceAgentConfigSchema.parse(form);
       setIsSaving(true);
       
       if (validatedConfig.is_active) {
-        const { error: deactivateError } = await (supabase as any)
+        const { error: deactivateError } = await supabase
           .from('voice_agent_configs')
           .update({ is_active: false })
           .neq('id', validatedConfig.id || '');
@@ -154,31 +191,53 @@ export const VoiceAgentConfigManager: React.FC = () => {
         }
       }
 
-      const { error: upsertError } = await (supabase as any)
+      // The validatedConfig from Zod contains all the fields defined in the schema.
+      // We can directly use it as the payload for upserting.
+      const dbPayload = { ...validatedConfig };
+      if (!dbPayload.id) {
+        delete dbPayload.id; // Let Supabase generate the ID on insert
+      }
+
+      const { error: upsertError } = await supabase
         .from('voice_agent_configs')
-        .upsert([validatedConfig]);
+        .upsert([dbPayload]);
 
       if (upsertError) {
         console.error('Error upserting config:', upsertError);
         throw new Error('Failed to save configuration');
       }
 
+      // Update admin OpenAI provider configuration server-side
+      await adminAPIConfigService.updateOpenAIProvider({
+        api_key: providerApiKey,
+        base_url: providerBaseUrl || 'https://api.openai.com/v1',
+        organization: providerOrg || undefined,
+        project: providerProject || undefined,
+        temperature: validatedConfig.temperature,
+        model: 'gpt-realtime-2025-08-28'
+      });
+
       toast({ title: "Success", description: "Configuration saved successfully." });
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
+        const zodErrors: Record<string, string> = {};
         e.issues.forEach(err => {
           if (err.path.length > 0) {
-            errors[err.path[0].toString()] = err.message;
+            zodErrors[err.path[0].toString()] = err.message;
           }
         });
-        setErrors(errors);
-      } else {
-        const error = e as Error;
-        console.error('Error saving config:', error);
+        setErrors(zodErrors);
+      } else if (e instanceof Error) {
+        console.error('Error saving config:', e);
         toast({ 
           title: "Error", 
-          description: error.message || 'An unexpected error occurred', 
+          description: e.message || 'An unexpected error occurred', 
+          variant: "destructive" 
+        });
+      } else {
+         toast({ 
+          title: "Error", 
+          description: 'An unexpected error occurred', 
           variant: "destructive" 
         });
       }
@@ -241,19 +300,18 @@ export const VoiceAgentConfigManager: React.FC = () => {
                   id="openai_api_key" 
                   type="password" 
                   className="glass-input" 
-                  value={form.openai_api_key || ''} 
-                  onChange={e => setForm(p => ({ ...p, openai_api_key: e.target.value }))} 
+                  value={providerApiKey} 
+                  onChange={e => setProviderApiKey(e.target.value)} 
                   placeholder="sk-..." 
                 />
-                {errors.openai_api_key && <p className="text-sm text-red-500">{errors.openai_api_key}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="openai_organization">OpenAI Organization (Optional)</Label>
                 <Input 
                   id="openai_organization" 
                   className="glass-input" 
-                  value={form.openai_organization || ''} 
-                  onChange={e => setForm(p => ({ ...p, openai_organization: e.target.value }))} 
+                  value={providerOrg} 
+                  onChange={e => setProviderOrg(e.target.value)} 
                   placeholder="org-..." 
                 />
               </div>
@@ -262,8 +320,8 @@ export const VoiceAgentConfigManager: React.FC = () => {
                 <Input 
                   id="openai_project" 
                   className="glass-input" 
-                  value={form.openai_project || ''} 
-                  onChange={e => setForm(p => ({ ...p, openai_project: e.target.value }))} 
+                  value={providerProject} 
+                  onChange={e => setProviderProject(e.target.value)} 
                   placeholder="proj_..." 
                 />
               </div>
@@ -272,66 +330,10 @@ export const VoiceAgentConfigManager: React.FC = () => {
                 <Input 
                   id="api_base_url" 
                   className="glass-input" 
-                  value={form.api_base_url || ''} 
-                  onChange={e => setForm(p => ({ ...p, api_base_url: e.target.value }))} 
+                  value={providerBaseUrl} 
+                  onChange={e => setProviderBaseUrl(e.target.value)} 
                   placeholder="https://api.openai.com/v1" 
                 />
-                {errors.api_base_url && <p className="text-sm text-red-500">{errors.api_base_url}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="max_tokens">Max Tokens</Label>
-                <Input 
-                  id="max_tokens" 
-                  type="number" 
-                  min={1} 
-                  max={8192} 
-                  className="glass-input" 
-                  value={form.max_tokens ?? 4096} 
-                  onChange={e => setForm(p => ({ ...p, max_tokens: Number(e.target.value) }))} 
-                />
-                {errors.max_tokens && <p className="text-sm text-red-500">{errors.max_tokens}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="top_p">Top P (0-1)</Label>
-                <Input 
-                  id="top_p" 
-                  type="number" 
-                  min={0} 
-                  max={1} 
-                  step={0.1} 
-                  className="glass-input" 
-                  value={form.top_p ?? 1} 
-                  onChange={e => setForm(p => ({ ...p, top_p: Number(e.target.value) }))} 
-                />
-                {errors.top_p && <p className="text-sm text-red-500">{errors.top_p}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="frequency_penalty">Frequency Penalty (-2 to 2)</Label>
-                <Input 
-                  id="frequency_penalty" 
-                  type="number" 
-                  min={-2} 
-                  max={2} 
-                  step={0.1} 
-                  className="glass-input" 
-                  value={form.frequency_penalty ?? 0} 
-                  onChange={e => setForm(p => ({ ...p, frequency_penalty: Number(e.target.value) }))} 
-                />
-                {errors.frequency_penalty && <p className="text-sm text-red-500">{errors.frequency_penalty}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="presence_penalty">Presence Penalty (-2 to 2)</Label>
-                <Input 
-                  id="presence_penalty" 
-                  type="number" 
-                  min={-2} 
-                  max={2} 
-                  step={0.1} 
-                  className="glass-input" 
-                  value={form.presence_penalty ?? 0} 
-                  onChange={e => setForm(p => ({ ...p, presence_penalty: Number(e.target.value) }))} 
-                />
-                {errors.presence_penalty && <p className="text-sm text-red-500">{errors.presence_penalty}</p>}
               </div>
             </div>
           </div>
@@ -399,24 +401,27 @@ export const VoiceAgentConfigManager: React.FC = () => {
             <div className="flex gap-2">
               <Button 
                 onClick={async () => {
-                  if (form.id) {
-                    const result = await voiceService.testConfiguration(form.id);
-                    toast({ 
-                      title: result.data?.success ? "Test Successful" : "Test Failed",
-                      description: result.data?.message,
-                      variant: result.data?.success ? "default" : "destructive"
+                  try {
+                    const { data, error } = await supabase.functions.invoke('test-ai-provider', {
+                      body: { provider: 'openai' }
                     });
-                  } else {
-                    toast({ 
-                      title: "Save First",
-                      description: "Please save the configuration before testing",
-                      variant: "destructive"
+                    if (error) throw error;
+                    toast({
+                      title: data?.success ? 'Test Successful' : 'Test Failed',
+                      description: data?.message || 'Completed',
+                      variant: data?.success ? 'default' : 'destructive'
                     });
+                  } catch (e: unknown) {
+                     if (e instanceof Error) {
+                        toast({ title: 'Test Failed', description: e.message || 'Error testing configuration', variant: 'destructive' });
+                     } else {
+                        toast({ title: 'Test Failed', description: 'An unknown error occurred during testing', variant: 'destructive' });
+                     }
                   }
                 }}
                 variant="outline" 
                 className="glass"
-                disabled={!form.id}
+                disabled={false}
               >
                 <TestTube className="h-4 w-4 mr-2" />
                 Test Config
@@ -452,11 +457,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
                     onClick={() => {
                       try {
                         const parsed = voiceAgentConfigSchema.parse({
-                          id: c.id,
-                          name: c.name,
-                          provider: c.provider,
-                          voice: c.voice,
-                          model: c.model,
+                          ...c, // Spread the config object
                           temperature: typeof c.temperature === 'number' ? c.temperature : 0.7,
                           instructions: c.instructions ?? '',
                           is_active: !!c.is_active,

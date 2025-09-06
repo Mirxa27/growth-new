@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EnhancedRealtimeVoiceAgent } from '@/components/voice/EnhancedRealtimeVoiceAgent';
-import { AdvancedVoiceConfigPanel } from '@/components/admin/AdvancedVoiceConfigPanel';
+import { EnhancedVoiceAgentConfigManager } from '@/components/admin/EnhancedVoiceAgentConfigManager';
 import { 
   Brain, 
   Mic, 
@@ -231,7 +231,7 @@ const VoiceAssistantDemo: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <AdvancedVoiceConfigPanel />
+            <EnhancedVoiceAgentConfigManager />
           </CardContent>
         </Card>
 

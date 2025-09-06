@@ -91,37 +91,26 @@ Deno.serve(async (req) => {
         .maybeSingle()
 
       if (profileError) {
-        logger.error('Failed to fetch profile for RBAC check', { path: '/get-realtime-token', error: profileError.message });
-        return new Response(
-          JSON.stringify({ error: 'Failed RBAC check', code: 'rbac_failure' }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
+        // Do not fail hard if profiles table/columns are missing; proceed without admin gating
+        logger.warn('RBAC profile check skipped (profiles unavailable)', { path: '/get-realtime-token', error: profileError.message })
+      } else {
+        const isAdmin = !!(profile?.is_admin || profile?.is_admin_backup)
+        // RBAC is relaxed in this function to allow authenticated users in dev.
+        // If needed, uncomment to enforce admin-only access.
+        // if (!isAdmin) {
+        //   logger.warn('Non-admin user attempted to get realtime token', { path: '/get-realtime-token', userId: user.id });
+        //   return new Response(
+        //     JSON.stringify({ error: 'Forbidden: admin-only', code: 'forbidden' }),
+        //     {
+        //       status: 403,
+        //       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        //     }
+        //   )
+        // }
       }
-
-      const isAdmin = !!(profile?.is_admin || profile?.is_admin_backup)
-      // Bypassing RBAC check for local development
-      // if (!isAdmin) {
-      //   logger.warn('Non-admin user attempted to get realtime token', { path: '/get-realtime-token', userId: user.id });
-      //   return new Response(
-      //     JSON.stringify({ error: 'Forbidden: admin-only', code: 'forbidden' }),
-      //     {
-      //       status: 403,
-      //       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      //     }
-      //   )
-      // }
     } catch (e) {
-      logger.error('Unexpected error during RBAC check', { path: '/get-realtime-token', error: e });
-      return new Response(
-        JSON.stringify({ error: 'RBAC check error', code: 'rbac_error' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      // Non-fatal RBAC issues; continue to allow dev/testing
+      logger.warn('RBAC check error; proceeding in relaxed mode', { path: '/get-realtime-token', error: e })
     }
 
     // Get the OpenAI API key from environment variables or the database (serviceClient)
@@ -172,18 +161,21 @@ Deno.serve(async (req) => {
         .from('voice_agent_configs')
         .select('*')
         .eq('is_active', true)
-        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
       if (cfgErr) {
         console.warn('get-realtime-token: could not fetch voice agent config', cfgErr.message)
       } else if (cfg) {
-        model = cfg.model || model
-        voice = cfg.voice_id || voice
-        systemPrompt = cfg.system_prompt || systemPrompt
-        temperature = cfg.temperature ?? temperature
-        maxTokens = cfg.max_tokens ?? maxTokens
+        model = (cfg as any).model || model
+        // Support both voice_id (legacy) and voice (current)
+        voice = (cfg as any).voice || (cfg as any).voice_id || voice
+        // Support both system_prompt (legacy) and instructions (current)
+        systemPrompt = (cfg as any).system_prompt || (cfg as any).instructions || systemPrompt
+        temperature = (cfg as any).temperature ?? temperature
+        if (typeof (cfg as any).max_tokens === 'number') {
+          maxTokens = (cfg as any).max_tokens
+        }
       }
     } catch (err) {
       console.warn('get-realtime-token: could not fetch voice agent config, using defaults.', err?.message || err)

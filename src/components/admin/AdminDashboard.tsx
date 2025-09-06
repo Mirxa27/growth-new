@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { VoiceAgentSettings } from '@/components/admin/VoiceAgentSettings';
+import EnhancedVoiceAgentConfigManager from './EnhancedVoiceAgentConfigManager';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import RealtimeVoiceClient from '../voice/RealtimeVoiceClient';
 import { VoicePlayground } from './VoicePlayground';
@@ -17,7 +17,7 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="playground">Playground</TabsTrigger>
         </TabsList>
         <TabsContent value="voice-agent">
-          <VoiceAgentSettings />
+          <EnhancedVoiceAgentConfigManager />
         </TabsContent>
         <TabsContent value="general">
           <GeneralSettings />

@@ -424,41 +424,15 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
    */
   async testConfiguration(configId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
     try {
-      if (!this.isVoiceEnabled()) {
-        return {
-          data: {
-            success: false,
-            message: 'Voice features are not enabled. Please configure OpenAI API key.',
-          },
-          error: null,
-        };
-      }
-      
-      // Get the configuration to test
-      const { data: config } = await this.findById<VoiceAgentConfig>(configId);
-      if (!config) {
-        throw new Error('Configuration not found');
-      }
-      
-      // Test OpenAI connectivity by checking models endpoint to avoid chat mismatch
-      const testResponse = await fetch('https://api.openai.com/v1/models', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.openAIApiKey}`,
-        },
+      // Server-side validation via edge function (no direct OpenAI calls from browser)
+      const { data, error } = await supabase.functions.invoke('test-ai-provider', {
+        body: { provider: 'openai' }
       });
-      
-      if (!testResponse.ok) {
-        const error = await testResponse.json();
-        throw new Error(error.error?.message || 'Failed to connect to OpenAI');
-      }
-      
-      const result = await testResponse.json();
-      
+      if (error) throw error;
       return {
         data: {
-          success: true,
-          message: `Configuration test successful. Model: ${config.model}, Voice: ${config.voice}`,
+          success: !!data?.success,
+          message: data?.message || 'Completed',
         },
         error: null,
       };
