@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
+import Glass from '@/components/ui/glass';
 
 export const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -66,7 +67,7 @@ export const Navigation = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-3 sm:px-6 sm:py-4">
       <div className="max-w-7xl mx-auto">
-        <div className="glass-strong rounded-2xl px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
+        <Glass className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
           {/* Logo */}
           <button
             onClick={() => navigate('/')}
@@ -156,7 +157,7 @@ export const Navigation = () => {
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden lg:hidden mt-3 sm:mt-4">
-            <div className="glass-strong rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4 animate-in slide-in-from-top-5 duration-300 ease-in-out mx-2 sm:mx-0">
+            <Glass className="p-4 sm:p-6 space-y-3 sm:space-y-4 animate-in slide-in-from-top-5 duration-300 ease-in-out mx-2 sm:mx-0">
               {navItems.map((item) => (
                 <button
                   key={item.name}
