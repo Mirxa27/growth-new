@@ -69,19 +69,22 @@ export class ServiceLocator {
   }
 }
 
-// Register core services  
-try {
-  ServiceLocator.register('businessLogic', businessLogic);
-} catch (error) {
-  console.warn('BusinessLogic service registration failed:', error);
+// Register core services in correct order to avoid circular dependencies
+if (typeof window !== 'undefined') {
+  try {
+    ServiceLocator.register('logger', logger);
+    ServiceLocator.register('globalErrorHandler', globalErrorHandler);
+    ServiceLocator.register('cache', cache);
+    ServiceLocator.register('performanceOptimizer', performanceOptimizer);
+    ServiceLocator.register('mobileOptimizer', mobileOptimizer);
+    ServiceLocator.register('accessibilityService', accessibilityService);
+    ServiceLocator.register('unifiedAI', unifiedAI);
+    ServiceLocator.register('businessLogic', businessLogic);
+  } catch (error) {
+    // Fallback logging for service registration errors
+    console.warn('Service registration failed:', error);
+  }
 }
-ServiceLocator.register('logger', logger);
-ServiceLocator.register('globalErrorHandler', globalErrorHandler);
-ServiceLocator.register('cache', cache);
-ServiceLocator.register('performanceOptimizer', performanceOptimizer);
-ServiceLocator.register('mobileOptimizer', mobileOptimizer);
-ServiceLocator.register('accessibilityService', accessibilityService);
-ServiceLocator.register('unifiedAI', unifiedAI);
 
 /**
  * Service Factory Pattern

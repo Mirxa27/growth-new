@@ -5,7 +5,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/utils/logger';
+import { logger } from '@/services/logging/logger.service';
 
 export enum ErrorSeverity {
   LOW = 'low',
@@ -376,12 +376,20 @@ class ErrorHandlerService {
           // window may be undefined in some environments; ignore
         }
         // Use logger instead of console.error to centralize output
-        logger.error('Failed to log errors after retries', 'ErrorHandlerService', lastError);
+        logger.error('Failed to log errors after retries', {
+          component: 'ErrorHandlerService',
+          action: 'processErrorQueue',
+          error: lastError
+        });
       }
     } catch (err) {
       // Fallback: ensure errors are re-queued and surface minimal info
       this.errorQueue.unshift(...errors);
-      logger.error('Unexpected error while processing error queue', 'ErrorHandlerService', err);
+      logger.error('Unexpected error while processing error queue', {
+        component: 'ErrorHandlerService',
+        action: 'processErrorQueue',
+        error: err
+      });
     }
   }
 
