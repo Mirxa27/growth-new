@@ -92,18 +92,21 @@ BEGIN
     ALTER TABLE public.voice_agent_configs ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
   END IF;
 
-  IF NOT EXISTS (
+  -- arabic_support and emotion_detection columns already exist in the base schema
+  -- If we want to change their defaults, we should use ALTER COLUMN instead
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_schema = 'public' AND table_name = 'voice_agent_configs' AND column_name = 'arabic_support'
   ) THEN
-    ALTER TABLE public.voice_agent_configs ADD COLUMN arabic_support BOOLEAN NOT NULL DEFAULT true;
+    -- Update default value if needed (from false to true)
+    ALTER TABLE public.voice_agent_configs ALTER COLUMN arabic_support SET DEFAULT true;
   END IF;
 
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_schema = 'public' AND table_name = 'voice_agent_configs' AND column_name = 'emotion_detection'
   ) THEN
-    ALTER TABLE public.voice_agent_configs ADD COLUMN emotion_detection BOOLEAN NOT NULL DEFAULT true;
+    -- Update default value if needed (from false to true)
+    ALTER TABLE public.voice_agent_configs ALTER COLUMN emotion_detection SET DEFAULT true;
   END IF;
 END $$;
-

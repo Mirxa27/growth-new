@@ -8,7 +8,7 @@ export const Features = () => {
 
   const handleStartDiscovery = async () => {
     try {
-      await navigate("/mobile-assessment-hub");
+      await navigate("/assessment-hub");
     } catch (error) {
       console.error('Navigation error:', error);
     }
@@ -101,7 +101,7 @@ export const Features = () => {
                 onClick={handleStartDiscovery}
                 className="transform hover:scale-105 transition-all duration-300"
               >
-                Start Free Discovery Session
+                Start Free Assessment
               </Button>
               <Button 
                 variant="outline" 

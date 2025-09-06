@@ -31,6 +31,7 @@ import AssessmentTestPage from "./pages/AssessmentTestPage";
 import VoiceAssistantDemo from "./pages/VoiceAssistantDemo";
 import NotificationTestPage from "./pages/NotificationTestPage";
 import AssessmentSystemDemo from "./pages/AssessmentSystemDemo";
+import AssessmentLanding from "./pages/AssessmentLanding";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,8 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
               <Route path="/assessment" element={<PublicAssessment />} />
+              <Route path="/assessment-hub" element={<AssessmentLanding />} />
+              <Route path="/assessment-system" element={<AssessmentLanding />} />
               <Route path="/mobile-assessment" element={<MobileAssessment />} />
               <Route path="/mobile-assessment-hub" element={<MobileAssessmentHub />} />
               <Route path="/assessment/:id" element={<AssessmentPage />} />
@@ -108,6 +111,11 @@ const App = () => {
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/assessments" element={
                 <ProtectedRoute>
                   <AdminDashboard />
                 </ProtectedRoute>

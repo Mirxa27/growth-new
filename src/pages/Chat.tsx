@@ -17,6 +17,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ const Chat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [activeTab, setActiveTab] = useState('text');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,44 +78,16 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      if (!apiKey || apiKey === 'your-openai-api-key-here') {
-        throw new Error('OpenAI API key not configured');
-      }
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are NewMe, a supportive growth guide dedicated to helping women on their journey of self-discovery and personal growth. Be warm, considerate, and insightful. Always respond in a supportive, non-judgmental way. Keep responses concise but meaningful, around 2-3 sentences. Focus on encouragement and gentle guidance.`
-            },
-            ...messages.map(msg => ({
-              role: msg.sender === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            })),
-            {
-              role: 'user',
-              content: content
-            }
-          ],
-          max_tokens: 150,
-          temperature: 0.7
-        })
+      // Prefer enhanced chat completion function with shared memory + RLS
+      const { data, error } = await supabase.functions.invoke('enhanced-chat-completion', {
+        body: { message: content, conversationId: conversationId ?? undefined }
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+      if (error) throw error;
+      const aiContent: string = data?.response || "I'm here to support you. Could you tell me more about what's on your mind?";
+      const returnedConversationId: string | undefined = data?.conversationId;
+      if (returnedConversationId && returnedConversationId !== conversationId) {
+        setConversationId(returnedConversationId);
       }
-
-      const data = await response.json();
-      const aiContent = data.choices[0]?.message?.content || "I'm here to support you. Could you tell me more about what's on your mind?";
 
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),

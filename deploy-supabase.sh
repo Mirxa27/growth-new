@@ -23,6 +23,7 @@ echo "📤 Deploying Edge Functions..."
 functions=(
     "get-realtime-token"
     "realtime-voice-proxy"
+    "memory-highlights"
     "create-checkout-session"
     "stripe-webhook"
     "process-assessment"

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadRealtimeSettings, type RealtimeSettings } from '@/services/realtime/settings.service';
+import { composePersonalizedInstructions, updateMemoryFromTurn, type MemoryHighlights } from '@/services/memory/memory.service';
 import {
   Mic,
   MicOff,
@@ -55,9 +56,12 @@ const RealtimeVoiceAgent: React.FC = () => {
   const audioWorkletRef = useRef<AudioWorkletNode | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const realtimeSettingsRef = useRef<RealtimeSettings | null>(null);
+  const effectiveInstructionsRef = useRef<string | null>(null);
   // Analyzer + buffer for audio level monitoring
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
+  const lastUserTextRef = useRef<string>('');
+  const lastAssistantTextRef = useRef<string>('');
 
   const initializeVoiceSession = async () => {
     try {
@@ -84,6 +88,16 @@ const RealtimeVoiceAgent: React.FC = () => {
         model: tokenData?.model || 'gpt-realtime-2025-08-28',
         expires_at: tokenData?.expires_at || new Date(Date.now() + 3600000).toISOString()
       };
+
+      // Build effective instructions enriched with memory (from token meta)
+      const meta = tokenData?.meta as { instructions?: string; memory?: MemoryHighlights } | undefined;
+      if (meta?.instructions) {
+        effectiveInstructionsRef.current = meta.instructions;
+      } else if (meta?.memory) {
+        effectiveInstructionsRef.current = composePersonalizedInstructions(realtimeSettingsRef.current!.instructions, meta.memory);
+      } else {
+        effectiveInstructionsRef.current = realtimeSettingsRef.current!.instructions;
+      }
 
       // Initialize WebRTC or WebSocket connection to OpenAI Realtime API
       if (settings.connectionMethod === 'webrtc') {
@@ -145,7 +159,7 @@ const RealtimeVoiceAgent: React.FC = () => {
           type: 'session.update',
           session: {
             model: 'gpt-realtime-2025-08-28', // Standardized model
-            instructions: settings.instructions,
+            instructions: effectiveInstructionsRef.current || settings.instructions,
             voice: settings.voice,
             input_audio_format: settings.inputFormat,
             output_audio_format: settings.outputFormat,
@@ -242,7 +256,7 @@ const RealtimeVoiceAgent: React.FC = () => {
           type: 'session.update',
           session: {
             model: 'gpt-realtime-2025-08-28', // Standardized model
-            instructions: settings.instructions,
+            instructions: effectiveInstructionsRef.current || settings.instructions,
             voice: settings.voice,
             turn_detection: {
               type: settings.vad.type,
@@ -411,12 +425,15 @@ const RealtimeVoiceAgent: React.FC = () => {
       case 'conversation.item.input_audio_transcription.completed':
         if (typeof message.transcript === 'string') {
           addTranscriptEntry('user', message.transcript);
+          lastUserTextRef.current = message.transcript;
         }
         break;
 
       case 'response.audio_transcript.delta':
         if (typeof message.delta === 'string') {
           updateAssistantTranscript(message.delta);
+          // Keep accumulating latest assistant text
+          lastAssistantTextRef.current = (lastAssistantTextRef.current || '') + message.delta;
         }
         break;
 
@@ -428,6 +445,31 @@ const RealtimeVoiceAgent: React.FC = () => {
 
       case 'response.done':
         console.log('Response completed');
+        // Update memory highlights asynchronously after each assistant turn
+        if (lastUserTextRef.current && lastAssistantTextRef.current) {
+          const userTurn = lastUserTextRef.current;
+          const assistantTurn = lastAssistantTextRef.current;
+          // Reset assistant cache for next turn, preserve lastUserTextRef for context until next user utterance
+          lastAssistantTextRef.current = '';
+          updateMemoryFromTurn(userTurn, assistantTurn)
+            .then((updated) => {
+              try {
+                const settings = realtimeSettingsRef.current!;
+                const enriched = composePersonalizedInstructions(settings.instructions, updated);
+                effectiveInstructionsRef.current = enriched;
+                // Live update session instructions for continuity
+                const updateMsg = { type: 'session.update', session: { instructions: enriched } };
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify(updateMsg));
+                } else if (dcRef.current && dcRef.current.readyState === 'open') {
+                  dcRef.current.send(JSON.stringify(updateMsg));
+                }
+              } catch (e) {
+                console.warn('Failed to live-update instructions:', e);
+              }
+            })
+            .catch((e) => console.warn('Voice memory update failed:', e));
+        }
         break;
 
       case 'error': {

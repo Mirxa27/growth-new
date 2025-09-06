@@ -59,7 +59,23 @@ serve(async (req) => {
       .eq('conversation_id', currentConversationId)
       .order('created_at', { ascending: true });
 
-    const systemPrompt = `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth.`;
+    // Fetch compact memory highlights for personalization
+    let memoryText = '';
+    try {
+      const { data: memRow } = await supabaseClient
+        .from('user_memory_highlights')
+        .select('highlights')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const h = memRow?.highlights || { preferences: [], themes: [], context: [] };
+      const parts: string[] = [];
+      if (h.preferences?.length) parts.push(`Preferences: ${h.preferences.join('; ')}`);
+      if (h.themes?.length) parts.push(`Recurring themes: ${h.themes.join('; ')}`);
+      if (h.context?.length) parts.push(`Context: ${h.context.join('; ')}`);
+      memoryText = parts.length ? `\n\nPersonalization memory (use implicitly, do not restate):\n${parts.join('\n')}` : '';
+    } catch (_) {}
+
+    const systemPrompt = `You are NewMe, an emotionally intelligent AI companion dedicated to supporting women on their journey of self-discovery and personal growth.` + memoryText;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -102,6 +118,56 @@ serve(async (req) => {
         total_messages: (messages?.length || 0) + 2,
       })
       .eq('id', currentConversationId);
+
+    // Update memory highlights after the turn
+    try {
+      const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+      if (OPENAI_API_KEY) {
+        const prior = (await supabaseClient
+          .from('user_memory_highlights')
+          .select('highlights')
+          .eq('user_id', user.id)
+          .maybeSingle())?.data?.highlights || { preferences: [], themes: [], context: [] };
+
+        const prompt = `You update a compact memory for NewMe. Keep only stable highlights that aid personalization.\n` +
+          `Prior memory: ${JSON.stringify(prior)}\n` +
+          `Latest user: ${message}\n` +
+          `Latest assistant: ${aiResponse}\n` +
+          `Return ONLY JSON {"preferences":[],"themes":[],"context":[]} with at most 5 items per list.`;
+
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            response_format: { type: 'json_object' },
+            temperature: 0.2,
+            messages: [
+              { role: 'system', content: 'You produce ONLY compact JSON as instructed. No prose.' },
+              { role: 'user', content: prompt }
+            ]
+          })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          try {
+            const content = data?.choices?.[0]?.message?.content || '{}';
+            const parsed = JSON.parse(content);
+            const toList = (v: any) => Array.isArray(v) ? v.filter((x: any) => typeof x === 'string') : [];
+            const updated = {
+              preferences: Array.from(new Set(toList(parsed.preferences))).slice(0, 5),
+              themes: Array.from(new Set(toList(parsed.themes))).slice(0, 5),
+              context: Array.from(new Set(toList(parsed.context))).slice(0, 5)
+            };
+            await supabaseClient
+              .from('user_memory_highlights')
+              .upsert({ user_id: user.id, highlights: updated, last_updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update memory highlights (chat-completion):', e);
+    }
 
     return new Response(
       JSON.stringify({

@@ -181,6 +181,27 @@ Deno.serve(async (req) => {
       console.warn('get-realtime-token: could not fetch voice agent config, using defaults.', err?.message || err)
     }
 
+    // Load user memory highlights for personalization
+    let memoryHighlights: { preferences: string[]; themes: string[]; context: string[] } | null = null
+    try {
+      const { data: mem } = await serviceClient
+        .from('user_memory_highlights')
+        .select('highlights')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      memoryHighlights = mem?.highlights || { preferences: [], themes: [], context: [] }
+    } catch (_) {
+      memoryHighlights = { preferences: [], themes: [], context: [] }
+    }
+
+    // Craft enriched instructions including compact memory
+    const memoryParts: string[] = []
+    if (memoryHighlights?.preferences?.length) memoryParts.push(`Preferences: ${memoryHighlights.preferences.join('; ')}`)
+    if (memoryHighlights?.themes?.length) memoryParts.push(`Recurring themes: ${memoryHighlights.themes.join('; ')}`)
+    if (memoryHighlights?.context?.length) memoryParts.push(`Context: ${memoryHighlights.context.join('; ')}`)
+    const memoryText = memoryParts.length ? `\n\nPersonalization memory (use implicitly, do not restate):\n${memoryParts.join('\n')}` : ''
+    const enrichedInstructions = `${systemPrompt}${memoryText}`
+
     // Create an ephemeral client secret via OpenAI for the browser to use with Realtime API.
     // Use a small retry/backoff loop for transient upstream errors (429/5xx). Return
     // clear structured errors while scrubbing any secret material from logs.
@@ -343,7 +364,9 @@ Deno.serve(async (req) => {
         meta: {
           voice,
           temperature,
-          max_tokens: maxTokens
+          max_tokens: maxTokens,
+          memory: memoryHighlights,
+          instructions: enrichedInstructions
         }
       }),
       {

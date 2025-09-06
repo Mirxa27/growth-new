@@ -55,6 +55,7 @@ export class RealtimeVoiceChat {
 
       const sessionData = await response.json();
       const clientSecret = sessionData.client_secret;
+      const meta = sessionData.meta || {};
       if (!clientSecret) {
         console.error('No client secret received from server');
         throw new Error('No client secret received from server');
@@ -72,7 +73,7 @@ export class RealtimeVoiceChat {
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
+            instructions: meta.instructions || "You are NewMe, a supportive growth guide for women's personal growth. Be warm, encouraging, and insightful.",
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',

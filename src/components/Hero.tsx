@@ -7,7 +7,7 @@ export const Hero = () => {
 
   const handleStartDiscovery = async () => {
     try {
-      await navigate("/mobile-assessment-hub");
+      await navigate("/assessment-hub");
     } catch (error) {
       console.error('Navigation error:', error);
     }
@@ -66,7 +66,7 @@ export const Hero = () => {
             className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-2xl hover:shadow-primary/25 transform hover:scale-105 transition-all duration-300 group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl font-semibold w-full sm:w-auto min-h-[44px] sm:min-h-[48px] lg:min-h-[56px] rounded-xl sm:rounded-2xl"
             onClick={handleStartDiscovery}
           >
-            Start Free Discovery
+            Start Free Assessment
             <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           <Button
