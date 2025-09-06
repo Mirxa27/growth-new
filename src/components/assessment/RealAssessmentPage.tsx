@@ -7,28 +7,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import RealAssessmentService from '@/services/realAssessmentService';
+import { logger } from '@/services/logging/logger.service';
 import { Assessment, AssessmentResult, AssessmentQuestion } from '@/types/assessment';
 
-// Mock router for now - replace with actual router when integrated
-const mockRouter = {
-  push: (path: string) => {
-    console.log('Navigate to:', path);
-    if (typeof window !== 'undefined') {
-      window.location.href = path;
-    }
-  }
-};
-
-// Mock params for now - replace with actual params when integrated
-const mockParams = { id: '1' };
-
 export default function RealAssessmentPage(): JSX.Element {
-  const router = mockRouter;
-  const params = mockParams;
+  const navigate = useNavigate();
+  const params = useParams<{ id: string }>();
   const { id } = params;
+
+  // Ensure id exists before proceeding
+  if (!id) {
+    toast.error('Assessment ID is required');
+    navigate('/assessment-system');
+    return <div>Redirecting...</div>;
+  }
   
   // State management
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -61,7 +57,12 @@ export default function RealAssessmentPage(): JSX.Element {
         setAssessment(assessmentData);
         setError(null);
       } catch (err) {
-        console.error('Error loading assessment:', err);
+        logger.error('Assessment loading failed', {
+          component: 'RealAssessmentPage',
+          action: 'loadAssessment',
+          metadata: { assessmentId: id },
+          error: err
+        });
         setError('Failed to load assessment. Please try again.');
       } finally {
         setIsLoading(false);
@@ -120,7 +121,12 @@ export default function RealAssessmentPage(): JSX.Element {
       setIsCompleted(true);
       toast.success('Assessment completed successfully!');
     } catch (err) {
-      console.error('Error submitting assessment:', err);
+      logger.error('Assessment submission failed', {
+        component: 'RealAssessmentPage',
+        action: 'handleSubmitAssessment',
+        metadata: { assessmentId: id, responseCount: Object.keys(responses).length },
+        error: err
+      });
       toast.error('Failed to submit assessment. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -148,7 +154,7 @@ export default function RealAssessmentPage(): JSX.Element {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Assessment Not Available</h1>
           <p className="text-gray-600 mb-6">{error || 'The requested assessment could not be found.'}</p>
           <button
-            onClick={() => router.push('/assessments')}
+            onClick={() => navigate('/assessment-system')}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Browse Assessments
@@ -218,13 +224,13 @@ export default function RealAssessmentPage(): JSX.Element {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => router.push('/assessments')}
+                onClick={() => navigate('/assessment-system')}
                 className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Take Another Assessment
               </button>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => navigate('/')}
                 className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Back to Home
@@ -246,7 +252,7 @@ export default function RealAssessmentPage(): JSX.Element {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/assessments')}
+            onClick={() => navigate('/assessment-system')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />

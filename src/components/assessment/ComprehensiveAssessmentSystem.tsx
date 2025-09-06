@@ -11,13 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Users, 
-  BarChart3, 
-  Brain, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  BarChart3,
+  Brain,
   Target,
   TrendingUp,
   Lightbulb,
@@ -29,6 +29,7 @@ import {
   Sparkles,
   CheckCircle2
 } from 'lucide-react';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 interface ComprehensiveAssessmentSystemProps {
   className?: string;
@@ -86,7 +87,11 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
         loadStats()
       ]);
     } catch (error) {
-      console.error('Error loading data:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_assessment_data' }
+      });
       toast({
         title: "Error",
         description: "Failed to load assessment data.",
@@ -133,12 +138,12 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
         .from('assessment_results')
         .select('percentage');
 
-      const averageScore = results && results.length > 0 
-        ? results.reduce((sum, r) => sum + r.percentage, 0) / results.length 
+      const averageScore = results && results.length > 0
+        ? results.reduce((sum, r) => sum + r.percentage, 0) / results.length
         : 0;
 
-      const completionRate = totalAttempts && totalAttempts > 0 
-        ? ((totalCompletions || 0) / totalAttempts) * 100 
+      const completionRate = totalAttempts && totalAttempts > 0
+        ? ((totalCompletions || 0) / totalAttempts) * 100
         : 0;
 
       setStats({
@@ -149,14 +154,18 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
         completionRate
       });
     } catch (error) {
-      console.error('Error loading stats:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_assessment_stats' }
+      });
     }
   };
 
   const applyMigrations = async () => {
     try {
       setIsLoading(true);
-      
+
       // Apply the database migration
       const { error: migrationError } = await supabase.rpc('exec_sql', {
         sql: `
@@ -166,12 +175,16 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
       });
 
       if (migrationError) {
-        console.error('Migration error:', migrationError);
+        errorHandler.handleError(migrationError, {
+          severity: ErrorSeverity.HIGH,
+          category: ErrorCategory.DATABASE,
+          context: { action: 'apply_migration' }
+        });
       }
 
       // Apply sample data
       await applySampleData();
-      
+
       toast({
         title: "Success",
         description: "Assessment system has been set up successfully!",
@@ -179,7 +192,11 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
 
       await loadData();
     } catch (error) {
-      console.error('Error applying migrations:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'apply_migrations' }
+      });
       toast({
         title: "Error",
         description: "Failed to set up assessment system.",
@@ -253,7 +270,11 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
         }
       }
     } catch (error) {
-      console.error('Error applying sample data:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'apply_sample_data' }
+      });
       throw error;
     }
   };
@@ -361,7 +382,7 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button 
+          <Button
             onClick={applyMigrations}
             variant="outline"
             className="glass-button"
@@ -369,7 +390,7 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
             <Settings className="w-4 h-4 mr-2" />
             Setup System
           </Button>
-          <Button 
+          <Button
             onClick={() => setShowCreateDialog(true)}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
           >
@@ -653,8 +674,8 @@ const AssessmentsList: React.FC<AssessmentsListProps> = ({ assessments }) => {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <Switch 
-                        checked={assessment.is_active} 
+                      <Switch
+                        checked={assessment.is_active}
                         onCheckedChange={() => {
                           // Handle status toggle
                         }}
@@ -788,7 +809,11 @@ const CreateAssessmentDialog: React.FC<CreateAssessmentDialogProps> = ({ isOpen,
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Error creating assessment:', err);
+      errorHandler.handleError(err, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'create_sample_assessment' }
+      });
       toast({
         title: "Error",
         description: "Failed to create assessment.",
@@ -810,7 +835,7 @@ const CreateAssessmentDialog: React.FC<CreateAssessmentDialogProps> = ({ isOpen,
         </DialogHeader>
 
         <div className="space-y-4">
-          <Button 
+          <Button
             onClick={handleCreateSample}
             disabled={isCreating}
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -827,9 +852,9 @@ const CreateAssessmentDialog: React.FC<CreateAssessmentDialogProps> = ({ isOpen,
               </>
             )}
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="w-full"
             onClick={onClose}
           >

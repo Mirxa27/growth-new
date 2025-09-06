@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AssessmentResults } from '@/components/assessments/AssessmentResults';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 interface AssessmentResult {
   id: string;
@@ -83,7 +84,11 @@ const ResultsPage = () => {
       setResult(data);
       generateInsights(data);
     } catch (error) {
-      console.error('Error loading results:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_assessment_results', assessmentId: id }
+      });
       toast({
         title: "Error",
         description: "Failed to load results. Please try again.",
@@ -97,7 +102,7 @@ const ResultsPage = () => {
   const generateInsights = (resultData: AssessmentResult) => {
     // Generate insights based on assessment type and score
     const score = resultData.percentage;
-    
+
     const baseInsights = [
       "Your responses show a thoughtful approach to personal growth.",
       "You demonstrate self-awareness in key areas of development.",

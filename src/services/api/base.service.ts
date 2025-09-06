@@ -1,6 +1,6 @@
 /**
- * Base API Service
- * Provides common functionality for all API services
+ * Enhanced Base API Service with Retry Logic and Circuit Breaker Protection
+ * Provides robust common functionality for all API services
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { env } from '@/config/environment';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { validateDTO, formatValidationErrors } from '@/services/validation/schemas';
+import { RetryService, type RetryOptions } from './retry.service';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -35,9 +36,16 @@ export interface FilterOptions {
 
 export abstract class BaseApiService {
   protected tableName: string;
+  protected retryOptions: RetryOptions;
   
-  constructor(tableName: string) {
+  constructor(tableName: string, retryOptions: RetryOptions = {}) {
     this.tableName = tableName;
+    this.retryOptions = {
+      maxRetries: 3,
+      initialDelay: 1000,
+      shouldRetry: (error) => this.isRetryableError(error),
+      ...retryOptions,
+    };
   }
   
   /**
@@ -162,29 +170,34 @@ export abstract class BaseApiService {
   }
   
   /**
-   * Generic find all with pagination and filters
+   * Generic find all with pagination and filters (with retry logic)
    */
   async findAll<T>(
     options?: {
       pagination?: PaginationOptions;
       filters?: FilterOptions;
       select?: string;
+      retryOptions?: RetryOptions;
     }
   ): Promise<ApiResponse<T[]>> {
     try {
-      let query = supabase.from(this.tableName).select(options?.select || '*', { count: 'exact' });
-      
-      query = this.applyFilters(query, options?.filters);
-      query = this.applyPagination(query, options?.pagination);
-      
-      const { data, error, count } = await query;
-      
-      if (error) throw error;
+      const result = await RetryService.executeDatabase(async () => {
+        let query = supabase.from(this.tableName).select(options?.select || '*', { count: 'exact' });
+        
+        query = this.applyFilters(query, options?.filters);
+        query = this.applyPagination(query, options?.pagination);
+        
+        const { data, error, count } = await query;
+        
+        if (error) throw error;
+        
+        return { data: data as T[], count: count ?? undefined };
+      }, options?.retryOptions || this.retryOptions);
       
       return {
-        data: data as T[],
+        data: result.data,
         error: null,
-        count: count ?? undefined,
+        count: result.count,
       };
     } catch (error) {
       this.logError('findAll', error);

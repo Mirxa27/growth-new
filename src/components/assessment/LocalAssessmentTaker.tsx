@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -34,27 +34,27 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   const isLastQuestion = currentQuestionIndex === assessment.questions.length - 1;
   const canProceed = answers[currentQuestion?.id] !== undefined;
 
-  const handleAnswer = (questionId: string, answer: string | number | string[]) => {
+  const handleAnswer = useCallback((questionId: string, answer: string | number | string[]) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
-  };
+  }, []);
 
-  const nextQuestion = () => {
+  const nextQuestion = useCallback(() => {
     if (currentQuestionIndex < assessment.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     }
-  };
+  }, [currentQuestionIndex, assessment.questions.length]);
 
-  const prevQuestion = () => {
+  const prevQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
     }
-  };
+  }, [currentQuestionIndex]);
 
   const completeAssessment = () => {
     const results: AssessmentResults = {
       answers,
     };
-    
+
     setShowResults(true);
     onComplete?.(results);
   };
@@ -87,8 +87,8 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
             {question.options?.map((option, index) => (
               <div key={index} className="flex items-center space-x-2">
                 <RadioGroupItem value={getOptionValue(option)} id={`${question.id}-${index}`} />
-                <Label 
-                  htmlFor={`${question.id}-${index}`} 
+                <Label
+                  htmlFor={`${question.id}-${index}`}
                   className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                 >
                   {getOptionText(option)}
@@ -105,7 +105,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               const selectedOptions = (currentAnswer as string[]) || [];
               const optionValue = getOptionValue(option);
               const isChecked = selectedOptions.includes(optionValue);
-              
+
               return (
                 <div key={index} className="flex items-center space-x-2">
                   <Checkbox
@@ -118,8 +118,8 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                       handleAnswer(question.id, newSelection);
                     }}
                   />
-                  <Label 
-                    htmlFor={`${question.id}-${index}`} 
+                  <Label
+                    htmlFor={`${question.id}-${index}`}
                     className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                   >
                     {getOptionText(option)}
@@ -133,7 +133,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
       case 'scale': {
         const scale = question.scale;
         if (!scale) return null;
-        
+
         return (
           <div className="space-y-4">
             <Slider
@@ -195,15 +195,15 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               <h3 className="text-lg font-semibold text-white mb-3">Summary</h3>
               <p className="text-white/80">{assessment.description}</p>
             </div>
-            
+
             <div className="flex gap-4 pt-4">
               <Button onClick={onBack} variant="outline" className="flex-1">
                 Back to Assessments
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
                   onBack?.();
-                }} 
+                }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600"
               >
                 Continue Journey
@@ -312,4 +312,4 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   );
 };
 
-export default LocalAssessmentTaker;
+export default memo(LocalAssessmentTaker);

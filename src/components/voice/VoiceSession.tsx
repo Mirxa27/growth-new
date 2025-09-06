@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Mic, 
-  MicOff, 
-  Phone, 
-  PhoneOff, 
-  Volume2, 
+import {
+  Mic,
+  MicOff,
+  Phone,
+  PhoneOff,
+  Volume2,
   VolumeX,
   Settings,
   Activity,
@@ -29,6 +29,7 @@ import { webRTCVoice } from '@/services/webrtc/webrtc-voice.service';
 import { STTPipeline } from '@/services/webrtc/stt-pipeline.service';
 import { TTSPipeline } from '@/services/webrtc/tts-pipeline.service';
 import { openaiService } from '@/services/ai/openai.service';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceSessionProps {
@@ -63,7 +64,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
   onSessionEnd
 }) => {
   const { toast } = useToast();
-  
+
   // State
   const [sessionId] = useState(initialSessionId || `session-${Date.now()}`);
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
@@ -80,7 +81,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
     jitter: 0,
     duration: 0
   });
-  
+
   // Refs
   const sttPipelineRef = useRef<STTPipeline | null>(null);
   const ttsPipelineRef = useRef<TTSPipeline | null>(null);
@@ -92,7 +93,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
   // Initialize pipelines
   useEffect(() => {
     initializePipelines();
-    
+
     return () => {
       cleanup();
     };
@@ -139,9 +140,13 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
 
       // Set up event listeners
       setupEventListeners();
-      
+
     } catch (error) {
-      console.error('Failed to initialize pipelines:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'initialize_pipelines', sessionId, userId }
+      });
       toast({
         title: 'Initialization Error',
         description: 'Failed to initialize voice components. Please check your microphone permissions.',
@@ -157,7 +162,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
   const setupEventListeners = () => {
     // WebRTC events
     webRTCVoice.on('initialized', () => {
-      console.log('WebRTC initialized');
+      // WebRTC initialized successfully
     });
 
     webRTCVoice.on('audioData', handleAudioData);
@@ -248,19 +253,19 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         confidence: result.confidence,
         isFinal: true
       };
-      
+
       setTranscript(prev => [...prev, entry]);
       setInterimTranscript('');
-      
+
       // Add to conversation context
       conversationContextRef.current.push(`User: ${result.text}`);
-      
+
       // Notify parent
       onTranscript?.(result.text, true);
-      
+
       // Process with AI
       await processWithAI(result.text);
-      
+
     } else {
       // Update interim transcript
       setInterimTranscript(result.text);
@@ -302,14 +307,14 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
 
       let fullResponse = '';
       let currentSentence = '';
-      
+
       // Process streaming response
       for await (const chunk of response) {
         if (chunk.choices[0]?.delta?.content) {
           const content = chunk.choices[0].delta.content;
           fullResponse += content;
           currentSentence += content;
-          
+
           // Check for sentence end
           if (/[.!?]/.test(content)) {
             // Synthesize complete sentence
@@ -322,14 +327,14 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
           }
         }
       }
-      
+
       // Synthesize any remaining text
       if (ttsPipelineRef.current && currentSentence.trim()) {
         ttsPipelineRef.current.synthesize(currentSentence.trim(), {
           priority: 1
         });
       }
-      
+
       // Add to transcript
       const aiEntry: TranscriptEntry = {
         id: `transcript-${Date.now()}`,
@@ -338,18 +343,22 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         timestamp: new Date(),
         isFinal: true
       };
-      
+
       setTranscript(prev => [...prev, aiEntry]);
       setAiResponse(fullResponse);
-      
+
       // Add to conversation context
       conversationContextRef.current.push(`Assistant: ${fullResponse}`);
-      
+
       // Notify parent
       onTranscript?.(fullResponse, false);
-      
+
     } catch (error) {
-      console.error('AI processing error:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'ai_processing', sessionId, userId }
+      });
       toast({
         title: 'AI Error',
         description: 'Failed to process your request. Please try again.',
@@ -372,12 +381,20 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
    * Handle errors
    */
   const handleWebRTCError = (error: any) => {
-    console.error('WebRTC error:', error);
+    errorHandler.handleError(error, {
+      severity: ErrorSeverity.HIGH,
+      category: ErrorCategory.EXTERNAL_API,
+      context: { action: 'webrtc_error', sessionId, userId }
+    });
     setConnectionState('error');
   };
 
   const handleSTTError = (error: any) => {
-    console.error('STT error:', error);
+    errorHandler.handleError(error, {
+      severity: ErrorSeverity.MEDIUM,
+      category: ErrorCategory.EXTERNAL_API,
+      context: { action: 'stt_error', sessionId, userId }
+    });
     if (error.type === 'recognition_error' && error.error === 'not-allowed') {
       toast({
         title: 'Microphone Access Denied',
@@ -388,7 +405,11 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
   };
 
   const handleTTSError = (error: any) => {
-    console.error('TTS error:', error);
+    errorHandler.handleError(error, {
+      severity: ErrorSeverity.MEDIUM,
+      category: ErrorCategory.EXTERNAL_API,
+      context: { action: 'tts_error', sessionId, userId }
+    });
   };
 
   /**
@@ -398,7 +419,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
     try {
       setConnectionState('connecting');
       sessionStartTimeRef.current = new Date();
-      
+
       // Create WebRTC connection
       await webRTCVoice.createPeerConnection({
         sessionId,
@@ -408,14 +429,14 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         model: config.model,
         systemPrompt: config.systemPrompt
       });
-      
+
       // Start recording
       webRTCVoice.startRecording();
       setIsRecording(true);
-      
+
       // Start STT
       sttPipelineRef.current?.start();
-      
+
       // Store session in database
       await supabase.from('voice_sessions').insert({
         id: sessionId,
@@ -428,11 +449,15 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         },
         status: 'active'
       });
-      
+
       setConnectionState('connected');
-      
+
     } catch (error) {
-      console.error('Failed to start session:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'start_session', sessionId, userId }
+      });
       toast({
         title: 'Connection Failed',
         description: 'Failed to start voice session. Please try again.',
@@ -450,21 +475,21 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
       // Stop recording
       webRTCVoice.stopRecording();
       setIsRecording(false);
-      
+
       // Stop STT
       sttPipelineRef.current?.stop();
-      
+
       // Stop TTS
       ttsPipelineRef.current?.stop();
-      
+
       // Disconnect WebRTC
       webRTCVoice.disconnect();
-      
+
       // Calculate session duration
-      const duration = sessionStartTimeRef.current 
-        ? (Date.now() - sessionStartTimeRef.current.getTime()) / 1000 
+      const duration = sessionStartTimeRef.current
+        ? (Date.now() - sessionStartTimeRef.current.getTime()) / 1000
         : 0;
-      
+
       // Update session in database
       await supabase
         .from('voice_sessions')
@@ -479,7 +504,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
           status: 'completed'
         })
         .eq('id', sessionId);
-      
+
       // Notify parent
       onSessionEnd?.({
         sessionId,
@@ -487,9 +512,9 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         transcript,
         metrics
       });
-      
+
       setConnectionState('disconnected');
-      
+
     } catch (error) {
       console.error('Failed to end session:', error);
     }
@@ -519,7 +544,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
           latency: Math.round(stats.remote.jitter * 1000) || 0,
           packetsLost: stats.remote.packetsLost || 0,
           jitter: stats.remote.jitter || 0,
-          duration: sessionStartTimeRef.current 
+          duration: sessionStartTimeRef.current
             ? Math.floor((Date.now() - sessionStartTimeRef.current.getTime()) / 1000)
             : 0
         });
@@ -563,7 +588,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-semibold">Voice Session</h2>
-            <Badge variant={connectionState === 'connected' ? 'success' : 'secondary'}>
+            <Badge variant={connectionState === 'connected' ? 'default' : 'secondary'}>
               {connectionState === 'connected' ? (
                 <>
                   <Wifi className="w-3 h-3 mr-1" />
@@ -582,7 +607,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
               )}
             </Badge>
           </div>
-          
+
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Activity className="w-4 h-4" />
             <span>{formatDuration(metrics.duration)}</span>
@@ -593,7 +618,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
       </div>
 
       {/* Transcript Area */}
-      <ScrollArea 
+      <ScrollArea
         ref={scrollAreaRef}
         className="flex-1 p-4"
       >
@@ -632,7 +657,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
                 </div>
               </motion.div>
             ))}
-            
+
             {/* Interim transcript */}
             {interimTranscript && (
               <motion.div
@@ -684,7 +709,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
                   <Mic className="w-5 h-5" />
                 )}
               </Button>
-              
+
               <Button
                 onClick={endSession}
                 variant="destructive"
@@ -694,7 +719,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
                 <PhoneOff className="w-5 h-5" />
                 End Call
               </Button>
-              
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -705,7 +730,7 @@ export const VoiceSession: React.FC<VoiceSessionProps> = ({
             </>
           )}
         </div>
-        
+
         {/* Status Messages */}
         {connectionState === 'error' && (
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-destructive">

@@ -9,11 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
-import { 
-  User, 
-  Settings, 
-  Bell, 
-  Shield, 
+import {
+  User,
+  Settings,
+  Bell,
+  Shield,
   Trophy,
   Edit,
   Save,
@@ -27,6 +27,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, Json } from '@/integrations/supabase/types';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 // Base type from Supabase auto-generated types
 type BaseProfileRow = Tables<'profiles'>;
@@ -63,11 +64,11 @@ interface Achievement {
 const Profile = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  
+
   // Use our extended type for the profile state
   const [profile, setProfile] = useState<ProfileWithSettings | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -81,11 +82,11 @@ const Profile = () => {
         .select('*')
         .eq('user_id', user.id)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
-      
+
       if (data) {
         const defaultSettings: ProfileSettings = {
           notifications: {
@@ -96,7 +97,7 @@ const Profile = () => {
             profileVisibility: true, activityStatus: true, shareAssessmentResults: true
           }
         };
-        
+
         // Merge fetched settings with defaults to ensure all keys exist
         const mergedSettings = {
           notifications: { ...defaultSettings.notifications, ...(data.settings as any)?.notifications },
@@ -109,7 +110,11 @@ const Profile = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'fetch_profile', userId: user?.id }
+      });
       toast({ title: 'Error', description: 'Could not fetch your profile.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -145,7 +150,11 @@ const Profile = () => {
         setAchievements(mappedData);
       }
     } catch (error: any) {
-      console.error('Error fetching achievements:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'fetch_achievements', userId: user?.id }
+      });
     }
   }, [user]);
 
@@ -163,15 +172,15 @@ const Profile = () => {
         .from('profiles')
         .update({
           display_name: profile.display_name,
-          phone: profile.phone, 
+          phone: profile.phone,
           location: profile.location,
           bio: profile.bio,
           settings: profile.settings, // Now this is a valid field
         })
         .eq('user_id', user.id);
-      
+
       if (error) throw error;
-      
+
       setIsEditing(false);
       toast({ title: 'Profile updated!', description: 'Your changes have been saved successfully.' });
     } catch (e: any) {
@@ -183,20 +192,20 @@ const Profile = () => {
 
   const handleAvatarSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !e.target.files || e.target.files.length === 0) return;
-    
+
     setIsUploadingAvatar(true);
     try {
       const file = e.target.files[0];
       const path = `${user.id}/${Date.now()}-${file.name}`;
-      
+
       const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      
+
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-      
+
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', user.id);
       if (updateError) throw updateError;
-      
+
       setProfile(p => p ? { ...p, avatar_url: publicUrl } : null);
       toast({ title: 'Photo updated', description: 'Your profile photo has been updated.' });
     } catch (e: any) {
@@ -210,9 +219,9 @@ const Profile = () => {
   const handleSettingsChange = (category: 'notifications' | 'privacy', key: string, value: boolean) => {
     setProfile(prevProfile => {
       if (!prevProfile) return null;
-      
+
       const newSettings = JSON.parse(JSON.stringify(prevProfile.settings || {}));
-      
+
       if (!newSettings[category]) {
         newSettings[category] = {};
       }

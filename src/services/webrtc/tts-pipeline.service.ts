@@ -64,7 +64,12 @@ export class TTSPipeline extends EventEmitter {
    */
   private initializeBrowserTTS(): void {
     if (!('speechSynthesis' in window)) {
-      console.warn('Web Speech API TTS not supported, falling back to OpenAI');
+      // Use error handler instead of console
+      errorHandler.handleError(new Error('Web Speech API TTS not supported'), {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'initialize_browser_tts' }
+      });
       this.config.provider = 'openai';
       return;
     }
@@ -95,7 +100,7 @@ export class TTSPipeline extends EventEmitter {
     priority?: number;
   }): Promise<TTSResult> {
     const config = { ...this.config, ...options };
-    
+
     // Check cache first
     if (config.cacheEnabled) {
       const cacheKey = this.getCacheKey(text, config);
@@ -190,8 +195,8 @@ export class TTSPipeline extends EventEmitter {
     } catch (error) {
       errorHandler.handleError(error, {
         severity: ErrorSeverity.MEDIUM,
-        category: ErrorCategory.SPEECH,
-        context: { 
+        category: ErrorCategory.EXTERNAL_API,
+        context: {
           action: 'synthesize_speech',
           provider: this.config.provider,
           text: item.text.substring(0, 50)
@@ -222,7 +227,7 @@ export class TTSPipeline extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
-      
+
       // Configure utterance
       utterance.lang = this.config.language!;
       utterance.rate = this.config.speed!;
@@ -231,10 +236,10 @@ export class TTSPipeline extends EventEmitter {
 
       // Select voice
       const voices = this.synthesis!.getVoices();
-      const voice = voices.find(v => v.name === this.config.voice) || 
+      const voice = voices.find(v => v.name === this.config.voice) ||
                    voices.find(v => v.lang.startsWith(this.config.language!.split('-')[0])) ||
                    voices[0];
-      
+
       if (voice) {
         utterance.voice = voice;
       }
@@ -278,17 +283,16 @@ export class TTSPipeline extends EventEmitter {
   private async synthesizeWithOpenAI(text: string): Promise<TTSResult> {
     try {
       const startTime = Date.now();
-      
-      const audioData = await openaiService.textToSpeech({
-        model: this.config.model || 'tts-1',
-        voice: this.config.voice || 'alloy',
-        input: text,
-        speed: this.config.speed,
-        response_format: this.config.format
+
+      const audioData = await openaiService.textToSpeech(text, {
+        model: this.config.model as 'tts-1' | 'tts-1-hd' || 'tts-1',
+        voice: this.config.voice as 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' || 'alloy',
+        response_format: this.config.format as 'mp3' | 'opus' | 'aac' | 'flac' || 'mp3',
+        speed: this.config.speed
       });
 
       const duration = this.estimateDuration(text);
-      
+
       // If streaming is enabled, create a media stream
       if (this.config.streamingEnabled && this.audioContext) {
         const audioBuffer = await this.audioContext.decodeAudioData(audioData.slice(0));
@@ -317,19 +321,159 @@ export class TTSPipeline extends EventEmitter {
   }
 
   /**
-   * Synthesize with ElevenLabs (placeholder)
+   * Synthesize with ElevenLabs (production implementation)
    */
   private async synthesizeWithElevenLabs(text: string): Promise<TTSResult> {
-    // Implement ElevenLabs integration
-    throw new Error('ElevenLabs TTS not implemented yet');
+    try {
+      const startTime = Date.now();
+
+      // Get ElevenLabs API key from environment
+      const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+      if (!apiKey) {
+        throw new Error('ElevenLabs API key not configured');
+      }
+
+      // Configure voice settings
+      const voiceId = this.config.voice || '21m00Tcm4TlvDq8ikWAM'; // Default voice ID
+      const model = this.config.model || 'eleven_monolingual_v1';
+
+      // Prepare request payload
+      const payload = {
+        text,
+        model_id: model,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+          style: 0.0,
+          use_speaker_boost: true
+        }
+      };
+
+      // Make API request to ElevenLabs
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`ElevenLabs API error: ${response.status} - ${errorData.detail || response.statusText}`);
+      }
+
+      // Get audio data as ArrayBuffer
+      const audioData = await response.arrayBuffer();
+      const duration = this.estimateDuration(text);
+
+      return {
+        audio: audioData,
+        duration,
+        text,
+        voice: this.config.voice || 'elevenlabs_default',
+        timestamp: startTime
+      };
+    } catch (error) {
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.EXTERNAL_API,
+        context: {
+          action: 'synthesize_elevenlabs',
+          text: text.substring(0, 50)
+        }
+      });
+      throw error;
+    }
   }
 
   /**
-   * Synthesize with custom provider
+   * Synthesize with custom provider (production implementation)
    */
   private async synthesizeWithCustomProvider(text: string): Promise<TTSResult> {
-    // Implement custom provider logic
-    throw new Error('Custom TTS provider not implemented');
+    try {
+      const startTime = Date.now();
+
+      // Get custom provider configuration from environment
+      const customEndpoint = import.meta.env.VITE_CUSTOM_TTS_ENDPOINT;
+      const customApiKey = import.meta.env.VITE_CUSTOM_TTS_API_KEY;
+      const customHeaders = import.meta.env.VITE_CUSTOM_TTS_HEADERS;
+
+      if (!customEndpoint) {
+        throw new Error('Custom TTS endpoint not configured');
+      }
+
+      // Prepare request payload (configurable format)
+      const payload = {
+        text,
+        voice: this.config.voice || 'default',
+        language: this.config.language || 'en',
+        speed: this.config.speed || 1.0,
+        format: this.config.format || 'mp3'
+      };
+
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'audio/*'
+      };
+
+      // Add API key if provided
+      if (customApiKey) {
+        headers['Authorization'] = `Bearer ${customApiKey}`;
+      }
+
+      // Add custom headers if provided
+      if (customHeaders) {
+        try {
+          const customHeaderObj = JSON.parse(customHeaders);
+          Object.assign(headers, customHeaderObj);
+        } catch (error) {
+          // Log invalid headers format but continue
+          errorHandler.handleError(new Error('Invalid custom TTS headers format'), {
+            severity: ErrorSeverity.LOW,
+            category: ErrorCategory.VALIDATION,
+            context: { action: 'custom_tts_headers' }
+          });
+        }
+      }
+
+      // Make API request to custom provider
+      const response = await fetch(customEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Custom TTS API error: ${response.status} - ${errorData}`);
+      }
+
+      // Get audio data as ArrayBuffer
+      const audioData = await response.arrayBuffer();
+      const duration = this.estimateDuration(text);
+
+      return {
+        audio: audioData,
+        duration,
+        text,
+        voice: this.config.voice || 'custom_default',
+        timestamp: startTime
+      };
+    } catch (error) {
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.EXTERNAL_API,
+        context: {
+          action: 'synthesize_custom',
+          text: text.substring(0, 50)
+        }
+      });
+      throw error;
+    }
   }
 
   /**
@@ -338,7 +482,7 @@ export class TTSPipeline extends EventEmitter {
   async *streamSynthesize(text: string, chunkSize: number = 100): AsyncGenerator<TTSResult> {
     // Split text into chunks
     const chunks = this.splitTextIntoChunks(text, chunkSize);
-    
+
     for (const chunk of chunks) {
       const result = await this.synthesize(chunk, { priority: 1 });
       yield result;
@@ -381,24 +525,24 @@ export class TTSPipeline extends EventEmitter {
       const audioBuffer = await this.audioContext.decodeAudioData(audioData.slice(0));
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
-      
+
       // Apply volume
       const gainNode = this.audioContext.createGain();
       gainNode.gain.value = this.config.volume!;
-      
+
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
-      
+
       source.onended = () => {
         this.emit('playbackComplete');
       };
-      
+
       source.start();
       this.emit('playbackStart');
     } catch (error) {
       errorHandler.handleError(error, {
         severity: ErrorSeverity.MEDIUM,
-        category: ErrorCategory.AUDIO,
+        category: ErrorCategory.EXTERNAL_API,
         context: { action: 'play_audio' }
       });
       throw error;
@@ -412,12 +556,12 @@ export class TTSPipeline extends EventEmitter {
     if (this.config.provider === 'browser' && this.synthesis) {
       this.synthesis.cancel();
     }
-    
+
     this.isSpeaking = false;
     this.currentUtterance = null;
     this.audioQueue = [];
     this.isProcessing = false;
-    
+
     this.emit('stopped');
   }
 
@@ -462,7 +606,7 @@ export class TTSPipeline extends EventEmitter {
         { id: 'shimmer', name: 'Shimmer', language: 'en' }
       ];
     }
-    
+
     return [];
   }
 
@@ -516,11 +660,11 @@ export class TTSPipeline extends EventEmitter {
    */
   destroy(): void {
     this.stop();
-    
+
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
     }
-    
+
     this.synthesis = null;
     this.audioContext = null;
     this.streamDestination = null;

@@ -8,15 +8,16 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Check, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
   Clock,
   ArrowLeft
 } from 'lucide-react';
 import { Assessment } from '@/types/assessment';
 import { useToast } from '@/hooks/use-toast';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 interface FreeAssessmentTakerProps {
   assessment: Assessment;
@@ -145,7 +146,11 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
       onComplete({ ...data, totalQuestions, answeredQuestions, completionTime });
       toast({ title: 'Assessment Complete', description: 'Your results are ready.', duration: 2500 });
     } catch (error) {
-      console.error('Submission error:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'submit_assessment' }
+      });
       toast({ title: 'Submission failed', description: 'Please try again later.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
@@ -173,8 +178,8 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
         </CardHeader>
         <CardContent>
           {currentQuestion.type === 'single' && (
-            <RadioGroup 
-              value={currentAnswer || ''} 
+            <RadioGroup
+              value={currentAnswer || ''}
               onValueChange={(value) => handleAnswer(currentQuestion.id, value)}
             >
               {currentQuestion.options?.map((option, index) => (

@@ -11,12 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { 
-  Clock, 
-  Brain, 
-  Target, 
-  TrendingUp, 
-  Award, 
+import {
+  Clock,
+  Brain,
+  Target,
+  TrendingUp,
+  Award,
   Lightbulb,
   ArrowRight,
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   Star,
   Sparkles
 } from 'lucide-react';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 interface AssessmentCategory {
   id: string;
@@ -116,11 +117,15 @@ const AssessmentHub: React.FC = () => {
       if (error) throw error;
       setCategories(data || []);
     } catch (error) {
-      console.error('Error loading categories:', error);
-      toast({ 
-        title: "Error", 
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_assessment_categories' }
+      });
+      toast({
+        title: "Error",
         description: "Failed to load assessment categories.",
-        variant: "destructive" 
+        variant: "destructive"
       });
     }
   };
@@ -141,19 +146,23 @@ const AssessmentHub: React.FC = () => {
       if (error) throw error;
       setAssessments(data || []);
     } catch (error) {
-      console.error('Error loading assessments:', error);
-      toast({ 
-        title: "Error", 
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_assessments' }
+      });
+      toast({
+        title: "Error",
         description: "Failed to load assessments.",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredAssessments = selectedCategory === 'all' 
-    ? assessments 
+  const filteredAssessments = selectedCategory === 'all'
+    ? assessments
     : assessments.filter(a => a.category_id === selectedCategory);
 
   const getDifficultyColor = (difficulty: string) => {
@@ -344,7 +353,7 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment, index }) =>
           </div>
         </div>
 
-        <Button 
+        <Button
           className="w-full glass-button group-hover:bg-purple-600 group-hover:text-white transition-all"
           onClick={(e) => {
             e.stopPropagation();
@@ -414,11 +423,15 @@ const AssessmentTaker: React.FC<AssessmentTakerProps> = ({ assessment, onBack })
       setAttemptId(attemptData.id);
 
     } catch (error) {
-      console.error('Error initializing assessment:', error);
-      toast({ 
-        title: "Error", 
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'initialize_assessment' }
+      });
+      toast({
+        title: "Error",
         description: "Failed to start assessment.",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -477,11 +490,15 @@ const AssessmentTaker: React.FC<AssessmentTakerProps> = ({ assessment, onBack })
       });
 
     } catch (error) {
-      console.error('Error submitting assessment:', error);
-      toast({ 
-        title: "Error", 
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'submit_assessment' }
+      });
+      toast({
+        title: "Error",
         description: "Failed to submit assessment.",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -771,7 +788,11 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({ result, assessmen
       if (error) throw error;
       setAttempt(data);
     } catch (error) {
-      console.error('Error loading attempt data:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.MEDIUM,
+        category: ErrorCategory.DATABASE,
+        context: { action: 'load_attempt_data' }
+      });
     }
   };
 
@@ -976,7 +997,7 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({ result, assessmen
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Assessments
         </Button>
-        <Button 
+        <Button
           size="lg"
           className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
           onClick={() => window.print()}

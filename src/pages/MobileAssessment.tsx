@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import RealAssessmentService from '@/services/realAssessmentService';
 import { Assessment } from '@/types/assessment';
@@ -6,6 +6,7 @@ import LocalAssessmentTaker from '@/components/assessment/LocalAssessmentTaker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
+import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
 const MobileAssessment: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +27,11 @@ const MobileAssessment: React.FC = () => {
         setAssessment(assessmentData);
       } catch (err) {
         setError('Failed to load assessment');
-        console.error('Error loading assessment:', err);
+        errorHandler.handleError(err, {
+          severity: ErrorSeverity.MEDIUM,
+          category: ErrorCategory.DATABASE,
+          context: { action: 'fetch_assessment', assessmentId: id }
+        });
       } finally {
         setLoading(false);
       }
@@ -35,9 +40,13 @@ const MobileAssessment: React.FC = () => {
     fetchAssessment();
   }, [id]);
 
-  const handleComplete = async (results: { answers: Record<string, string | number | string[]>; score?: number; category?: string; }) => {
-    console.log('Assessment completed:', results);
-    // Could implement results saving or navigation here
+  const handleComplete = async () => {
+    // Assessment completed - could implement results saving or navigation here
+    errorHandler.handleError(new Error('Assessment completion handler not implemented'), {
+      severity: ErrorSeverity.LOW,
+      category: ErrorCategory.BUSINESS_LOGIC,
+      context: { action: 'assessment_complete', assessmentId: id }
+    });
   };
 
   const handleBack = () => {
@@ -88,4 +97,4 @@ const MobileAssessment: React.FC = () => {
   );
 };
 
-export default MobileAssessment;
+export default memo(MobileAssessment);

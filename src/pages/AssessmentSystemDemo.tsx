@@ -43,16 +43,36 @@ const AssessmentSystemDemo: React.FC = () => {
       const data = await RealAssessmentService.getPublicAssessments();
       setAssessments(data);
       
-      // Calculate stats
+      // Calculate real stats from database
       const totalQuestions = data.reduce((sum, assessment) => sum + assessment.questions.length, 0);
+      
+      // Get real analytics data from admin service
+      const analyticsResponse = await adminService.getAnalytics();
+      const analytics = analyticsResponse.data;
+      
       setStats({
         totalAssessments: data.length,
         totalQuestions,
-        activeUsers: Math.floor(Math.random() * 50) + 10, // Simulated
-        completionRate: Math.floor(Math.random() * 40) + 60 // Simulated
+        activeUsers: analytics?.users.active || 0,
+        completionRate: analytics?.assessments.completed > 0 
+          ? Math.round((analytics.assessments.completed / analytics.assessments.total) * 100)
+          : 0
       });
     } catch (error) {
-      console.error('Error loading assessment data:', error);
+      logger.error('Error loading assessment data', {
+        component: 'AssessmentSystemDemo',
+        action: 'loadAssessmentData',
+        error
+      });
+      
+      // Fallback stats if analytics unavailable
+      const totalQuestions = assessments.reduce((sum, assessment) => sum + assessment.questions.length, 0);
+      setStats({
+        totalAssessments: assessments.length,
+        totalQuestions,
+        activeUsers: 0,
+        completionRate: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -64,7 +84,17 @@ const AssessmentSystemDemo: React.FC = () => {
   };
 
   const handleAssessmentComplete = (results: AssessmentResults) => {
-    console.log('Assessment completed:', results);
+    logger.info('Assessment completed successfully', {
+      component: 'AssessmentSystemDemo',
+      action: 'handleAssessmentComplete',
+      metadata: {
+        assessmentId: selectedAssessment?.id,
+        score: results.score,
+        category: results.category
+      }
+    });
+    
+    toast.success('Assessment completed successfully!');
     setCurrentView('overview');
     setSelectedAssessment(null);
   };

@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
 - Ask the next question clearly
 - Keep responses brief and supportive
 - Never analyze or interpret yet - that comes later
-- Use a warm, encouraging tone`;
-        `) + memoryHighlightsText;
+      - Use a warm, encouraging tone`
+        ) + memoryHighlightsText;
 
         responseContent = `Thank you for sharing that with me. I can feel the authenticity in your words.
 

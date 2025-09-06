@@ -44,7 +44,6 @@ export class STTPipeline extends EventEmitter {
   constructor(config: STTConfig) {
     super();
     this.config = {
-      provider: 'browser',
       language: 'en-US',
       continuous: true,
       interimResults: true,
@@ -65,9 +64,14 @@ export class STTPipeline extends EventEmitter {
    */
   private initializeBrowserSTT(): void {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
-      console.warn('Web Speech API not supported, falling back to OpenAI');
+      // Use error handler instead of console
+      errorHandler.handleError(new Error('Web Speech API not supported'), {
+        severity: ErrorSeverity.LOW,
+        category: ErrorCategory.EXTERNAL_API,
+        context: { action: 'initialize_browser_stt' }
+      });
       this.config.provider = 'openai';
       return;
     }
@@ -85,7 +89,7 @@ export class STTPipeline extends EventEmitter {
 
     // Handle errors
     this.recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      // Error already emitted above, no need for additional logging
       this.emit('error', {
         type: 'recognition_error',
         error: event.error,
@@ -126,13 +130,13 @@ export class STTPipeline extends EventEmitter {
    */
   private handleBrowserSTTResult(event: SpeechRecognitionEvent): void {
     const results = event.results;
-    
+
     for (let i = event.resultIndex; i < results.length; i++) {
       const result = results[i];
       const transcript = result[0].transcript;
       const confidence = result[0].confidence || 1.0;
-      
-      const alternatives = [];
+
+      const alternatives: Array<{ text: string; confidence: number }> = [];
       for (let j = 1; j < Math.min(result.length, this.config.maxAlternatives!); j++) {
         alternatives.push({
           text: result[j].transcript,
@@ -191,7 +195,7 @@ export class STTPipeline extends EventEmitter {
     // Batch process audio chunks
     const batchSize = 10; // Process 10 chunks at a time
     const batch = this.processingQueue.splice(0, batchSize);
-    
+
     // Combine audio chunks
     const combinedAudio = this.combineAudioChunks(batch.map(b => b.audio));
     const avgTimestamp = batch.reduce((sum, b) => sum + b.timestamp, 0) / batch.length;
@@ -205,10 +209,10 @@ export class STTPipeline extends EventEmitter {
     } catch (error) {
       errorHandler.handleError(error, {
         severity: ErrorSeverity.MEDIUM,
-        category: ErrorCategory.SPEECH,
-        context: { 
+        category: ErrorCategory.EXTERNAL_API,
+        context: {
           action: 'process_audio',
-          provider: this.config.provider 
+          provider: this.config.provider
         }
       });
       this.emit('error', {
@@ -227,13 +231,13 @@ export class STTPipeline extends EventEmitter {
   private combineAudioChunks(chunks: Float32Array[]): Float32Array {
     const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const combined = new Float32Array(totalLength);
-    
+
     let offset = 0;
     for (const chunk of chunks) {
       combined.set(chunk, offset);
       offset += chunk.length;
     }
-    
+
     return combined;
   }
 
@@ -243,9 +247,11 @@ export class STTPipeline extends EventEmitter {
   private async processWithOpenAI(audioData: Float32Array, timestamp: number): Promise<void> {
     // Convert Float32Array to WAV format
     const wavBlob = this.float32ArrayToWAV(audioData);
-    
+    const audioFile = new File([wavBlob], 'audio.wav', { type: 'audio/wav' });
+
     try {
-      const result = await openaiService.transcribeAudio(wavBlob, {
+      const transcriptionText = await openaiService.transcribeAudio({
+        file: audioFile,
         model: this.config.model || 'whisper-1',
         language: this.config.language?.split('-')[0] || 'en',
         prompt: this.finalTranscript.slice(-500), // Use last 500 chars as context
@@ -254,14 +260,13 @@ export class STTPipeline extends EventEmitter {
       });
 
       const transcriptionResult: TranscriptionResult = {
-        text: result.text,
+        text: transcriptionText,
         confidence: 1.0, // OpenAI doesn't provide confidence
         isFinal: true,
-        timestamp,
-        words: result.words
+        timestamp
       };
 
-      this.finalTranscript += result.text + ' ';
+      this.finalTranscript += transcriptionText + ' ';
       this.emit('transcription', transcriptionResult);
 
     } catch (error) {
@@ -270,12 +275,96 @@ export class STTPipeline extends EventEmitter {
   }
 
   /**
-   * Process with custom STT provider
+   * Process with custom STT provider (production implementation)
    */
   private async processWithCustomProvider(audioData: Float32Array, timestamp: number): Promise<void> {
-    // Implement custom provider logic here
-    // This is a placeholder for future integrations
-    throw new Error('Custom STT provider not implemented');
+    try {
+      // Get custom provider configuration from environment
+      const customEndpoint = import.meta.env.VITE_CUSTOM_STT_ENDPOINT;
+      const customApiKey = import.meta.env.VITE_CUSTOM_STT_API_KEY;
+      const customHeaders = import.meta.env.VITE_CUSTOM_STT_HEADERS;
+
+      if (!customEndpoint) {
+        throw new Error('Custom STT endpoint not configured');
+      }
+
+      // Convert Float32Array to WAV format
+      const wavBlob = this.float32ArrayToWAV(audioData);
+
+      // Prepare form data for audio upload
+      const formData = new FormData();
+      formData.append('audio', wavBlob, 'audio.wav');
+      formData.append('language', this.config.language || 'en');
+      formData.append('model', this.config.model || 'default');
+
+      // Prepare headers
+      const headers: Record<string, string> = {};
+
+      // Add API key if provided
+      if (customApiKey) {
+        headers['Authorization'] = `Bearer ${customApiKey}`;
+      }
+
+      // Add custom headers if provided
+      if (customHeaders) {
+        try {
+          const customHeaderObj = JSON.parse(customHeaders);
+          Object.assign(headers, customHeaderObj);
+        } catch (error) {
+          // Log invalid headers format but continue
+          errorHandler.handleError(new Error('Invalid custom STT headers format'), {
+            severity: ErrorSeverity.LOW,
+            category: ErrorCategory.VALIDATION,
+            context: { action: 'custom_stt_headers' }
+          });
+        }
+      }
+
+      // Make API request to custom provider
+      const response = await fetch(customEndpoint, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Custom STT API error: ${response.status} - ${errorData}`);
+      }
+
+      // Parse response
+      const result = await response.json();
+
+      // Handle different response formats
+      let transcriptionText = '';
+      let confidence = 1.0;
+
+      if (result.text) {
+        transcriptionText = result.text;
+        confidence = result.confidence || 1.0;
+      } else if (result.transcript) {
+        transcriptionText = result.transcript;
+        confidence = result.confidence || 1.0;
+      } else if (result.results && result.results[0]) {
+        transcriptionText = result.results[0].transcript || result.results[0].text || '';
+        confidence = result.results[0].confidence || 1.0;
+      } else {
+        throw new Error('Invalid response format from custom STT provider');
+      }
+
+      const transcriptionResult: TranscriptionResult = {
+        text: transcriptionText,
+        confidence,
+        isFinal: true,
+        timestamp
+      };
+
+      this.finalTranscript += transcriptionText + ' ';
+      this.emit('transcription', transcriptionResult);
+
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
@@ -341,7 +430,7 @@ export class STTPipeline extends EventEmitter {
    */
   start(): void {
     this.isProcessing = true;
-    
+
     if (this.config.provider === 'browser' && this.recognition) {
       try {
         this.recognition.start();
@@ -356,11 +445,11 @@ export class STTPipeline extends EventEmitter {
    */
   stop(): void {
     this.isProcessing = false;
-    
+
     if (this.config.provider === 'browser' && this.recognition) {
       this.recognition.stop();
     }
-    
+
     // Clear processing queue
     this.processingQueue = [];
   }
@@ -370,7 +459,7 @@ export class STTPipeline extends EventEmitter {
    */
   updateConfig(config: Partial<STTConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     if (this.config.provider === 'browser' && this.recognition) {
       this.recognition.lang = this.config.language!;
       this.recognition.continuous = this.config.continuous!;
@@ -409,13 +498,7 @@ export class STTPipeline extends EventEmitter {
   }
 }
 
-// Extend window interface for speech recognition
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+// Speech recognition types are already declared globally
 
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;

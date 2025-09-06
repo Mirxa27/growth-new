@@ -45,26 +45,158 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false, // Disable source maps in build to reduce source map errors in production
-    minify: 'esbuild',
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+        passes: 2
+      },
+      mangle: true,
+      format: {
+        comments: false
+      }
+    },
     target: 'es2020',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-tooltip'
-          ],
-          'supabase': ['@supabase/supabase-js'],
-          'utils': ['date-fns', 'clsx', 'zod']
+        manualChunks: (id) => {
+          // Critical vendor chunks with optimized splitting
+          if (id.includes('node_modules')) {
+            // React core - highest priority, stable API
+            if (id.includes('react/') || id.includes('react-dom/')) {
+              return 'react-core';
+            }
+            // React ecosystem - frequently updated
+            if (id.includes('react-router') || id.includes('@tanstack/react-query')) {
+              return 'react-ecosystem';
+            }
+            // UI framework - large but stable
+            if (id.includes('@radix-ui')) {
+              return 'radix-ui';
+            }
+            // UI animations - separate for optional loading
+            if (id.includes('lucide-react') || id.includes('framer-motion')) {
+              return 'ui-animations';
+            }
+            // Data layer - business critical
+            if (id.includes('@supabase') || id.includes('supabase')) {
+              return 'supabase';
+            }
+            // AI services - heavy, lazy loaded
+            if (id.includes('openai') || id.includes('@openai/agents')) {
+              return 'openai-vendor';
+            }
+            if (id.includes('@anthropic-ai') || id.includes('@google/generative-ai')) {
+              return 'ai-vendor';
+            }
+            // Utilities - small, frequently used
+            if (id.includes('date-fns') || id.includes('clsx') || id.includes('zod')) {
+              return 'utils';
+            }
+            // Performance libs - conditional loading
+            if (id.includes('react-window') || id.includes('react-intersection-observer') || id.includes('web-vitals')) {
+              return 'performance';
+            }
+            // Chart libraries - large, feature-specific
+            if (id.includes('recharts') || id.includes('chart.js') || id.includes('d3')) {
+              return 'charts';
+            }
+            // Form libraries - feature-specific
+            if (id.includes('react-hook-form') || id.includes('@hookform')) {
+              return 'forms';
+            }
+            // Capacitor mobile - platform-specific
+            if (id.includes('@capacitor')) {
+              return 'capacitor';
+            }
+            // PWA utilities - progressive enhancement
+            if (id.includes('workbox') || id.includes('vite-plugin-pwa')) {
+              return 'pwa';
+            }
+            // Other vendors - fallback
+            return 'vendor';
+          }
+
+          // Application chunks with intelligent organization
+          // AI services - separate chunk for code splitting
+          if (id.includes('/src/services/ai/') || id.includes('/src/services/openai/')) {
+            return 'ai-services';
+          }
+          // WebRTC - media-heavy, feature-specific
+          if (id.includes('/src/services/webrtc/') || id.includes('/src/components/voice/')) {
+            return 'webrtc-services';
+          }
+          // Cache services - performance critical
+          if (id.includes('/src/services/cache/') || id.includes('/src/hooks/useAdvancedCache')) {
+            return 'cache-services';
+          }
+          // Assessment system - core business logic
+          if (id.includes('/src/services/assessment') || id.includes('/src/components/assessment/')) {
+            return 'assessment-core';
+          }
+          // Admin functionality - role-restricted
+          if (id.includes('/src/pages/Admin') || id.includes('/src/components/admin/')) {
+            return 'admin-dashboard';
+          }
+          // Services layer - business logic
+          if (id.includes('/src/services/')) {
+            return 'services';
+          }
+          // Shared components - reusable UI
+          if (id.includes('/src/components/ui/') || id.includes('/src/components/shared/')) {
+            return 'ui-components';
+          }
+          // Feature components - specific functionality
+          if (id.includes('/src/components/')) {
+            return 'feature-components';
+          }
+          // Page components - route-specific
+          if (id.includes('/src/pages/')) {
+            return 'pages';
+          }
+          // React hooks - state management
+          if (id.includes('/src/hooks/')) {
+            return 'hooks';
+          }
+          // Utilities and helpers - common functions
+          if (id.includes('/src/utils/')) {
+            return 'app-utils';
+          }
+          // Types and constants - minimal runtime impact
+          if (id.includes('/src/types/') || id.includes('/src/constants/')) {
+            return 'shared-types';
+          }
+        },
+        // Optimize chunk names for better caching
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
+          return `js/[name]-${facadeModuleId}-[hash].js`;
+        },
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `images/[name]-[hash][extname]`;
+          }
+          if (/woff|woff2|eot|ttf|otf/i.test(ext)) {
+            return `fonts/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
         }
-      }
+      },
+      // Experimental: Enable module preloading for critical chunks
+      experimentalMinChunkSize: 20000, // 20KB minimum chunk size
+      // Enable tree shaking for better dead code elimination
+      plugins: []
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 500,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Optimize asset inlining
+    assetsInlineLimit: 4096
   },
   optimizeDeps: {
     include: [

@@ -3,6 +3,9 @@
 /* Import Responsive Design System */
 @import './styles/responsive.css';
 
+/* Import Fluid Typography System */
+@import './styles/typography.css';
+
 /* Tailwind Directives */
 @tailwind base;
 @tailwind components;

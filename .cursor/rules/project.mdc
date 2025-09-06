@@ -1,0 +1,232 @@
+---
+description: "Project 'Newomen' – AI conversational platform for women’s personal growth and transformation"
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Project "Newomen"
+
+## Project Mission
+Build a production-ready AI conversational platform called **Newomen** — an emotionally intelligent companion designed to support women’s personal growth journeys through culturally-sensitive conversations, **Narrative Identity Exploration**, and transformative guidance.  
+
+The Newomen Platform functions as an **ecosystem for personal transformation**, founded by **Katrina Zhuk**. It supports women globally through profound, personalized conversations with **NewMe**, our signature AI guide.  
+
+The platform is powered by a **Dynamic Prompting Engine**, ensuring that NewMe’s conversational depth and therapeutic approach **evolve with the user’s progress and subscription tier**. This guarantees that the journey is always **perfectly challenging and deeply rewarding**.  
+
+Core to the mission: an AI companion with **speech-to-speech guidance**, not just reactive but actively designed to help users explore, heal, and grow.
+
+---
+
+# Core Business Requirements
+
+## Platform Overview
+- Advanced conversational AI with persistent memory and emotional intelligence.  
+- Structured psychological frameworks (**Narrative Identity Exploration, integration, transformation**).  
+- Cultural adaptation with native Arabic support and Middle Eastern sensibilities.  
+- Real-time, speech-to-speech interactions for natural and seamless conversations.  
+- Emotion detection and adaptive response generation.  
+- Community features for collaborative healing and growth.  
+- Comprehensive admin tools for content and AI management.  
+- Gamified personal growth tracking system.  
+- **Glassmorphic design language** across all interfaces.  
+
+## Revenue Model
+- **Discovery Tier**: 10 free minutes for new users.  
+- **Growth Tier**: $22 for 100 minutes.  
+- **Transformation Tier**: $222 for 1000 minutes.  
+- **PayPal** as primary payment processor with automatic renewals.  
+
+---
+
+# Enhanced & Gamified User Journey
+
+## 1. Onboarding & Personality Assessment
+- **Language & Culture**: Setup includes selection of preferred language and cultural context.  
+- **Personality Analysis**: Quick assessment identifies character type and growth zones, initializing the **user memory profile** for NewMe.  
+- **Concept Clarity**: Accessible explanation of **Narrative Identity Exploration** as a method for reshaping personal stories.  
+- **Focus Selection**: Interactive **balance-wheel UI** allows users to choose growth priorities:  
+  - Relationships & Connection  
+  - Health & Wellness  
+  - Self-Esteem & Identity  
+  - Family Dynamics  
+  - Career & Self-Development  
+
+## 2. Shadow Work Engine
+- Structured **10-question journey** probing hidden roles, beliefs, and emotions.  
+- Integration analysis to surface:  
+  - Core shadow patterns  
+  - Hidden strengths  
+  - Personalized action steps  
+  - Custom affirmations  
+  - Transformation roadmap  
+
+## 3. Couple’s Challenge Flow
+1. User A initiates and shares a unique URL.  
+2. User B joins via the link, forming a joint session.  
+3. The AI poses a question visible to both.  
+4. User A submits an answer — stored privately.  
+5. User B submits their answer — also stored privately.  
+6. Server forwards both responses to the AI.  
+7. AI generates a **compatibility analysis**.  
+8. Both users simultaneously see:  
+   - Original answers  
+   - AI’s insights and compatibility assessment  
+
+## 4. Daily Growth Loop
+- Mood check-ins and affirmations.  
+- Progress visualization.  
+- Mindfulness activities with offline access.  
+- Push notifications for motivation and reminders.  
+
+---
+
+# Core Features
+
+### Conversational AI
+- Multi-provider orchestration.  
+- Streaming responses with indicators.  
+- Context-aware memory across sessions.  
+- Emotion detection & adaptive tone.  
+- Cultural expression integration (Arabic phrases, Middle Eastern sensitivities).  
+- Real-time voice input/output with fallback resilience.  
+
+### Memory & Personalization
+- Persistent conversation memory.  
+- Emotional state tracking over time.  
+- Progress visualization dashboards.  
+- Personalized content based on stage.  
+- Predictive wellness recommendations.  
+
+### Subscription & Payments
+- Seamless PayPal subscription integration.  
+- Usage metering with real-time minute deduction.  
+- Upgrade/downgrade flows.  
+- Retry logic on failure.  
+- Invoice generation and history.  
+
+### Admin Dashboard
+- Drag-and-drop prompt management.  
+- AI provider configuration and monitoring.  
+- Real-time conversation monitoring.  
+- A/B testing for prompts and flows.  
+- Analytics and insights dashboards.  
+- Content scheduling and approval workflows.  
+
+### Mobile-First Experience
+- PWA with offline capabilities.  
+- Voice-first mode.  
+- Push notifications.  
+- Smooth animations and premium, calming UI.  
+
+---
+
+# Security & Compliance
+- End-to-end encrypted conversations.  
+- GDPR, CCPA, and Saudi PDPL compliance.  
+- PCI DSS payment security.  
+- Regular security audits.  
+- Data anonymization options.  
+
+---
+
+# Scalability & Architecture
+- Auto-scaling for 10k+ concurrent users.  
+- Global CDN for assets.  
+- Efficient caching and queues.  
+- Vector-search–ready database design.  
+- Event-driven minutes accounting and logging.  
+
+---
+
+# User Experience Guidelines
+
+### Conversation Design
+- Warm, empathetic tone with Arabic expressions:  
+  - حبيبتي (habibti) — endearment  
+  - إن شاء الله (inshallah) — hope  
+  - ما شاء الله (mashallah) — admiration  
+  - الحمد لله (alhamdulillah) — gratitude  
+- Progressive disclosure of deeper topics.  
+- Affirmation before advice.  
+- Clear boundaries around therapeutic claims.  
+
+### Visual Design
+- Calming color palette.  
+- Glassmorphic components.  
+- Smooth animations.  
+- Dual-language typography (Arabic & English).  
+- Accessibility-first design.  
+
+---
+
+# Implementation Strategy
+1. **Research Templates**: Locate modern SaaS, AI chat, and multi-language PWA templates (2024–2025).  
+2. **Enhance Templates**: Add shadow work, cultural adaptation, emotion detection, progress tracking, and gamification.  
+3. **Production Optimization**: Comprehensive error handling, observability, automated testing, CI/CD pipelines, staging environments.  
+
+---
+
+# Testing Requirements
+- Unit test coverage >80%.  
+- Integration tests for all APIs.  
+- End-to-end flows (onboarding, subscription, sessions).  
+- Load/performance testing.  
+- Security penetration testing.  
+- Accessibility & RTL validation.  
+- Multi-language QA.  
+
+---
+
+# Launch Preparation
+1. Beta testing with 100 users.  
+2. Gradual rollout with feature flags.  
+3. 24/7 monitoring setup.  
+4. Support team training.  
+5. Documentation finalized.  
+6. Marketing assets ready.  
+
+---
+
+# Post-Launch Evolution
+- Weekly feature releases.  
+- User feedback integration.  
+- Model updates and fine-tuning.  
+- Expanded language support.  
+- New community features.  
+
+---
+
+# Success Criteria
+- Transformation score improvement >70%.  
+- Daily active usage >40%.  
+- Subscription retention >85% after 3 months.  
+- User satisfaction (NPS) >70.  
+- Zero critical security incidents.  
+- <1% payment failure rate.  
+
+---
+
+# Important Notes
+1. Always adopt the **latest SDKs and APIs** available (2025).  
+2. Prefer open-source templates to reduce build time.  
+3. AI interactions must feel natural and emotionally intelligent.  
+4. Mobile-first experience is mandatory.  
+5. Build for **millions of users from day one**.  
+6. Premium and trustworthy interface is non-negotiable.  
+7. Cultural sensitivity is critical — prioritize MENA context.  
+8. Privacy-first by default — protect vulnerable user data.  
+
+---
+
+# Deliverables
+1. Fully functional web application (PWA) and IOS app using capacitor
+2. Admin dashboard with complete management features.  
+3. API documentation.  
+4. Deployment and infrastructure automation.  
+5. Comprehensive test suite.  
+6. User and Admin documentation.  
+7. Marketing website and landing page.  
+
+---
+
+**Build Newomen as a transformative platform combining cutting-edge AI with psychological depth and cultural sensitivity — creating a safe space for women to explore their authentic selves and unlock their full potential.**
