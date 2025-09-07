@@ -1,5 +1,27 @@
-// Content script as ES module (MV3)
-import { ensureSettingsLoaded, getSetting } from './utils.js';
+// Content script compatible with non-module execution (MV3)
+// Avoid static imports to prevent "Cannot use import statement outside a module"
+function ensureSettingsLoaded() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage?.sync?.get(
+        ['openai_api_key', 'openai_base_url', 'openai_model'],
+        () => resolve()
+      );
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+function getSetting(key) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage?.sync?.get([key], (result) => resolve(result?.[key]));
+    } catch (_) {
+      resolve(undefined);
+    }
+  });
+}
 
 if (!window.__growthEchoInjected) {
   window.__growthEchoInjected = true;
@@ -27,12 +49,17 @@ if (!window.__growthEchoInjected) {
 
       // Example: ping background for login status or OpenAI health
       chrome.runtime.sendMessage({ type: 'healthcheck' }, (response) => {
+        // Always touch lastError to prevent noisy "Unchecked runtime.lastError" logs
         if (chrome.runtime.lastError) {
-          console.warn('Background unavailable', chrome.runtime.lastError.message);
+          console.debug('Background not reachable or responded late:', chrome.runtime.lastError.message);
           return;
         }
-        console.debug('background healthcheck', response);
-        overlay.title = response?.status || 'ok';
+        try {
+          console.debug('background healthcheck', response);
+          overlay.title = response?.status || 'ok';
+        } catch (_) {
+          // Ignore if overlay was removed due to navigation
+        }
       });
     } catch (error) {
       console.error('Content init failed', error);

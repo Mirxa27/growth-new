@@ -10,30 +10,49 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  let responded = false;
+  const safeSend = (payload) => {
+    if (responded) return;
+    try {
+      sendResponse(payload);
+      responded = true;
+    } catch (e) {
+      // Ignore if port is closed or sender tab/frame no longer exists
+      console.debug('Response could not be sent:', e?.message || e);
+    }
+  };
+
   (async () => {
     try {
       await ensureSettingsLoaded();
       if (message?.type === 'healthcheck') {
-        sendResponse({ status: 'ok', model: await getSetting('openai_model') });
+        safeSend({ status: 'ok', model: await getSetting('openai_model') });
         return;
       }
       if (message?.type === 'openai:models') {
         const apiKey = await getSetting('openai_api_key');
         const baseUrl = (await getSetting('openai_base_url')) || 'https://api.openai.com';
         if (!apiKey) {
-          sendResponse({ error: 'missing_api_key' });
+          safeSend({ error: 'missing_api_key' });
           return;
         }
-        const resp = await fetch(`${baseUrl}/v1/models`, {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        });
-        const data = await resp.json();
-        sendResponse({ status: resp.status, data });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const resp = await fetch(`${baseUrl}/v1/models`, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: controller.signal,
+          });
+          const data = await resp.json();
+          safeSend({ status: resp.status, data });
+        } finally {
+          clearTimeout(timeout);
+        }
         return;
       }
     } catch (error) {
       console.error('Background error', error);
-      sendResponse({ error: String(error) });
+      safeSend({ error: String(error) });
     }
   })();
   return true;

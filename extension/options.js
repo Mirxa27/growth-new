@@ -25,7 +25,13 @@ document.getElementById('test').addEventListener('click', async () => {
   const el = document.getElementById('status');
   el.textContent = 'Testing...';
   const response = await new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'openai:models' }, resolve);
+    chrome.runtime.sendMessage({ type: 'openai:models' }, (resp) => {
+      if (chrome.runtime.lastError) {
+        resolve({ error: chrome.runtime.lastError.message });
+        return;
+      }
+      resolve(resp);
+    });
   });
   if (response?.error) {
     el.textContent = `Error: ${response.error}`;

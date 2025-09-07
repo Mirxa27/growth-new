@@ -111,6 +111,11 @@
   }
 }
 
+/* Override problematic viewport units on mobile: ensure full-fit on phones */
+.h-screen { height: 100vh; height: calc(var(--vh, 1vh) * 100); }
+.min-h-screen { min-height: 100vh; min-height: calc(var(--vh, 1vh) * 100); }
+.max-h-screen { max-height: 100vh; max-height: calc(var(--vh, 1vh) * 100); }
+
 @layer base {
   * {
     border-color: hsl(var(--border));
