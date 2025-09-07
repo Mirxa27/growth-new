@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-09-07T12:23:48.389Z",
+  "duration": "8s",
+  "status": "success",
+  "buildDirectory": "./dist",
+  "previewUrl": "http://localhost:4173",
+  "externalUrl": "http://0.0.0.0:4173",
+  "supabase": {
+    "projectRef": "ufgqmqoykddaotdbwteg",
+    "url": "https://ufgqmqoykddaotdbwteg.supabase.co",
+    "functionsDeployed": true
+  },
+  "nextSteps": [
+    "Application is built and ready",
+    "Preview server is running on port 4173",
+    "All Supabase functions are deployed",
+    "Configure OpenAI API key in admin panel",
+    "Test all features in the live environment"
+  ]
+}

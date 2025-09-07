@@ -171,9 +171,15 @@ export const preloadImage = (src: string): Promise<void> => {
 };
 
 // Memory usage monitoring
+interface MemoryInfo {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
 export const getMemoryUsage = (): MemoryInfo | null => {
   if ('memory' in performance) {
-    return (performance as any).memory;
+    return (performance as any).memory as MemoryInfo;
   }
   return null;
 };
