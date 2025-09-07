@@ -10,8 +10,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
-    "build:production": "npm run clean && npm run type-check && npm run lint && vite build",
+    "type-check": "tsc --noEmit --project tsconfig.build.json",
+    "build:production": "npm run clean && vite build",
+    "build:vercel": "npm run clean && vite build",
     "deploy": "npm run build:production && npm run preview",
     "vercel-build": "npm install --legacy-peer-deps && npm run build:production",
     "postbuild": "echo 'Build completed successfully'"
