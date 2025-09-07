@@ -158,19 +158,19 @@ const Dashboard = () => {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-        <MobileContainer className="py-8">
+        <MobileContainer className="py-4 sm:py-8">
           {/* Welcome Section */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={() => navigate('/')}
-                className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/20 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity touch-target-large"
               >
-                <img src="/symbol.svg" alt="Newomen Logo" className="w-10 h-10" />
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8 sm:w-10 sm:h-10" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold">Welcome back!</h1>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold">Welcome back!</h1>
+                <p className="text-sm sm:text-base text-muted-foreground truncate">
                   {user?.email || 'Ready to continue your growth journey?'}
                 </p>
               </div>

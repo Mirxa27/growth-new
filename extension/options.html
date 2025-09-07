@@ -15,10 +15,21 @@
   </head>
   <body>
     <h1>Growth Echo Assistant Settings</h1>
+    
     <div class="row">
-      <label for="openai_api_key">OpenAI API Key</label>
+      <label>
+        <input type="checkbox" id="use_supabase_key" checked style="margin-right: 8px;" />
+        Use OpenAI API key from Supabase (recommended)
+      </label>
+      <div class="muted">When enabled, the extension will fetch the OpenAI API key from your Supabase database</div>
+    </div>
+    
+    <hr />
+    
+    <div class="row">
+      <label for="openai_api_key">Local OpenAI API Key (fallback)</label>
       <input id="openai_api_key" type="password" placeholder="sk-..." />
-      <div class="muted">Stored locally in chrome.storage.sync</div>
+      <div class="muted">Only used when Supabase integration is disabled or fails</div>
     </div>
     <div class="row">
       <label for="openai_base_url">OpenAI Base URL</label>
@@ -28,20 +39,27 @@
       <label for="openai_model">Default Model</label>
       <input id="openai_model" type="text" value="gpt-4o-mini" />
     </div>
+    
     <hr />
+    
     <div class="row">
       <label for="supabase_url">Supabase URL</label>
       <input id="supabase_url" type="text" placeholder="https://<project>.supabase.co" />
+      <div class="muted">Your Supabase project URL</div>
     </div>
     <div class="row">
       <label for="supabase_anon_key">Supabase Anon Key</label>
       <input id="supabase_anon_key" type="password" placeholder="eyJhbGciOiJI..." />
+      <div class="muted">Your Supabase anonymous/public key</div>
     </div>
+    
     <div class="row">
       <button id="save">Save</button>
-      <button id="test" style="margin-left:8px; background:#10b981">Test</button>
+      <button id="test" style="margin-left:8px; background:#10b981">Test OpenAI</button>
+      <button id="test_supabase" style="margin-left:8px; background:#3b82f6">Test Supabase</button>
       <span id="status" class="muted" style="margin-left:8px"></span>
     </div>
+    
     <script type="module" src="options.js"></script>
   </body>
 </html>

@@ -1,11 +1,12 @@
 // Background service worker as ES module (MV3)
-import { ensureSettingsLoaded, getSetting, setSetting } from './utils.js';
+import { ensureSettingsLoaded, getSetting, setSetting, getSupabaseOpenAIKey } from './utils.js';
 
 chrome.runtime.onInstalled.addListener(() => {
   // Initialize defaults
   chrome.storage.sync.set({
     openai_base_url: 'https://api.openai.com',
     openai_model: 'gpt-4o-mini',
+    use_supabase_key: true, // Default to using Supabase key
   });
 });
 
@@ -31,10 +32,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       
       if (message?.type === 'openai:models') {
-        const apiKey = await getSetting('openai_api_key');
+        const useSupabaseKey = await getSetting('use_supabase_key');
+        let apiKey;
+        
+        if (useSupabaseKey) {
+          // Try to get OpenAI key from Supabase
+          try {
+            apiKey = await getSupabaseOpenAIKey();
+          } catch (supabaseError) {
+            console.warn('Failed to get Supabase OpenAI key, falling back to local storage:', supabaseError);
+            apiKey = await getSetting('openai_api_key');
+          }
+        } else {
+          // Use local storage key
+          apiKey = await getSetting('openai_api_key');
+        }
+        
         const baseUrl = (await getSetting('openai_base_url')) || 'https://api.openai.com';
+        
         if (!apiKey) {
-          sendResponse({ error: 'missing_api_key' });
+          sendResponse({ error: 'missing_api_key', details: 'No OpenAI API key found in Supabase or local storage' });
           return;
         }
         

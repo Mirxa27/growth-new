@@ -61,11 +61,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-      <Tabs defaultValue="sign-in" className="w-[400px]">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="sign-in">Sign In</TabsTrigger>
-          <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
+    <div className="min-h-screen-safe flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 sm:p-6">
+      <Tabs defaultValue="sign-in" className="w-full max-w-[400px]">
+        <TabsList className="grid w-full grid-cols-2 touch-target-large">
+          <TabsTrigger value="sign-in" className="touch-target">Sign In</TabsTrigger>
+          <TabsTrigger value="sign-up" className="touch-target">Sign Up</TabsTrigger>
         </TabsList>
         <TabsContent value="sign-in">
           <Card className="glass-strong">
@@ -84,7 +84,7 @@ const Auth = () => {
                   <Input id="password-in" name="password" type="password" required className="glass-input" />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-primary touch-target-large" size="lg" disabled={loading}>
                   {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
               </form>
@@ -112,7 +112,7 @@ const Auth = () => {
                   <Input id="password-up" name="password" type="password" required className="glass-input" />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-primary touch-target-large" size="lg" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </form>
