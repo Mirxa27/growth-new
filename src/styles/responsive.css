@@ -200,16 +200,61 @@
   .h-screen-safe {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
+    height: 100dvh; /* Modern browsers */
   }
   
   .min-h-screen-safe {
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
+    min-height: 100dvh; /* Modern browsers */
   }
   
   .max-h-screen-safe {
     max-height: 100vh;
     max-height: calc(var(--vh, 1vh) * 100);
+    max-height: 100dvh; /* Modern browsers */
+  }
+  
+  /* Visual viewport utilities for mobile keyboards */
+  .h-visual-screen {
+    height: var(--visual-viewport-height, 100vh);
+  }
+  
+  /* Mobile-optimized container with proper padding */
+  .mobile-container {
+    width: 100%;
+    max-width: 100vw;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    margin: 0 auto;
+  }
+  
+  /* Prevent horizontal scroll */
+  .no-horizontal-scroll {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  /* Mobile-friendly scrollable areas */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    overflow-y: auto;
+  }
+  
+  /* Enhanced touch targets */
+  .touch-target-large {
+    min-width: 48px;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  
+  /* Mobile keyboard-aware spacing */
+  .keyboard-aware {
+    padding-bottom: env(keyboard-inset-height, 0px);
   }
 }
 
@@ -483,5 +528,111 @@
 @media (min-width: 1024px) {
   .truncate-responsive {
     max-width: 400px;
+  }
+}
+
+/* Enhanced Mobile-Specific Optimizations */
+
+/* Very small mobile devices (iPhone SE, etc.) */
+@media (max-width: 374px) {
+  :root {
+    --spacing-md: 0.75rem;
+    --text-base: 14px;
+  }
+  
+  .mobile-container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  
+  .heading-responsive {
+    font-size: var(--text-xl);
+  }
+}
+
+/* Mobile landscape mode optimizations */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 900px) {
+  :root {
+    --spacing-md: 0.5rem;
+    --spacing-lg: 0.75rem;
+  }
+  
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+  
+  /* Reduce header sizes in landscape */
+  .heading-responsive {
+    font-size: var(--text-lg);
+  }
+  
+  /* Compact navigation in landscape */
+  .nav-mobile {
+    padding: 0.25rem 0;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-appearance: none) {
+  /* Fix for iOS Safari viewport units */
+  .h-screen-safe {
+    height: -webkit-fill-available;
+  }
+  
+  .min-h-screen-safe {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Android Chrome specific optimizations */
+@media screen and (max-width: 767px) {
+  /* Prevent zoom on form focus */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    transform: translateZ(0); /* Force hardware acceleration */
+  }
+  
+  /* Optimize scrolling performance */
+  .mobile-scroll {
+    transform: translateZ(0);
+    will-change: scroll-position;
+  }
+}
+
+/* Hover states only for non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .touch-target:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --glass-bg: rgba(0, 0, 0, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Reduced data mode optimizations */
+@media (prefers-reduced-data: reduce) {
+  /* Disable heavy animations and effects */
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  /* Reduce blur effects */
+  .glass-strong {
+    backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.8);
   }
 }

@@ -20,8 +20,7 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_idle",
-      "type": "module"
+      "run_at": "document_idle"
     }
   ],
   "options_ui": {
@@ -30,5 +29,11 @@
   },
   "action": {
     "default_title": "Growth Echo Assistant"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["utils.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

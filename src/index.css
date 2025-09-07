@@ -2,6 +2,58 @@
 /* Import Responsive Design System */
 @import './styles/responsive.css';
 
+/* Enhanced Mobile Optimizations */
+@layer base {
+  /* Prevent zoom on form inputs on iOS */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Improve touch scrolling on iOS */
+  * {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Fix viewport units on mobile browsers */
+  .h-screen, .min-h-screen {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  
+  /* Enhance touch targets */
+  button, [role="button"], input[type="submit"], input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* Prevent horizontal overflow on mobile */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  /* Optimize font rendering on mobile */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Mobile-specific viewport fixes */
+@supports (height: 100dvh) {
+  .h-screen-safe {
+    height: 100dvh !important;
+  }
+  .min-h-screen-safe {
+    min-height: 100dvh !important;
+  }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
