@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,13 +14,17 @@ import {
   Heart,
   Volume2,
   VolumeX,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { MobileContainer } from '@/components/responsive/MobileOptimized';
+import { EnhancedErrorBoundary } from '@/components/ui/enhanced-error-boundary';
+import { EnhancedLoading, ChatSkeleton } from '@/components/ui/enhanced-loading';
 import { newMeAI, ConversationContext } from '@/services/ai/newme-ai-service';
 import { newMeVoice } from '@/services/voice/newme-voice-service';
+import { useNavigate } from 'react-router-dom';
+import { useViewportHeight, useKeyboardVisible } from '@/hooks/useResponsive';
+import { useDebounce, usePerformanceMonitor, globalCache } from '@/utils/performance';
 
 interface Message {
   id: string;
@@ -34,15 +37,34 @@ interface Message {
 
 const Chat = () => {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
+  const navigate = useNavigate();
+  const { isKeyboardVisible, keyboardHeight } = useKeyboardVisible();
+  useViewportHeight();
+
+  // Load existing conversation from localStorage
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem(`chat_messages_${user?.id}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      } catch {
+        // If parsing fails, return default message
+      }
+    }
+    
+    return [{
       id: '1',
       content: "Hello beautiful soul! I'm NewMe, your AI companion for personal growth and self-discovery. I'm here to guide you through narrative identity exploration in a safe, culturally sensitive space. What story would you like to explore today?",
       sender: 'ai',
       timestamp: new Date(),
       emotion: 'supportive'
-    }
-  ]);
+    }];
+  });
+
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -50,35 +72,41 @@ const Chat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [dailyHeadline, setDailyHeadline] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Performance monitoring
+  const startTiming = usePerformanceMonitor('chat-message-send');
 
-  const scrollToBottom = () => {
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (user && messages.length > 1) { // Don't save just the initial message
+      localStorage.setItem(`chat_messages_${user.id}`, JSON.stringify(messages));
+    }
+  }, [messages, user]);
+
+  // Debounced scroll to bottom for performance
+  const scrollToBottom = useDebounce(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, 100);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Generate dynamic daily headline
+  // Handle keyboard visibility for mobile
   useEffect(() => {
-    const headlines = [
-      "What story will you rewrite today? 💫",
-      "Your authentic self is waiting to be discovered ✨",
-      "Every conversation with me is a step toward your true potential 🌟",
-      "Ready to explore the narratives that shape your life? 🎭",
-      "Today is perfect for uncovering your hidden strengths 💎",
-      "What patterns are you ready to transform? 🦋",
-      "Your journey of self-discovery continues here 🌸",
-      "Let's explore the stories that define who you're becoming 📖"
-    ];
-    setDailyHeadline(headlines[Math.floor(Math.random() * headlines.length)]);
-  }, []);
+    if (isKeyboardVisible) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [isKeyboardVisible]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || !user) return;
+
+    const endTiming = startTiming();
+    const cacheKey = `user_profile_${user.id}`;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -92,8 +120,15 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      // Get user memory profile
-      const userProfile = await newMeAI.getUserMemoryProfile(user.id);
+      // Get user memory profile with caching
+      let userProfile = globalCache.get(cacheKey);
+      if (!userProfile) {
+        userProfile = await newMeAI.getUserMemoryProfile(user.id);
+        if (userProfile) {
+          globalCache.set(cacheKey, userProfile, 5 * 60 * 1000); // Cache for 5 minutes
+        }
+      }
+      
       if (!userProfile) {
         throw new Error('Unable to load your profile. Please try again.');
       }
@@ -119,6 +154,9 @@ const Chat = () => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // End performance timing
+      endTiming();
 
       // Text-to-speech if enabled
       if (isSoundEnabled && aiResult.response) {
@@ -132,11 +170,14 @@ const Chat = () => {
           utterance.volume = 0.7;
           speechSynthesis.speak(utterance);
         } catch (audioError) {
-          console.warn('Text-to-speech failed:', audioError);
+          // Text-to-speech failed silently
         }
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      // Log error for debugging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error sending message:', error);
+      }
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "I'm having a moment of reflection, but I'm still here with you. Your thoughts and feelings matter to me. Could you share what's on your heart again?",
@@ -152,7 +193,9 @@ const Chat = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(inputMessage);
+    if (inputMessage.trim()) {
+      sendMessage(inputMessage);
+    }
   };
 
   const toggleVoiceMode = async () => {
@@ -171,7 +214,7 @@ const Chat = () => {
       try {
         const result = await newMeVoice.startVoiceSession({
           userId: user!.id,
-          language: 'en', // Could be from user profile
+          language: 'en',
           enableEmotionDetection: true,
           enableRealtimeProcessing: true,
         });
@@ -222,183 +265,229 @@ const Chat = () => {
   const getMessageIcon = (emotion?: string) => {
     switch (emotion) {
       case 'supportive':
-        return <Heart className="w-4 h-4 text-primary" />;
+        return <Heart className="w-3 h-3 text-primary flex-shrink-0" />;
       case 'insightful':
-        return <Brain className="w-4 h-4 text-secondary" />;
+        return <Brain className="w-3 h-3 text-secondary flex-shrink-0" />;
       case 'encouraging':
-        return <Sparkles className="w-4 h-4 text-accent" />;
+        return <Sparkles className="w-3 h-3 text-accent flex-shrink-0" />;
       case 'empowering':
-        return <Zap className="w-4 h-4 text-primary" />;
+        return <Zap className="w-3 h-3 text-primary flex-shrink-0" />;
       default:
-        return <MessageCircle className="w-4 h-4 text-muted-foreground" />;
+        return <MessageCircle className="w-3 h-3 text-muted-foreground flex-shrink-0" />;
+    }
+  };
+
+  const clearChat = () => {
+    if (user) {
+      localStorage.removeItem(`chat_messages_${user.id}`);
+      setMessages([{
+        id: '1',
+        content: "Hello beautiful soul! I'm NewMe, your AI companion for personal growth and self-discovery. I'm here to guide you through narrative identity exploration in a safe, culturally sensitive space. What story would you like to explore today?",
+        sender: 'ai',
+        timestamp: new Date(),
+        emotion: 'supportive'
+      }]);
     }
   };
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-        <MobileContainer className="h-screen flex flex-col">
-          {/* Header */}
-          <Card className="glass-strong mb-4 flex-shrink-0">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">NewMe AI Companion</CardTitle>
-                    <p className="text-sm text-muted-foreground">{dailyHeadline}</p>
-                  </div>
+    <EnhancedErrorBoundary>
+      <div className="h-screen-safe flex flex-col bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 overflow-hidden">
+        {/* Mobile Header */}
+        <div className="flex-shrink-0 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 py-3 safe-area-padding">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="p-2 hover:bg-muted/50 touch-target"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                  <Brain className="w-4 h-4 text-primary" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-                    className="glass-button"
+                <div>
+                  <h1 className="font-semibold text-sm">NewMe</h1>
+                  <p className="text-xs text-muted-foreground">AI Companion</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                className="p-2 hover:bg-muted/50 touch-target"
+              >
+                {isSoundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </Button>
+              <Badge variant={isVoiceMode ? "default" : "secondary"} className="text-xs">
+                {isVoiceMode ? "Voice" : "Text"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          <ScrollArea 
+            ref={scrollAreaRef}
+            className="flex-1 px-4"
+            style={{ 
+              paddingBottom: isKeyboardVisible ? `${keyboardHeight}px` : '0px'
+            }}
+          >
+            <div className="space-y-4 py-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] sm:max-w-[75%] p-3 rounded-2xl ${
+                      message.sender === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-md'
+                        : 'bg-background/80 backdrop-blur-sm border border-border/50 rounded-bl-md'
+                    }`}
                   >
-                    {isSoundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                  </Button>
-                  <Badge variant={isVoiceMode ? "default" : "secondary"}>
-                    {isVoiceMode ? "Voice Mode" : "Text Mode"}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Messages */}
-          <Card className="glass-strong flex-1 flex flex-col min-h-0">
-            <CardContent className="flex-1 p-0 flex flex-col min-h-0">
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] p-4 rounded-2xl glass-subtle ${
-                          message.sender === 'user'
-                            ? 'bg-primary/20 text-primary-foreground'
-                            : 'bg-secondary/10 text-secondary-foreground'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          {message.sender === 'ai' && getMessageIcon(message.emotion)}
-                          <div className="flex-1">
-                            <p className="text-sm leading-relaxed">{message.content}</p>
-                            {message.insights && message.insights.length > 0 && (
-                              <div className="mt-3 space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground">Insights:</p>
-                                {message.insights.map((insight, index) => (
-                                  <div key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Sparkles className="w-3 h-3" />
-                                    <span>{insight}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {message.timestamp.toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </div>
+                    {message.sender === 'ai' && (
+                      <div className="flex items-center gap-2 mb-2">
+                        {getMessageIcon(message.emotion)}
+                        <span className="text-xs font-medium text-muted-foreground capitalize">
+                          {message.emotion || 'NewMe'}
+                        </span>
                       </div>
-                    </div>
-                  ))}
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="max-w-[80%] p-4 rounded-2xl glass-subtle bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <LoadingSpinner size="sm" />
-                          <span className="text-sm text-muted-foreground">NewMe is reflecting on your words...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Input Area */}
-              <div className="p-4 border-t border-border">
-                {voiceError && (
-                  <div className="mb-3 p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <p className="text-xs text-destructive">{voiceError}</p>
-                  </div>
-                )}
-                
-                {isVoiceMode ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <Button
-                      onClick={handleVoiceInput}
-                      className={`w-20 h-20 rounded-full ${
-                        isRecording 
-                          ? 'bg-destructive hover:bg-destructive/90 animate-pulse shadow-lg shadow-destructive/30' 
-                          : 'bg-gradient-primary hover:opacity-90 shadow-lg shadow-primary/30'
-                      }`}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <LoadingSpinner size="sm" />
-                      ) : isRecording ? (
-                        <MicOff className="w-8 h-8" />
-                      ) : (
-                        <Mic className="w-8 h-8" />
-                      )}
-                    </Button>
-                    <p className="text-sm text-muted-foreground text-center">
-                      {isProcessing 
-                        ? 'Processing your beautiful words...'
-                        : isRecording 
-                        ? 'I\'m listening to your heart... Tap to stop'
-                        : 'Tap to share your thoughts with NewMe'
-                      }
+                    )}
+                    
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                      {message.content}
                     </p>
-                    <Button
-                      variant="outline"
-                      onClick={toggleVoiceMode}
-                      className="glass-button"
-                    >
-                      Switch to Text
-                    </Button>
+                    
+                    {message.insights && message.insights.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Insights:</p>
+                        {message.insights.map((insight, index) => (
+                          <div key={index} className="flex items-start gap-2 text-xs text-muted-foreground">
+                            <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            <span className="flex-1">{insight}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-xs text-muted-foreground opacity-70">
+                        {message.timestamp.toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
+                      {message.sender === 'user' && (
+                        <div className="w-4 h-4 rounded-full bg-primary-foreground/20" />
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="flex gap-3">
-                    <Input
-                      ref={inputRef}
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Share what's in your heart..."
-                      className="flex-1 glass-input"
-                      disabled={isLoading}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={!inputMessage.trim() || isLoading}
-                      className="glass-button px-4"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={toggleVoiceMode}
-                      className="glass-button px-4"
-                    >
-                      <Mic className="w-4 h-4" />
-                    </Button>
-                  </form>
-                )}
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="max-w-[75%] p-3 rounded-2xl bg-background/80 backdrop-blur-sm border border-border/50 rounded-bl-md">
+                    <div className="flex items-center gap-2">
+                      <LoadingSpinner size="sm" />
+                      <span className="text-sm text-muted-foreground">NewMe is reflecting...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+
+          {/* Input Area */}
+          <div className="flex-shrink-0 bg-background/80 backdrop-blur-lg border-t border-border/50 p-4 safe-area-padding">
+            {voiceError && (
+              <div className="mb-3 p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-xs text-destructive">{voiceError}</p>
               </div>
-            </CardContent>
-          </Card>
-        </MobileContainer>
+            )}
+            
+            {isVoiceMode ? (
+              <div className="flex flex-col items-center gap-4">
+                <Button
+                  onClick={handleVoiceInput}
+                  className={`w-16 h-16 rounded-full touch-target-large ${
+                    isRecording 
+                      ? 'bg-destructive hover:bg-destructive/90 animate-pulse shadow-lg shadow-destructive/30' 
+                      : 'bg-gradient-primary hover:opacity-90 shadow-lg shadow-primary/30'
+                  }`}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <LoadingSpinner size="sm" />
+                  ) : isRecording ? (
+                    <MicOff className="w-6 h-6" />
+                  ) : (
+                    <Mic className="w-6 h-6" />
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center max-w-xs">
+                  {isProcessing 
+                    ? 'Processing your beautiful words...'
+                    : isRecording 
+                    ? 'Listening to your heart... Tap to stop'
+                    : 'Tap to share your thoughts with NewMe'
+                  }
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={toggleVoiceMode}
+                  size="sm"
+                  className="touch-target-large"
+                >
+                  Switch to Text
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    ref={inputRef}
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Share what's in your heart..."
+                    className="min-h-[44px] text-base resize-none border-border/50 bg-background/50 focus:bg-background"
+                    disabled={isLoading}
+                    maxLength={1000}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={toggleVoiceMode}
+                  className="p-3 touch-target"
+                  disabled={isLoading}
+                >
+                  <Mic className="w-5 h-5" />
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!inputMessage.trim() || isLoading}
+                  className="p-3 bg-primary hover:bg-primary/90 touch-target"
+                >
+                  {isLoading ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </ErrorBoundary>
   );

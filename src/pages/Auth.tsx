@@ -25,7 +25,15 @@ const Auth = () => {
       const { error } = await signIn(email as string, password as string);
       if (error) throw error;
       toast({ title: "Success", description: "Signed in successfully." });
-      navigate('/dashboard');
+      
+      // Check for redirect destination
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectPath && redirectPath !== '/auth') {
+        sessionStorage.removeItem('redirectAfterLogin');
+        navigate(redirectPath);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       setError(error.message);
       toast({ title: "Error", description: error.message, variant: "destructive" });

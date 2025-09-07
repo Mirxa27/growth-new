@@ -21,7 +21,10 @@ import {
   Star
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { EnhancedErrorBoundary } from '@/components/ui/enhanced-error-boundary';
+import { DashboardSkeleton } from '@/components/ui/enhanced-loading';
+import { useDebounce, globalCache, usePerformanceMonitor } from '@/utils/performance';
+import { validateDataFlow } from '@/utils/dataValidation';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
 import { gamification } from '@/services/gamification/gamification-service';
@@ -43,6 +46,9 @@ const Dashboard = () => {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [dailyAffirmation, setDailyAffirmation] = useState<string>('');
   const [streakBonus, setStreakBonus] = useState<number>(0);
+  
+  // Performance monitoring
+  const startTiming = usePerformanceMonitor('dashboard-load');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -51,7 +57,26 @@ const Dashboard = () => {
         return;
       }
 
+      const endTiming = startTiming();
+      const cacheKey = `dashboard_${user.id}_${new Date().toDateString()}`;
+      
       try {
+        // Check cache first
+        const cachedData = globalCache.get(cacheKey);
+        if (cachedData) {
+          setUserStats(cachedData.userStats);
+          setDailyAffirmation(cachedData.dailyAffirmation);
+          setStreakBonus(cachedData.streakBonus);
+          setIsLoading(false);
+          endTiming();
+          return;
+        }
+        // Validate data flows
+        const isDataValid = await validateDataFlow(user.id);
+        if (!isDataValid && process.env.NODE_ENV === 'development') {
+          console.warn('Data validation failed for user:', user.id);
+        }
+
         // Update daily streak first
         const streakResult = await gamification.updateDailyStreak(user.id);
         setStreakBonus(streakResult.bonusCrystals);
@@ -96,22 +121,30 @@ const Dashboard = () => {
               });
           }
         }
+        
+        // Cache the data for 10 minutes
+        globalCache.set(cacheKey, {
+          userStats,
+          dailyAffirmation,
+          streakBonus
+        }, 10 * 60 * 1000);
+        
+        endTiming();
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching dashboard data:', error);
+        }
+        endTiming();
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, [user, startTiming]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const quickActions = [
@@ -145,18 +178,13 @@ const Dashboard = () => {
     }
   ];
 
-  const achievements = [
-    { name: 'First Assessment', completed: true, points: 50 },
-    { name: 'Week Streak', completed: true, points: 100 },
-    { name: 'Community Member', completed: false, points: 75 },
-    { name: 'Growth Explorer', completed: false, points: 150 }
-  ];
-
-  const completedAchievements = achievements.filter(a => a.completed).length;
-  const totalPoints = achievements.filter(a => a.completed).reduce((sum, a) => sum + a.points, 0);
+  // Real achievements will be loaded from userStats
+  const achievements = userStats?.recentAchievements || [];
+  const completedAchievements = userStats?.totalAchievements || 0;
+  const totalPoints = userStats?.crystalBalance || 0;
 
   return (
-    <ErrorBoundary>
+    <EnhancedErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
         <MobileContainer className="py-4 sm:py-8">
           {/* Welcome Section */}
@@ -342,24 +370,32 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {achievements.map((achievement, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 glass-subtle rounded-lg">
+                {achievements.length > 0 ? achievements.slice(0, 5).map((achievement, index) => (
+                  <div key={achievement.id || index} className="flex items-center justify-between p-3 glass-subtle rounded-lg">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      achievement.completed ? 'bg-primary text-white' : 'bg-muted'
+                      achievement.unlocked ? 'bg-primary text-white' : 'bg-muted'
                     }`}>
                       <Trophy className="w-4 h-4" />
                     </div>
-                    <div>
-                      <div className="font-medium text-sm">{achievement.name}</div>
+                    <div className="flex-1 mx-3">
+                      <div className="font-medium text-sm">{achievement.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {achievement.points} crystals
+                        {achievement.crystals || 0} crystals
                       </div>
                     </div>
-                    <Badge variant={achievement.completed ? "default" : "secondary"}>
-                      {achievement.completed ? 'Completed' : 'Locked'}
+                    <Badge variant={achievement.unlocked ? "default" : "secondary"}>
+                      {achievement.unlocked ? 'Unlocked' : 'Locked'}
                     </Badge>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8">
+                    <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                    <p className="text-sm font-medium mb-1">No achievements yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Complete assessments and explore to unlock achievements!
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -402,7 +438,7 @@ const Dashboard = () => {
           </Card>
         </MobileContainer>
       </div>
-    </ErrorBoundary>
+    </EnhancedErrorBoundary>
   );
 };
 
