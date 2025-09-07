@@ -120,5 +120,9 @@
     "validator": "latest",
     "vaul": "latest",
     "zod": "^3.25.40"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
