@@ -1,15 +1,20 @@
 {
-  "name": "081e688b31b61cb5858916691a6a970cc384b4f4324b175bbafbf7e49356da0e",
+  "name": "newomen-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
+    "build": "npm run clean && vite build",
+    "clean": "rm -rf dist",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "preview": "vite preview",
-    "vercel-build": "npm install --legacy-peer-deps && npm run build",
-    "postbuild": "node scripts/optimize-build.js || true"
+    "type-check": "tsc --noEmit",
+    "build:production": "npm run clean && npm run type-check && npm run lint && vite build",
+    "deploy": "npm run build:production && npm run preview",
+    "vercel-build": "npm install --legacy-peer-deps && npm run build:production",
+    "postbuild": "echo 'Build completed successfully'"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
@@ -113,6 +118,6 @@
     "tailwindcss": "latest",
     "validator": "latest",
     "vaul": "latest",
-    "zod": "^4.1.5"
+    "zod": "^3.25.40"
   }
 }
