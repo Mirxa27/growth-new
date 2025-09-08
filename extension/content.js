@@ -1,9 +1,25 @@
 // Content script for Chrome Extension MV3
-// Note: Content scripts can't use ES modules directly, so we'll use dynamic imports
+// Using traditional script approach instead of ES modules
 
 // Prevent multiple injections
 if (!window.__growthEchoInjected) {
   window.__growthEchoInjected = true;
+  
+  // Utility functions (inline to avoid import issues)
+  const ensureSettingsLoaded = () => {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(
+        ['openai_api_key', 'openai_base_url', 'openai_model', 'supabase_url', 'supabase_anon_key', 'use_supabase_key'],
+        () => resolve()
+      );
+    });
+  };
+
+  const getSetting = (key) => {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get([key], (result) => resolve(result?.[key]));
+    });
+  };
   
   // Wait for DOM to be ready
   const initializeExtension = async () => {
@@ -14,18 +30,7 @@ if (!window.__growthEchoInjected) {
         return;
       }
 
-      // Dynamic import of utils since content scripts don't support ES modules
-      let utils;
-      try {
-        utils = await import(chrome.runtime.getURL('utils.js'));
-        await utils.ensureSettingsLoaded();
-      } catch (importError) {
-        console.warn('Failed to import utils, using fallback:', importError);
-        // Fallback: directly use chrome.storage
-        await new Promise((resolve) => {
-          chrome.storage.sync.get(['openai_api_key', 'openai_base_url', 'openai_model'], () => resolve());
-        });
-      }
+      await ensureSettingsLoaded();
       console.debug('content script loaded');
 
       // Only inject if not already present

@@ -29,11 +29,5 @@
   },
   "action": {
     "default_title": "Growth Echo Assistant"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["utils.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }
