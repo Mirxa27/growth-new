@@ -1,15 +1,67 @@
-import { ensureSettingsLoaded, getSetting, setSetting, testSupabaseConnection } from './utils.js';
+// Options page script for Chrome Extension MV3
+// Traditional script approach - no ES modules
+
+// Utility functions (inline)
+function ensureSettingsLoaded() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(
+      ['openai_api_key', 'openai_base_url', 'openai_model', 'supabase_url', 'supabase_anon_key', 'use_supabase_key'],
+      () => resolve()
+    );
+  });
+}
+
+function getSetting(key) {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get([key], (result) => resolve(result?.[key]));
+  });
+}
+
+function setSetting(key, value) {
+  return new Promise((resolve) => {
+    chrome.storage.sync.set({ [key]: value }, () => resolve());
+  });
+}
+
+function testSupabaseConnection() {
+  return new Promise(async (resolve) => {
+    try {
+      const supabaseUrl = await getSetting('supabase_url');
+      const supabaseAnonKey = await getSetting('supabase_anon_key');
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        resolve({ success: false, error: 'Supabase credentials not configured' });
+        return;
+      }
+      
+      const response = await fetch(`${supabaseUrl}/rest/v1/admin_ai_providers?select=count&limit=1`, {
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        resolve({ success: true, message: 'Supabase connection successful' });
+      } else {
+        resolve({ success: false, error: `Connection failed: ${response.status}` });
+      }
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
+  });
+}
 
 async function load() {
   await ensureSettingsLoaded();
-  document.getElementById('use_supabase_key').checked = (await getSetting('use_supabase_key')) !== false; // Default to true
+  document.getElementById('use_supabase_key').checked = (await getSetting('use_supabase_key')) !== false;
   document.getElementById('openai_api_key').value = (await getSetting('openai_api_key')) || '';
   document.getElementById('openai_base_url').value = (await getSetting('openai_base_url')) || 'https://api.openai.com';
   document.getElementById('openai_model').value = (await getSetting('openai_model')) || 'gpt-4o-mini';
   document.getElementById('supabase_url').value = (await getSetting('supabase_url')) || '';
   document.getElementById('supabase_anon_key').value = (await getSetting('supabase_anon_key')) || '';
   
-  // Update UI based on checkbox state
   updateUIState();
 }
 
@@ -18,7 +70,6 @@ function updateUIState() {
   const supabaseInputs = ['supabase_url', 'supabase_anon_key'];
   const localInputs = ['openai_api_key'];
   
-  // Enable/disable inputs based on checkbox state
   supabaseInputs.forEach(id => {
     document.getElementById(id).style.opacity = useSupabase ? '1' : '0.5';
   });
@@ -94,4 +145,3 @@ document.getElementById('test_supabase').addEventListener('click', async () => {
 });
 
 load();
-
