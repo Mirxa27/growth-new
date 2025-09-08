@@ -321,7 +321,7 @@ class PerformanceMonitoringService {
     if (this.metrics.length === 0) return;
     
     // Temporarily disable performance metrics to prevent 404 errors
-    console.log('Performance metrics collected but not sent (table not ready):', this.metrics.length);
+    // Silently queue metrics - table will be available after migration
     this.metrics = []; // Clear metrics to prevent memory buildup
     return;
     

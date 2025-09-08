@@ -307,7 +307,7 @@ class ErrorHandlerService {
     this.errorQueue = [];
 
     // Temporarily disable database error logging to prevent 404 spam
-    console.log(`Error logging disabled (${errors.length} errors collected but not sent)`);
+    // Silently collect errors - database logging will be available after migration
     
     // Just log to console for now
     errors.forEach(error => {

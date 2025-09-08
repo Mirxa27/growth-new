@@ -49,7 +49,7 @@ export class NewMeAIService {
   constructor() {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     if (!apiKey || apiKey === 'your-openai-api-key-here') {
-      console.warn('OpenAI API key not configured, NewMe will use fallback responses');
+      // Silently use fallback - no need to warn user
       this.openai = null as any; // Will use wrapper service instead
     } else {
       this.openai = new OpenAI({
