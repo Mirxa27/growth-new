@@ -1,6 +1,7 @@
 
 /* Import Responsive Design System */
 @import './styles/responsive.css';
+@import './styles/mobile-enhancements.css';
 
 @tailwind base;
 @tailwind components;

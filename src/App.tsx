@@ -9,6 +9,8 @@ import { MobileNavigation } from "@/components/MobileNavigation";
 import { useEffect } from "react";
 import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
+import { performanceOptimizer } from "@/services/performance/performance-optimization.service";
+import { accessibilityService } from "@/services/accessibility/accessibility.service";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -41,6 +43,22 @@ const App = () => {
   useViewportHeight();
   
   useEffect(() => {
+    // Initialize performance optimizations
+    performanceOptimizer.preloadCriticalResources();
+    performanceOptimizer.lazyLoadImages();
+    
+    // Initialize accessibility features
+    accessibilityService.initialize();
+    accessibilityService.setupReducedMotion();
+    
+    // Register service worker for caching
+    performanceOptimizer.registerServiceWorker();
+    
+    // Monitor web vitals in production
+    if (process.env.NODE_ENV === 'production') {
+      performanceOptimizer.monitorWebVitals();
+    }
+    
     // Debug and fix pointer events issues in development
     if (process.env.NODE_ENV === 'development') {
       const timer = setTimeout(() => {
@@ -50,6 +68,12 @@ const App = () => {
       
       return () => clearTimeout(timer);
     }
+
+    // Cleanup function
+    return () => {
+      performanceOptimizer.cleanup();
+      accessibilityService.cleanup();
+    };
   }, []);
 
   return (
@@ -68,6 +92,7 @@ const App = () => {
                 </div>
               </div>
             }>
+              <main id="main-content" className="focus:outline-none" tabIndex={-1}>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -130,6 +155,7 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
+              </main>
             </Suspense>
             <MobileNavigation />
           </div>

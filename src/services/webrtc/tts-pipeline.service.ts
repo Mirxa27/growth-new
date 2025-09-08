@@ -316,11 +316,52 @@ export class TTSPipeline extends EventEmitter {
   }
 
   /**
-   * Synthesize with ElevenLabs (placeholder)
+   * Synthesize with ElevenLabs
    */
   private async synthesizeWithElevenLabs(text: string): Promise<TTSResult> {
-    // Implement ElevenLabs integration
-    throw new Error('ElevenLabs TTS not implemented yet');
+    try {
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      const voiceId = this.config?.voice || 'ErXwobaYiN019PkySvjV'; // Default voice ID
+      
+      if (!apiKey) {
+        throw new Error('ElevenLabs API key not configured');
+      }
+      
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5,
+          },
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`ElevenLabs API error: ${response.statusText}`);
+      }
+      
+      const audioBuffer = await response.arrayBuffer();
+      
+      return {
+        audio: audioBuffer,
+        duration: this.estimateDuration(text),
+        text,
+        voice: voiceId,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('ElevenLabs TTS failed:', error);
+      // Fallback to browser TTS
+      return this.synthesizeWithBrowser(text);
+    }
   }
 
   /**

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -143,6 +144,7 @@ const FREE_ASSESSMENTS: Assessment[] = [
 
 export const FreeAssessmentHub = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -169,14 +171,22 @@ export const FreeAssessmentHub = () => {
         .single();
 
       if (error || !assessment) {
-        console.warn('Assessment not found in database, creating placeholder...');
-        // For now, navigate to a general assessment page
+        // Assessment not found, redirect to general assessment hub
+        toast({
+          title: "Assessment Unavailable",
+          description: "This assessment is currently unavailable. Redirecting to assessment hub.",
+          variant: "default"
+        });
         navigate('/mobile-assessment-hub');
       } else {
         navigate(`/assessment/${assessmentId}`);
       }
     } catch (error) {
-      console.error('Error checking assessment:', error);
+      toast({
+        title: "Error",
+        description: "Unable to access assessment. Please try again later.",
+        variant: "destructive"
+      });
       // Fallback to general assessment
       navigate('/mobile-assessment-hub');
     } finally {

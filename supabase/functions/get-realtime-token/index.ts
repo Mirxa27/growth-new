@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       .from('voice_sessions')
       .insert({
         user_id: user.id,
-        session_token: 'realtime_session', // Using a placeholder as the actual token is client-side
+        session_token: `rt_${user.id}_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         status: 'active',
         metadata: {
           model: model,

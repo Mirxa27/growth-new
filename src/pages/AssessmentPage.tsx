@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { QuestionDisplay } from '@/components/assessments/QuestionDisplay';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { handleApiError, handleAssessmentError } from '@/services/error/error-handling.service';
 
 interface Assessment {
   id: number;
@@ -39,10 +40,19 @@ const AssessmentPage = () => {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const startTimeRef = useRef<number>(Date.now());
+  const questionStartTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     loadAssessment();
+    startTimeRef.current = Date.now();
+    questionStartTimeRef.current = Date.now();
   }, [id]);
+
+  useEffect(() => {
+    // Reset question start time when moving to new question
+    questionStartTimeRef.current = Date.now();
+  }, [currentQuestionIndex]);
 
   const loadAssessment = async () => {
     try {
@@ -81,12 +91,7 @@ const AssessmentPage = () => {
       if (questionsError) throw questionsError;
       setQuestions(questionsData || []);
     } catch (error) {
-      console.error('Error loading assessment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load assessment. Please try again.",
-        variant: "destructive"
-      });
+      handleAssessmentError(error, id, 'load_assessment');
     } finally {
       setLoading(false);
     }
@@ -156,7 +161,7 @@ const AssessmentPage = () => {
           percentage: totalPoints > 0 ? (score / totalPoints) * 100 : 0,
           answers,
           completed: true,
-          time_taken: 0 // TODO: Implement time tracking
+          time_taken: Math.round((Date.now() - startTimeRef.current) / 1000) // Time in seconds
         })
         .select()
         .single();
@@ -165,12 +170,7 @@ const AssessmentPage = () => {
 
       navigate(`/results/${data.id}`);
     } catch (error) {
-      console.error('Error submitting assessment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit assessment. Please try again.",
-        variant: "destructive"
-      });
+      handleAssessmentError(error, id, 'submit_assessment');
     } finally {
       setSubmitting(false);
     }

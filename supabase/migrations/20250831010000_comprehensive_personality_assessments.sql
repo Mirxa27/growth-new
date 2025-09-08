@@ -164,20 +164,98 @@ CREATE OR REPLACE FUNCTION public.analyze_personality_profile(
 DECLARE
     profile_result jsonb;
 BEGIN
-    -- This function would use AI to analyze the personality profile
-    -- For now, return a placeholder result structure
-    profile_result := jsonb_build_object(
-        'personality_type', 'INFP',
-        'strengths', jsonb_build_array('Empathetic', 'Creative', 'Idealistic', 'Authentic'),
-        'growth_areas', jsonb_build_array('Setting boundaries', 'Practical planning', 'Dealing with criticism'),
-        'compatibility', jsonb_build_object(
-            'best_matches', jsonb_build_array('ENFJ', 'ENTJ'),
-            'challenging_matches', jsonb_build_array('ESTJ', 'ISTJ')
-        ),
-        'career_suggestions', jsonb_build_array('Counseling', 'Writing', 'Arts', 'Education'),
-        'relationship_advice', 'Focus on finding partners who appreciate your depth and authenticity',
-        'personal_growth_tips', 'Develop practical organizational skills while maintaining your creative spirit'
-    );
+    -- Analyze personality based on user answers using a scoring algorithm
+    DECLARE
+        introversion_score integer := 0;
+        sensing_score integer := 0;
+        thinking_score integer := 0;
+        judging_score integer := 0;
+        total_questions integer := 0;
+        personality_type text;
+        question_key text;
+        answer_value text;
+    BEGIN
+        -- Count total questions and analyze patterns
+        total_questions := jsonb_object_keys(user_answers) |> array_length(array_agg(1), 1);
+        
+        -- Simple pattern matching for personality traits
+        FOR question_key, answer_value IN SELECT * FROM jsonb_each_text(user_answers)
+        LOOP
+            -- Introversion vs Extraversion
+            IF answer_value ILIKE ANY(ARRAY['%quiet%', '%alone%', '%solitude%', '%private%', '%individual%']) THEN
+                introversion_score := introversion_score + 1;
+            END IF;
+            
+            -- Sensing vs Intuition  
+            IF answer_value ILIKE ANY(ARRAY['%practical%', '%details%', '%facts%', '%concrete%', '%realistic%']) THEN
+                sensing_score := sensing_score + 1;
+            END IF;
+            
+            -- Thinking vs Feeling
+            IF answer_value ILIKE ANY(ARRAY['%logical%', '%analyze%', '%objective%', '%rational%', '%fair%']) THEN
+                thinking_score := thinking_score + 1;
+            END IF;
+            
+            -- Judging vs Perceiving
+            IF answer_value ILIKE ANY(ARRAY['%organized%', '%planned%', '%structured%', '%schedule%', '%decided%']) THEN
+                judging_score := judging_score + 1;
+            END IF;
+        END LOOP;
+        
+        -- Determine personality type
+        personality_type := '';
+        personality_type := personality_type || CASE WHEN introversion_score > (total_questions / 2) THEN 'I' ELSE 'E' END;
+        personality_type := personality_type || CASE WHEN sensing_score > (total_questions / 2) THEN 'S' ELSE 'N' END;
+        personality_type := personality_type || CASE WHEN thinking_score > (total_questions / 2) THEN 'T' ELSE 'F' END;
+        personality_type := personality_type || CASE WHEN judging_score > (total_questions / 2) THEN 'J' ELSE 'P' END;
+        
+        -- Build profile based on determined type
+        profile_result := jsonb_build_object(
+            'personality_type', personality_type,
+            'scores', jsonb_build_object(
+                'introversion', introversion_score,
+                'sensing', sensing_score, 
+                'thinking', thinking_score,
+                'judging', judging_score
+            ),
+            'strengths', CASE personality_type
+                WHEN 'INTJ' THEN jsonb_build_array('Strategic thinking', 'Independent', 'Determined', 'Innovative')
+                WHEN 'INFP' THEN jsonb_build_array('Empathetic', 'Creative', 'Idealistic', 'Authentic')
+                WHEN 'ENTJ' THEN jsonb_build_array('Natural leader', 'Strategic', 'Efficient', 'Confident')
+                WHEN 'ENFP' THEN jsonb_build_array('Enthusiastic', 'Creative', 'Sociable', 'Energetic')
+                ELSE jsonb_build_array('Adaptable', 'Reliable', 'Practical', 'Balanced')
+            END,
+            'growth_areas', CASE personality_type
+                WHEN 'INTJ' THEN jsonb_build_array('Emotional expression', 'Patience with others', 'Flexibility')
+                WHEN 'INFP' THEN jsonb_build_array('Setting boundaries', 'Practical planning', 'Dealing with criticism')
+                WHEN 'ENTJ' THEN jsonb_build_array('Patience', 'Emotional sensitivity', 'Work-life balance')
+                WHEN 'ENFP' THEN jsonb_build_array('Follow-through', 'Routine tasks', 'Detail orientation')
+                ELSE jsonb_build_array('Self-awareness', 'Communication', 'Goal-setting')
+            END,
+            'career_suggestions', CASE personality_type
+                WHEN 'INTJ' THEN jsonb_build_array('Architect', 'Scientist', 'Engineer', 'Analyst')
+                WHEN 'INFP' THEN jsonb_build_array('Writer', 'Artist', 'Counselor', 'Social Worker')
+                WHEN 'ENTJ' THEN jsonb_build_array('CEO', 'Manager', 'Entrepreneur', 'Consultant')
+                WHEN 'ENFP' THEN jsonb_build_array('Counselor', 'Journalist', 'Actor', 'Entrepreneur')
+                ELSE jsonb_build_array('Administrator', 'Teacher', 'Manager', 'Coordinator')
+            END,
+            'relationship_advice', CASE personality_type
+                WHEN 'INTJ' THEN 'Seek partners who appreciate your independence and intellectual depth'
+                WHEN 'INFP' THEN 'Focus on finding partners who appreciate your depth and authenticity'
+                WHEN 'ENTJ' THEN 'Look for partners who can match your ambition and support your goals'
+                WHEN 'ENFP' THEN 'Find partners who share your enthusiasm and support your creativity'
+                ELSE 'Focus on open communication and mutual respect in relationships'
+            END,
+            'personal_growth_tips', CASE personality_type
+                WHEN 'INTJ' THEN 'Practice expressing emotions and consider others perspectives'
+                WHEN 'INFP' THEN 'Develop practical organizational skills while maintaining your creative spirit'
+                WHEN 'ENTJ' THEN 'Take time to listen to others and practice patience'
+                WHEN 'ENFP' THEN 'Focus on completing projects and developing attention to detail'
+                ELSE 'Continue developing self-awareness and interpersonal skills'
+            END,
+            'confidence_score', LEAST(1.0, GREATEST(0.3, (introversion_score + sensing_score + thinking_score + judging_score)::float / total_questions))
+        );
+    END;
 
     RETURN profile_result;
 END;

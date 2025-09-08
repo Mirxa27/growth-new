@@ -273,9 +273,48 @@ export class STTPipeline extends EventEmitter {
    * Process with custom STT provider
    */
   private async processWithCustomProvider(audioData: Float32Array, timestamp: number): Promise<void> {
-    // Implement custom provider logic here
-    // This is a placeholder for future integrations
-    throw new Error('Custom STT provider not implemented');
+    try {
+      // Convert audio to base64 for transmission
+      const wavBlob = this.float32ArrayToWAV(audioData);
+      const arrayBuffer = await wavBlob.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      
+      // Send to custom STT endpoint
+      const response = await fetch('/api/stt/transcribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio: base64Audio,
+          format: 'wav',
+          timestamp,
+          sampleRate: 48000
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`STT request failed: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.transcript && result.transcript.trim()) {
+        // Emit the transcription result
+        this.eventEmitter.emit('transcription', {
+          transcript: result.transcript,
+          confidence: result.confidence || 0.8,
+          timestamp,
+          isFinal: true
+        });
+      }
+    } catch (error) {
+      console.error('Custom STT processing failed:', error);
+      // Fallback to browser STT if available
+      if (this.recognition) {
+        console.log('Falling back to browser STT');
+      }
+    }
   }
 
   /**

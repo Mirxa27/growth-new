@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Target, TrendingUp, Share2, Download, Home, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface AssessmentResultsProps {
   assessmentTitle: string;
@@ -32,6 +33,40 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   onRetake,
 }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleShare = async () => {
+    try {
+      const shareData = {
+        title: `My ${assessmentTitle} Results`,
+        text: `I scored ${score}/${totalPoints} (${percentage.toFixed(1)}%) on the ${assessmentTitle}! ${personalityType ? `My personality type is ${personalityType}.` : ''}`,
+        url: window.location.href
+      };
+
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast({
+          title: "Shared successfully!",
+          description: "Your assessment results have been shared.",
+        });
+      } else {
+        // Fallback to clipboard
+        const shareText = `${shareData.title}\n\n${shareData.text}\n\nView at: ${shareData.url}`;
+        await navigator.clipboard.writeText(shareText);
+        toast({
+          title: "Copied to clipboard!",
+          description: "Your assessment results have been copied to clipboard.",
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Sharing failed",
+        description: "Unable to share results. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const getScoreColor = (percent: number) => {
     if (percent >= 80) return 'text-green-600';
@@ -189,7 +224,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
           </Button>
         )}
         <Button
-          onClick={() => {/* TODO: Implement sharing */}}
+          onClick={handleShare}
           className="flex-1 bg-gradient-primary"
         >
           <Share2 className="w-4 h-4 mr-2" />
