@@ -26,6 +26,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const Library = lazy(() => import("./pages/Library"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
@@ -138,6 +139,11 @@ const App = () => {
               <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin-test" element={
+                <ProtectedRoute>
+                  <AdminTest />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

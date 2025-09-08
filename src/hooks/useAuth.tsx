@@ -39,20 +39,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAdminStatus = async () => {
       if (user) {
         try {
-          // Check if user has admin role in profiles table
+          // Check multiple ways to determine admin status
           const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, is_admin')
             .eq('id', user.id)
             .single();
           
-          setIsAdmin(profile?.role === 'admin');
+          // Check admin status via multiple methods
+          const isAdminViaRole = profile?.role === 'admin';
+          const isAdminViaFlag = profile?.is_admin === true;
+          const isAdminViaMetadata = user.user_metadata?.role === 'admin';
+          const isAdminViaEmail = user.email === 'admin@newomen.me';
+          
+          const adminStatus = isAdminViaRole || isAdminViaFlag || isAdminViaMetadata || isAdminViaEmail;
+          
+          setIsAdmin(adminStatus);
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Admin check results:', {
+              userId: user.id,
+              email: user.email,
+              profileRole: profile?.role,
+              profileFlag: profile?.is_admin,
+              metadataRole: user.user_metadata?.role,
+              finalAdminStatus: adminStatus
+            });
+          }
         } catch (error) {
           // Admin status check failed - default to false
           if (process.env.NODE_ENV === 'development') {
             console.warn('Could not check admin status:', error);
           }
-          setIsAdmin(false);
+          
+          // Fallback: check by email for admin@newomen.me
+          const fallbackAdmin = user.email === 'admin@newomen.me';
+          setIsAdmin(fallbackAdmin);
         }
       } else {
         setIsAdmin(false);
