@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signUp: (params: { email: string; password: string; options?: { data?: { display_name?: string } } }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -30,12 +31,63 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
+
+  // Check admin status when user changes
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          // Check multiple ways to determine admin status
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, is_admin')
+            .eq('id', user.id)
+            .single();
+          
+          // Check admin status via multiple methods
+          const isAdminViaRole = profile?.role === 'admin';
+          const isAdminViaFlag = profile?.is_admin === true;
+          const isAdminViaMetadata = user.user_metadata?.role === 'admin';
+          const isAdminViaEmail = user.email === 'admin@newomen.me';
+          
+          const adminStatus = isAdminViaRole || isAdminViaFlag || isAdminViaMetadata || isAdminViaEmail;
+          
+          setIsAdmin(adminStatus);
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Admin check results:', {
+              userId: user.id,
+              email: user.email,
+              profileRole: profile?.role,
+              profileFlag: profile?.is_admin,
+              metadataRole: user.user_metadata?.role,
+              finalAdminStatus: adminStatus
+            });
+          }
+        } catch (error) {
+          // Admin status check failed - default to false
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Could not check admin status:', error);
+          }
+          
+          // Fallback: check by email for admin@newomen.me
+          const fallbackAdmin = user.email === 'admin@newomen.me';
+          setIsAdmin(fallbackAdmin);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -152,6 +204,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     loading,
+    isAdmin,
     signUp,
     signIn,
     signOut,

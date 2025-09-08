@@ -1,15 +1,21 @@
 {
-  "name": "081e688b31b61cb5858916691a6a970cc384b4f4324b175bbafbf7e49356da0e",
+  "name": "newomen-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
+    "build": "npm run clean && vite build",
+    "clean": "rm -rf dist",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "preview": "vite preview",
-    "vercel-build": "npm install --legacy-peer-deps && npm run build",
-    "postbuild": "node scripts/optimize-build.js || true"
+    "type-check": "tsc --noEmit --project tsconfig.build.json",
+    "build:production": "npm run clean && vite build",
+    "build:vercel": "npm run clean && vite build",
+    "deploy": "npm run build:production && npm run preview",
+    "vercel-build": "npm install --legacy-peer-deps && npm run build:production",
+    "postbuild": "echo 'Build completed successfully'"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
@@ -33,6 +39,7 @@
     "globals": "latest",
     "ora": "^8.2.0",
     "rollup": "latest",
+    "supabase": "^2.39.2",
     "typescript": "^5.0.0",
     "typescript-eslint": "latest",
     "vite": "^5.3.1",
@@ -81,7 +88,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "latest",
-    "@supabase/supabase-js": "^2.56.1",
+    "@supabase/supabase-js": "^2.57.2",
     "@tanstack/react-query": "latest",
     "@types/react-router-dom": "^5.3.3",
     "class-variance-authority": "latest",
@@ -97,6 +104,7 @@
     "lucide-react": "latest",
     "next-themes": "latest",
     "openai": "^4.28.0",
+    "pg": "^8.16.3",
     "postcss": "latest",
     "postcss-import": "latest",
     "postcss-preset-env": "latest",
@@ -108,11 +116,14 @@
     "react-router-dom": "latest",
     "recharts": "latest",
     "sonner": "latest",
-    "supabase": "latest",
     "tailwind-merge": "latest",
     "tailwindcss": "latest",
     "validator": "latest",
     "vaul": "latest",
-    "zod": "^4.1.5"
+    "zod": "^3.25.40"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

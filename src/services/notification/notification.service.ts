@@ -552,11 +552,16 @@ class NotificationService {
       const registration = await navigator.serviceWorker.ready;
 
       // Get push subscription
+      // Skip push notification subscription if VAPID key is not configured
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        console.warn('VAPID key not configured, skipping push notification setup');
+        return { success: false, error: 'Push notifications not configured' };
+      }
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(
-          import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
-        ),
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
       });
 
       // Save subscription to database
