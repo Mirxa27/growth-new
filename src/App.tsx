@@ -28,6 +28,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const SimpleAdmin = lazy(() => import("./pages/SimpleAdmin"));
 const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
+const TranscriptionPage = lazy(() => import("./pages/TranscriptionPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
@@ -162,6 +163,11 @@ const App = () => {
               <Route path="/admin-test" element={
                 <ProtectedRoute>
                   <AdminTest />
+                </ProtectedRoute>
+              } />
+              <Route path="/transcription" element={
+                <ProtectedRoute>
+                  <TranscriptionPage />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
