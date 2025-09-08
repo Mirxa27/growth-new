@@ -104,6 +104,7 @@
     "lucide-react": "latest",
     "next-themes": "latest",
     "openai": "^4.28.0",
+    "pg": "^8.16.3",
     "postcss": "latest",
     "postcss-import": "latest",
     "postcss-preset-env": "latest",

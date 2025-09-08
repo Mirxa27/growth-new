@@ -20,7 +20,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EnhancedErrorBoundary } from '@/components/ui/enhanced-error-boundary';
 import { EnhancedLoading, ChatSkeleton } from '@/components/ui/enhanced-loading';
-import { newMeAI, ConversationContext } from '@/services/ai/newme-ai-service';
+import { newMeAI, ConversationContext } from '@/services/ai/fallback-newme-ai-service';
 import { newMeVoice } from '@/services/voice/newme-voice-service';
 import { useNavigate } from 'react-router-dom';
 import { useViewportHeight, useKeyboardVisible } from '@/hooks/useResponsive';

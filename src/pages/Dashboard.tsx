@@ -27,8 +27,8 @@ import { useDebounce, globalCache, usePerformanceMonitor } from '@/utils/perform
 import { validateDataFlow } from '@/utils/dataValidation';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
-import { gamification } from '@/services/gamification/gamification-service';
-import { newMeAI } from '@/services/ai/newme-ai-service';
+import { gamification } from '@/services/gamification/fallback-gamification-service';
+import { newMeAI } from '@/services/ai/fallback-newme-ai-service';
 
 interface UserStats {
   currentLevel: number;
