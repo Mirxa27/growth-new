@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mic, MicOff, Square, Play, Settings, Download } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Mic, MicOff, Square, Play, Settings, Download, AlertTriangle, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   realtimeTranscriptionService, 
@@ -17,6 +18,7 @@ import {
   TranscriptionEvent,
   TranscriptionSession 
 } from '@/services/transcription/realtime-transcription.service';
+import { env } from '@/config/environment';
 
 interface TranscriptItem {
   id: string;
@@ -41,6 +43,9 @@ export const RealtimeTranscription: React.FC = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   const { toast } = useToast();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if OpenAI API key is configured
+  const isApiKeyConfigured = env.openai.apiKey && env.openai.apiKey !== 'your-openai-api-key-here';
 
   useEffect(() => {
     // Set up event listeners
@@ -188,6 +193,23 @@ export const RealtimeTranscription: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
+      {/* API Key Warning */}
+      {!isApiKeyConfigured && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>OpenAI API Key Required:</strong> To use real-time transcription, please configure your OpenAI API key in the environment variables. 
+            <Button variant="link" className="p-0 ml-1 h-auto" asChild>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+                Get API Key <ExternalLink className="w-3 h-3 ml-1" />
+              </a>
+            </Button>
+            <br />
+            Add <code>VITE_OPENAI_API_KEY</code> to your Vercel environment variables and redeploy.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <Card>
         <CardHeader>
@@ -284,9 +306,10 @@ export const RealtimeTranscription: React.FC = () => {
                 onClick={startTranscription}
                 className="bg-green-600 hover:bg-green-700"
                 size="lg"
+                disabled={!isApiKeyConfigured}
               >
                 <Mic className="w-4 h-4 mr-2" />
-                Start Transcription
+                {isApiKeyConfigured ? 'Start Transcription' : 'API Key Required'}
               </Button>
             ) : (
               <Button

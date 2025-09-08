@@ -15,7 +15,9 @@
     "build:vercel": "npm run clean && vite build",
     "deploy": "npm run build:production && npm run preview",
     "vercel-build": "npm install --legacy-peer-deps && npm run build:production",
-    "postbuild": "echo 'Build completed successfully'"
+    "postbuild": "echo 'Build completed successfully'",
+    "setup-env": "node setup-vercel-env.mjs",
+    "check-config": "node setup-vercel-env.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",

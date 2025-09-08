@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Mic, Zap, Shield, Globe, Clock, Download } from 'lucide-react';
 import { RealtimeTranscription } from '@/components/transcription/RealtimeTranscription';
 import { TranscriptionDemo } from '@/components/transcription/TranscriptionDemo';
+import { EnvironmentChecker } from '@/components/configuration/EnvironmentChecker';
 
 const TranscriptionPage: React.FC = () => {
   return (
@@ -78,9 +79,10 @@ const TranscriptionPage: React.FC = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="live" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="live">Live Transcription</TabsTrigger>
             <TabsTrigger value="demo">Interactive Demo</TabsTrigger>
+            <TabsTrigger value="config">Configuration</TabsTrigger>
           </TabsList>
 
           <TabsContent value="live" className="mt-6">
@@ -89,6 +91,10 @@ const TranscriptionPage: React.FC = () => {
 
           <TabsContent value="demo" className="mt-6">
             <TranscriptionDemo />
+          </TabsContent>
+
+          <TabsContent value="config" className="mt-6">
+            <EnvironmentChecker />
           </TabsContent>
         </Tabs>
 

@@ -11,6 +11,7 @@ import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEv
 import { useViewportHeight } from "@/hooks/useResponsive";
 import { performanceOptimizer } from "@/services/performance/performance-optimization.service";
 import { accessibilityService } from "@/services/accessibility/accessibility.service";
+import { environmentValidator } from "@/services/configuration/environment-validator.service";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -29,6 +30,7 @@ const SimpleAdmin = lazy(() => import("./pages/SimpleAdmin"));
 const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
 const TranscriptionPage = lazy(() => import("./pages/TranscriptionPage"));
+const ConfigurationPage = lazy(() => import("./pages/ConfigurationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
@@ -46,6 +48,12 @@ const App = () => {
   useViewportHeight();
   
   useEffect(() => {
+    // Validate environment configuration
+    environmentValidator.validateEnvironment().then(() => {
+      // Show configuration status (only if there are issues)
+      environmentValidator.showStartupNotification();
+    });
+
     // Initialize performance optimizations
     performanceOptimizer.preloadCriticalResources();
     performanceOptimizer.lazyLoadImages();
@@ -168,6 +176,11 @@ const App = () => {
               <Route path="/transcription" element={
                 <ProtectedRoute>
                   <TranscriptionPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/configuration" element={
+                <ProtectedRoute>
+                  <ConfigurationPage />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

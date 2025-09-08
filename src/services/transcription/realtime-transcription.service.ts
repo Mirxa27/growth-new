@@ -4,6 +4,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { env } from '@/config/environment';
 
 export interface TranscriptionConfig {
   model?: 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1';
@@ -183,9 +184,9 @@ class RealtimeTranscriptionService extends EventEmitter {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+        const apiKey = env.openai.apiKey;
         if (!apiKey || apiKey === 'your-openai-api-key-here') {
-          throw new Error('OpenAI API key not configured');
+          throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your Vercel environment variables.');
         }
 
         // Connect to OpenAI Realtime API

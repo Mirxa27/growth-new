@@ -114,7 +114,7 @@ export class AIDiagnostics {
   private async checkEnvFile(): Promise<boolean> {
     try {
       // Check if we have any environment variables set
-      const hasOpenAI = !!import.meta.env.VITE_OPENAI_API_KEY;
+      const hasOpenAI = !!env.openai.apiKey;
       const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL;
       
       if (!hasOpenAI && !hasSupabase) {

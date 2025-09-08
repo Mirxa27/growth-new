@@ -1,5 +1,6 @@
 import { OpenAI } from 'openai';
 import { supabase } from '@/integrations/supabase/client';
+import { env } from '@/config/environment';
 import { openaiWrapper } from '@/services/api/openai-wrapper.service';
 
 export interface UserMemoryProfile {
@@ -47,7 +48,7 @@ export class NewMeAIService {
   private memoryCache = new Map<string, UserMemoryProfile>();
 
   constructor() {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const apiKey = env.openai.apiKey;
     if (!apiKey || apiKey === 'your-openai-api-key-here') {
       // Silently use fallback - no need to warn user
       this.openai = null as any; // Will use wrapper service instead
