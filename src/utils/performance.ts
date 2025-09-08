@@ -272,7 +272,8 @@ export const isOnline = (): boolean => {
 
 // Service Worker utilities for caching
 export const registerServiceWorker = async (): Promise<void> => {
-  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  // Disable service worker for now to avoid MIME type issues
+  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production' && false) {
     try {
       await navigator.serviceWorker.register('/sw.js');
     } catch (error) {

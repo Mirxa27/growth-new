@@ -26,6 +26,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const Library = lazy(() => import("./pages/Library"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const SimpleAdmin = lazy(() => import("./pages/SimpleAdmin"));
 const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -137,6 +138,11 @@ const App = () => {
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <SimpleAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/advanced" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
                 </ProtectedRoute>
