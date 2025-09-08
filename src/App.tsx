@@ -7,10 +7,13 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { useEffect } from "react";
-import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
+// import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EnhancedErrorBoundary } from "@/components/ui/enhanced-error-boundary";
+import { EnhancedLoading } from "@/components/ui/enhanced-loading";
+import { addResourceHints, registerServiceWorker } from "@/utils/performance";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -23,6 +26,8 @@ const Chat = lazy(() => import("./pages/Chat"));
 const Library = lazy(() => import("./pages/Library"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const SimpleAdmin = lazy(() => import("./pages/SimpleAdmin"));
+const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
@@ -40,34 +45,44 @@ const App = () => {
   // Fix viewport height on mobile devices
   useViewportHeight();
   
+  // Performance optimizations
   useEffect(() => {
-    // Debug and fix pointer events issues in development
-    if (process.env.NODE_ENV === 'development') {
-      const timer = setTimeout(() => {
-        debugPointerEvents();
-        autoFixPointerEvents();
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
+    // Add resource hints for better loading performance
+    addResourceHints();
+    
+    // Register service worker for caching
+    registerServiceWorker();
   }, []);
+  
+  // Remove debug code for production - keep only viewport height fix
+  // useEffect(() => {
+  //   // Debug and fix pointer events issues in development
+  //   if (process.env.NODE_ENV === 'development') {
+  //     const timer = setTimeout(() => {
+  //       debugPointerEvents();
+  //       autoFixPointerEvents();
+  //     }, 1000);
+  //     
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, []);
 
   return (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="relative">
-            <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-                <div className="text-center space-y-4">
-                  <LoadingSpinner size="lg" />
-                  <p className="text-muted-foreground">Loading Newomen...</p>
-                </div>
-              </div>
-            }>
+  <EnhancedErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <div className="relative">
+              <Suspense fallback={
+                <EnhancedLoading 
+                  variant="page" 
+                  message="Loading Newomen..." 
+                  animated={true}
+                />
+              }>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -123,8 +138,18 @@ const App = () => {
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin={true}>
+                  <SimpleAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/advanced" element={
+                <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin-test" element={
+                <ProtectedRoute>
+                  <AdminTest />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
@@ -137,6 +162,7 @@ const App = () => {
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </EnhancedErrorBoundary>
   );
 };
 

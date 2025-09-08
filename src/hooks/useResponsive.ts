@@ -86,6 +86,7 @@ export const useResponsive = (): ResponsiveState => {
 
 /**
  * Hook for viewport height fix (100vh issues on mobile)
+ * Enhanced with better mobile browser support
  */
 export const useViewportHeight = () => {
   useEffect(() => {
@@ -93,18 +94,51 @@ export const useViewportHeight = () => {
       // Calculate real viewport height
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
+      
+      // Set additional viewport variables for better compatibility
+      document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`);
+      
+      // Support for visual viewport API (better mobile support)
+      if (window.visualViewport) {
+        const visualVh = window.visualViewport.height * 0.01;
+        document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`);
+        document.documentElement.style.setProperty('--visual-viewport-height', `${window.visualViewport.height}px`);
+      }
     };
 
     // Set on mount
     setViewportHeight();
 
-    // Update on resize
-    window.addEventListener('resize', setViewportHeight);
+    // Update on resize with debouncing for better performance
+    let timeoutId: NodeJS.Timeout;
+    const debouncedSetViewportHeight = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(setViewportHeight, 100);
+    };
+
+    // Listen to multiple events for better mobile support
+    window.addEventListener('resize', debouncedSetViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
+    
+    // Visual viewport events for mobile browsers
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', debouncedSetViewportHeight);
+      window.visualViewport.addEventListener('scroll', debouncedSetViewportHeight);
+    }
+
+    // Handle page visibility changes (helps with mobile browser behavior)
+    document.addEventListener('visibilitychange', setViewportHeight);
 
     return () => {
-      window.removeEventListener('resize', setViewportHeight);
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', debouncedSetViewportHeight);
       window.removeEventListener('orientationchange', setViewportHeight);
+      document.removeEventListener('visibilitychange', setViewportHeight);
+      
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', debouncedSetViewportHeight);
+        window.visualViewport.removeEventListener('scroll', debouncedSetViewportHeight);
+      }
     };
   }, []);
 };

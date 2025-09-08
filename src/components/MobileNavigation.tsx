@@ -32,7 +32,7 @@ const NavItem = ({ item, isActive, onClick }: NavItemProps) => {
       aria-label={name}
       whileTap={{ scale: 0.9 }}
       className={cn(
-        "relative z-10 flex flex-col items-center justify-center gap-1 flex-1 p-2 transition-colors duration-300",
+        "relative z-10 flex flex-col items-center justify-center gap-1 flex-1 p-2 transition-colors duration-300 touch-target-large",
         isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
       )}
     >
@@ -73,7 +73,7 @@ export const MobileNavigation = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden px-4 pb-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden px-4 pb-4 pb-safe">
       <nav className="relative flex justify-around items-center p-2 bg-background/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg">
         {NAV_ITEMS.map((item) => (
           <NavItem
@@ -84,8 +84,6 @@ export const MobileNavigation = () => {
           />
         ))}
       </nav>
-      {/* Ensures content doesn't hide behind the nav bar on devices with a bottom safe area */}
-      <div className="h-safe-area-inset-bottom" />
     </div>
   );
 };
