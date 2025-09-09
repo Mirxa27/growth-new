@@ -1,13 +1,44 @@
 import React, { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
-import { StatusBar, Style } from '@capacitor/status-bar';
-import { SplashScreen } from '@capacitor/splash-screen';
-import { Keyboard } from '@capacitor/keyboard';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { OfflineSyncService } from '@/services/mobile/offline-sync.service';
 import { logger } from '@/utils/logger';
+
+// Dynamic imports for Capacitor to avoid build issues on web
+let Capacitor: any;
+let App: any;
+let StatusBar: any;
+let SplashScreen: any;
+let Keyboard: any;
+let OfflineSyncService: any;
+
+// Dynamically import Capacitor modules only when needed
+const initializeCapacitorModules = async () => {
+  try {
+    const capacitorCore = await import('@capacitor/core');
+    Capacitor = capacitorCore.Capacitor;
+    
+    if (Capacitor.isNativePlatform()) {
+      const [appModule, statusBarModule, splashScreenModule, keyboardModule, syncService] = await Promise.all([
+        import('@capacitor/app'),
+        import('@capacitor/status-bar'),
+        import('@capacitor/splash-screen'),
+        import('@capacitor/keyboard'),
+        import('@/services/mobile/offline-sync.service')
+      ]);
+      
+      App = appModule.App;
+      StatusBar = statusBarModule.StatusBar;
+      SplashScreen = splashScreenModule.SplashScreen;
+      Keyboard = keyboardModule.Keyboard;
+      OfflineSyncService = syncService.OfflineSyncService;
+    }
+    
+    return true;
+  } catch (error) {
+    logger.warn('Capacitor modules not available, running in web mode', error);
+    return false;
+  }
+};
 
 interface MobileWrapperProps {
   children: React.ReactNode;
@@ -31,16 +62,22 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
     initializeMobileApp();
     return () => {
       // Cleanup on unmount
-      OfflineSyncService.stopPeriodicSync();
+      if (OfflineSyncService) {
+        OfflineSyncService.stopPeriodicSync();
+      }
     };
   }, []);
 
   useEffect(() => {
     // Update sync status periodically
     const updateSyncStatus = async () => {
-      if (Capacitor.isNativePlatform()) {
-        const status = await OfflineSyncService.getSyncStatus();
-        setSyncStatus(status);
+      if (Capacitor?.isNativePlatform() && OfflineSyncService) {
+        try {
+          const status = await OfflineSyncService.getSyncStatus();
+          setSyncStatus(status);
+        } catch (error) {
+          logger.warn('Failed to update sync status', error);
+        }
       }
     };
 
@@ -51,16 +88,22 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
   }, []);
 
   const initializeMobileApp = async () => {
-    if (!Capacitor.isNativePlatform()) {
-      setIsInitialized(true);
-      return;
-    }
-
     try {
       logger.info('Initializing mobile app...');
+      
+      // Initialize Capacitor modules
+      const capacitorAvailable = await initializeCapacitorModules();
+      
+      if (!capacitorAvailable || !Capacitor?.isNativePlatform()) {
+        logger.info('Running in web mode');
+        setIsInitialized(true);
+        return;
+      }
 
       // Initialize offline sync service
-      await OfflineSyncService.initialize();
+      if (OfflineSyncService) {
+        await OfflineSyncService.initialize();
+      }
 
       // Configure status bar
       await configureStatusBar();
@@ -75,7 +118,9 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
       setupAppStateHandling();
 
       // Hide splash screen
-      await SplashScreen.hide();
+      if (SplashScreen) {
+        await SplashScreen.hide();
+      }
 
       setIsInitialized(true);
       logger.info('Mobile app initialized successfully');
@@ -99,28 +144,37 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
 
   const configureStatusBar = async () => {
     try {
-      await StatusBar.setStyle({ style: Style.Dark });
-      await StatusBar.setBackgroundColor({ color: '#ffffff' });
-      await StatusBar.show();
+      if (StatusBar) {
+        const { Style } = await import('@capacitor/status-bar');
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#ffffff' });
+        await StatusBar.show();
+      }
     } catch (error) {
       logger.warn('Failed to configure status bar', error);
     }
   };
 
   const setupDeepLinkHandling = () => {
-    // Handle app URL (deep links)
-    App.addListener('appUrlOpen', (event) => {
-      logger.info('Deep link received:', event.url);
-      handleDeepLink(event.url);
-    });
+    if (!App) return;
+    
+    try {
+      // Handle app URL (deep links)
+      App.addListener('appUrlOpen', (event) => {
+        logger.info('Deep link received:', event.url);
+        handleDeepLink(event.url);
+      });
 
-    // Handle initial URL if app was opened via deep link
-    App.getLaunchUrl().then((result) => {
-      if (result?.url) {
-        logger.info('Launch URL:', result.url);
-        handleDeepLink(result.url);
-      }
-    });
+      // Handle initial URL if app was opened via deep link
+      App.getLaunchUrl().then((result) => {
+        if (result?.url) {
+          logger.info('Launch URL:', result.url);
+          handleDeepLink(result.url);
+        }
+      });
+    } catch (error) {
+      logger.warn('Failed to setup deep link handling', error);
+    }
   };
 
   const handleDeepLink = (url: string) => {
@@ -167,45 +221,59 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
   };
 
   const setupKeyboardHandling = () => {
-    // Handle keyboard show/hide for better UX
-    Keyboard.addListener('keyboardWillShow', (info) => {
-      logger.debug('Keyboard will show', info);
-      document.body.classList.add('keyboard-open');
-    });
+    if (!Keyboard) return;
+    
+    try {
+      // Handle keyboard show/hide for better UX
+      Keyboard.addListener('keyboardWillShow', (info) => {
+        logger.debug('Keyboard will show', info);
+        document.body.classList.add('keyboard-open');
+      });
 
-    Keyboard.addListener('keyboardWillHide', () => {
-      logger.debug('Keyboard will hide');
-      document.body.classList.remove('keyboard-open');
-    });
+      Keyboard.addListener('keyboardWillHide', () => {
+        logger.debug('Keyboard will hide');
+        document.body.classList.remove('keyboard-open');
+      });
+    } catch (error) {
+      logger.warn('Failed to setup keyboard handling', error);
+    }
   };
 
   const setupAppStateHandling = () => {
-    // Handle app state changes
-    App.addListener('appStateChange', (state) => {
-      logger.info('App state changed:', state.isActive);
-      
-      if (state.isActive) {
-        // App became active - sync data
-        OfflineSyncService.syncOfflineData();
-      } else {
-        // App went to background - save any pending data
-        // This is handled automatically by the sync service
-      }
-    });
+    if (!App) return;
+    
+    try {
+      // Handle app state changes
+      App.addListener('appStateChange', (state) => {
+        logger.info('App state changed:', state.isActive);
+        
+        if (state.isActive) {
+          // App became active - sync data
+          if (OfflineSyncService) {
+            OfflineSyncService.syncOfflineData();
+          }
+        } else {
+          // App went to background - save any pending data
+          // This is handled automatically by the sync service
+        }
+      });
 
-    // Handle back button
-    App.addListener('backButton', (result) => {
-      if (result.canGoBack) {
-        window.history.back();
-      } else {
-        // Show exit confirmation
-        App.exitApp();
-      }
-    });
+      // Handle back button
+      App.addListener('backButton', (result) => {
+        if (result.canGoBack) {
+          window.history.back();
+        } else {
+          // Show exit confirmation
+          App.exitApp();
+        }
+      });
+    } catch (error) {
+      logger.warn('Failed to setup app state handling', error);
+    }
   };
 
   const renderSyncStatus = () => {
-    if (!Capacitor.isNativePlatform() || syncStatus.pendingItems === 0) {
+    if (!Capacitor?.isNativePlatform() || syncStatus.pendingItems === 0) {
       return null;
     }
 
@@ -221,7 +289,7 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
   };
 
   const renderOfflineIndicator = () => {
-    if (!Capacitor.isNativePlatform() || syncStatus.isOnline) {
+    if (!Capacitor?.isNativePlatform() || syncStatus.isOnline) {
       return null;
     }
 

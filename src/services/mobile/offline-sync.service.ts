@@ -1,9 +1,38 @@
-import { Capacitor } from '@capacitor/core';
-import { Storage } from '@capacitor/storage';
-import { Network } from '@capacitor/network';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+
+// Dynamic imports for Capacitor to avoid build issues
+let Capacitor: any;
+let Preferences: any;
+let Network: any;
+let PushNotifications: any;
+
+// Initialize Capacitor modules dynamically
+const initializeCapacitorModules = async () => {
+  try {
+    const capacitorCore = await import('@capacitor/core');
+    Capacitor = capacitorCore.Capacitor;
+    
+    if (Capacitor.isNativePlatform()) {
+      const [preferencesModule, networkModule, pushModule] = await Promise.all([
+        import('@capacitor/preferences'),
+        import('@capacitor/network'),
+        import('@capacitor/push-notifications')
+      ]);
+      
+      Preferences = preferencesModule.Preferences;
+      Network = networkModule.Network;
+      PushNotifications = pushModule.PushNotifications;
+      
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    logger.warn('Capacitor modules not available', error);
+    return false;
+  }
+};
 
 export interface OfflineData {
   assessments: any[];
@@ -39,28 +68,53 @@ export class OfflineSyncService {
   private static isOnline = true;
 
   /**
+   * Storage helper with web fallback
+   */
+  private static async storageSet(key: string, value: string): Promise<void> {
+    if (Preferences) {
+      await Preferences.set({ key, value });
+    } else {
+      localStorage.setItem(key, value);
+    }
+  }
+
+  private static async storageGet(key: string): Promise<string | null> {
+    if (Preferences) {
+      const { value } = await Preferences.get({ key });
+      return value;
+    } else {
+      return localStorage.getItem(key);
+    }
+  }
+
+  /**
    * Initialize the offline sync service
    */
   static async initialize(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) {
-      logger.info('Offline sync service not needed for web platform');
-      return;
-    }
-
     try {
-      // Check network status
-      const status = await Network.getStatus();
-      this.isOnline = status.connected;
+      // Initialize Capacitor modules
+      const capacitorAvailable = await initializeCapacitorModules();
+      
+      if (!capacitorAvailable || !Capacitor?.isNativePlatform()) {
+        logger.info('Offline sync service not needed for web platform');
+        return;
+      }
 
-      // Listen for network changes
-      Network.addListener('networkStatusChange', (status) => {
+      // Check network status
+      if (Network) {
+        const status = await Network.getStatus();
         this.isOnline = status.connected;
-        logger.info(`Network status changed: ${status.connected ? 'online' : 'offline'}`);
-        
-        if (status.connected) {
-          this.syncOfflineData();
-        }
-      });
+
+        // Listen for network changes
+        Network.addListener('networkStatusChange', (status) => {
+          this.isOnline = status.connected;
+          logger.info(`Network status changed: ${status.connected ? 'online' : 'offline'}`);
+          
+          if (status.connected) {
+            this.syncOfflineData();
+          }
+        });
+      }
 
       // Set up periodic sync
       this.startPeriodicSync();
@@ -78,6 +132,11 @@ export class OfflineSyncService {
    * Initialize push notifications
    */
   private static async initializePushNotifications(): Promise<void> {
+    if (!PushNotifications) {
+      logger.info('Push notifications not available in web mode');
+      return;
+    }
+    
     try {
       // Request permission for notifications
       const permission = await PushNotifications.requestPermissions();
@@ -125,10 +184,7 @@ export class OfflineSyncService {
           cachedAt: new Date().toISOString()
         };
 
-        await Storage.set({
-          key: this.STORAGE_KEYS.CACHED_ASSESSMENTS,
-          value: JSON.stringify(cached)
-        });
+    await this.storageSet(this.STORAGE_KEYS.CACHED_ASSESSMENTS, JSON.stringify(cached));
 
         logger.info(`Assessment ${assessmentId} cached successfully`);
       }
@@ -142,7 +198,7 @@ export class OfflineSyncService {
    */
   static async getCachedAssessments(): Promise<Record<string, any>> {
     try {
-      const { value } = await Storage.get({ key: this.STORAGE_KEYS.CACHED_ASSESSMENTS });
+      const value = await this.storageGet(this.STORAGE_KEYS.CACHED_ASSESSMENTS);
       return value ? JSON.parse(value) : {};
     } catch (error) {
       logger.error('Failed to get cached assessments', 'OfflineSyncService', error);
@@ -294,7 +350,7 @@ export class OfflineSyncService {
       }
 
       // Update last sync time
-      await Storage.set({
+      await Preferences.set({
         key: this.STORAGE_KEYS.LAST_SYNC,
         value: new Date().toISOString()
       });
@@ -384,7 +440,7 @@ export class OfflineSyncService {
    */
   private static async getOfflineData(): Promise<OfflineData> {
     try {
-      const { value } = await Storage.get({ key: this.STORAGE_KEYS.OFFLINE_DATA });
+      const { value } = await Preferences.get({ key: this.STORAGE_KEYS.OFFLINE_DATA });
       return value ? JSON.parse(value) : {
         assessments: [],
         attempts: [],
@@ -408,7 +464,7 @@ export class OfflineSyncService {
    * Save offline data
    */
   private static async saveOfflineData(data: OfflineData): Promise<void> {
-    await Storage.set({
+    await Preferences.set({
       key: this.STORAGE_KEYS.OFFLINE_DATA,
       value: JSON.stringify(data)
     });
@@ -419,7 +475,7 @@ export class OfflineSyncService {
    */
   private static async getSyncQueue(): Promise<SyncQueueItem[]> {
     try {
-      const { value } = await Storage.get({ key: this.STORAGE_KEYS.SYNC_QUEUE });
+      const { value } = await Preferences.get({ key: this.STORAGE_KEYS.SYNC_QUEUE });
       return value ? JSON.parse(value) : [];
     } catch (error) {
       logger.error('Failed to get sync queue', 'OfflineSyncService', error);
@@ -433,7 +489,7 @@ export class OfflineSyncService {
   private static async addToSyncQueue(item: SyncQueueItem): Promise<void> {
     const queue = await this.getSyncQueue();
     queue.push(item);
-    await Storage.set({
+    await Preferences.set({
       key: this.STORAGE_KEYS.SYNC_QUEUE,
       value: JSON.stringify(queue)
     });
@@ -445,7 +501,7 @@ export class OfflineSyncService {
   private static async removeFromSyncQueue(itemId: string): Promise<void> {
     const queue = await this.getSyncQueue();
     const filtered = queue.filter(item => item.id !== itemId);
-    await Storage.set({
+    await Preferences.set({
       key: this.STORAGE_KEYS.SYNC_QUEUE,
       value: JSON.stringify(filtered)
     });
@@ -459,7 +515,7 @@ export class OfflineSyncService {
     const index = queue.findIndex(item => item.id === updatedItem.id);
     if (index >= 0) {
       queue[index] = updatedItem;
-      await Storage.set({
+      await Preferences.set({
         key: this.STORAGE_KEYS.SYNC_QUEUE,
         value: JSON.stringify(queue)
       });
@@ -511,8 +567,8 @@ export class OfflineSyncService {
    */
   private static async getDeviceFingerprint(): Promise<string> {
     // Create a simple device fingerprint
-    const platform = Capacitor.getPlatform();
-    const isNative = Capacitor.isNativePlatform();
+    const platform = Capacitor?.getPlatform() || 'web';
+    const isNative = Capacitor?.isNativePlatform() || false;
     const timestamp = Date.now();
     
     return `${platform}_${isNative}_${timestamp}`;
@@ -559,8 +615,14 @@ export class OfflineSyncService {
    * Clear all offline data (for logout or reset)
    */
   static async clearOfflineData(): Promise<void> {
-    await Storage.clear();
-    logger.info('All offline data cleared');
+    if (Preferences) {
+      await Preferences.clear();
+      logger.info('All offline data cleared');
+    } else {
+      // Web fallback - clear localStorage
+      localStorage.clear();
+      logger.info('All local storage cleared');
+    }
   }
 
   /**
@@ -572,7 +634,7 @@ export class OfflineSyncService {
     pendingItems: number;
   }> {
     const queue = await this.getSyncQueue();
-    const { value: lastSync } = await Storage.get({ key: this.STORAGE_KEYS.LAST_SYNC });
+    const { value: lastSync } = await Preferences.get({ key: this.STORAGE_KEYS.LAST_SYNC });
     
     return {
       isOnline: this.isOnline,
