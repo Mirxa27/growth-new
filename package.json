@@ -44,7 +44,7 @@
     "supabase": "^2.39.2",
     "typescript": "^5.0.0",
     "typescript-eslint": "latest",
-    "vite": "^5.3.1",
+    "vite": "^7.1.5",
     "vite-plugin-static-copy": "latest",
     "vite-tsconfig-paths": "latest",
     "vitest": "^3.2.4"
