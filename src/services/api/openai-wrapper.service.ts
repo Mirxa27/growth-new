@@ -2,9 +2,11 @@
  * OpenAI API wrapper that gracefully handles missing API keys
  */
 
+import { env } from '@/config/environment';
+
 export class OpenAIWrapperService {
   private static isConfigured(): boolean {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const apiKey = env.openai.apiKey;
     return !!(apiKey && apiKey !== 'your-openai-api-key-here' && apiKey.length > 10);
   }
 
@@ -21,7 +23,7 @@ export class OpenAIWrapperService {
     try {
       const response = await fetch('https://api.openai.com/v1/models', {
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+          'Authorization': `Bearer ${env.openai.apiKey}`
         }
       });
 
@@ -52,7 +54,7 @@ export class OpenAIWrapperService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+          'Authorization': `Bearer ${env.openai.apiKey}`
         },
         body: JSON.stringify({
           model: options?.model || 'gpt-4o-mini',

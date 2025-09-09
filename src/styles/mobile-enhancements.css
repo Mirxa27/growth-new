@@ -1,0 +1,395 @@
+/**
+ * Mobile-First Enhancements
+ * Additional mobile optimizations beyond the base responsive system
+ */
+
+/* Touch and Gesture Optimizations */
+.touch-optimized {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Improved button touch targets */
+.btn-touch {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.btn-touch::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Enhanced form inputs for mobile */
+.input-mobile {
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  padding: 12px 16px;
+  min-height: 44px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.input-mobile:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile-optimized cards */
+.card-mobile {
+  margin: 8px;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-mobile:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Improved scroll areas */
+.scroll-mobile {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.3) transparent;
+}
+
+.scroll-mobile::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scroll-mobile::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-mobile::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.3);
+  border-radius: 2px;
+}
+
+/* Mobile-first typography */
+.text-mobile-h1 {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.text-mobile-h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.text-mobile-body {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  line-height: 1.6;
+}
+
+/* Mobile navigation enhancements */
+.nav-mobile-enhanced {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.8);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav-mobile-enhanced {
+    background: rgba(0, 0, 0, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Swipe gesture indicators */
+.swipe-indicator {
+  position: relative;
+}
+
+.swipe-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 4px;
+  background: var(--muted-foreground);
+  border-radius: 2px;
+  opacity: 0.3;
+}
+
+/* Pull-to-refresh indicator */
+.pull-to-refresh {
+  position: relative;
+  overflow: hidden;
+}
+
+.pull-to-refresh::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pull-to-refresh.pulling::before {
+  opacity: 1;
+}
+
+@keyframes spin {
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+/* Enhanced loading states for mobile */
+.loading-skeleton-mobile {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.1) 25%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Mobile-optimized modals */
+.modal-mobile {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.modal-content-mobile {
+  width: 100%;
+  max-width: none;
+  max-height: 100%;
+  border-radius: 16px 16px 0 0;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.modal-content-mobile.open {
+  transform: translateY(0);
+}
+
+/* Improved focus indicators for mobile */
+.focus-mobile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Mobile-specific animations */
+.slide-up-mobile {
+  animation: slideUpMobile 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.fade-in-mobile {
+  animation: fadeInMobile 0.2s ease-out;
+}
+
+@keyframes fadeInMobile {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Landscape orientation optimizations */
+@media (orientation: landscape) and (max-height: 600px) {
+  .card-mobile {
+    margin: 4px;
+    padding: 12px;
+  }
+  
+  .text-mobile-h1 {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+  }
+  
+  .text-mobile-h2 {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+  }
+  
+  .btn-touch {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card-mobile {
+    border: 2px solid var(--border);
+  }
+  
+  .btn-touch {
+    border: 2px solid currentColor;
+  }
+  
+  .input-mobile {
+    border: 2px solid var(--border);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .card-mobile,
+  .input-mobile,
+  .modal-content-mobile,
+  .btn-touch {
+    transition: none;
+    animation: none;
+  }
+  
+  .loading-skeleton-mobile {
+    animation: none;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .card-mobile {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .loading-skeleton-mobile {
+    background: linear-gradient(90deg, 
+      rgba(255, 255, 255, 0.05) 25%, 
+      rgba(255, 255, 255, 0.1) 50%, 
+      rgba(255, 255, 255, 0.05) 75%
+    );
+  }
+}
+
+/* Utility classes for mobile-specific styling */
+.mobile-only {
+  display: block;
+}
+
+.mobile-hidden {
+  display: none;
+}
+
+.mobile-flex {
+  display: flex;
+}
+
+.mobile-grid {
+  display: grid;
+}
+
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none;
+  }
+  
+  .mobile-hidden {
+    display: block;
+  }
+  
+  .tablet-flex {
+    display: flex;
+  }
+  
+  .tablet-grid {
+    display: grid;
+  }
+}
+
+/* PWA-specific enhancements */
+@media (display-mode: standalone) {
+  .pwa-safe-area {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pwa-status-bar {
+    height: env(safe-area-inset-top);
+    background: var(--background);
+  }
+}
+
+/* iOS-specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  .ios-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .ios-input {
+    -webkit-appearance: none;
+    border-radius: 12px;
+  }
+  
+  .ios-button {
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Android-specific optimizations */
+@media (pointer: coarse) {
+  .android-ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .android-ripple::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  
+  .android-ripple:active::after {
+    opacity: 1;
+  }
+}

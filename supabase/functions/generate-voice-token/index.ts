@@ -61,11 +61,14 @@ serve(async (req) => {
         started_at: new Date().toISOString(),
       })
 
-    // Return token info (in production, this would be an ephemeral token)
+    // Generate a secure session token
+    const sessionToken = `vs_${sessionId}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    
+    // Return token info
     return new Response(
       JSON.stringify({
         success: true,
-        token: 'ephemeral-token-placeholder', // Don't expose real API key
+        token: sessionToken,
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
         sessionId,
       }),

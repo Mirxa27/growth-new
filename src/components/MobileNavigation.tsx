@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, Compass, BookOpen, Users } from 'lucide-react';
+import { Home, MessageCircle, Compass, BookOpen, Users, Mic } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -8,9 +8,9 @@ import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { name: 'Home', icon: Home, path: '/dashboard' },
+  { name: 'Voice', icon: Mic, path: '/transcription' },
   { name: 'Chat', icon: MessageCircle, path: '/chat' },
   { name: 'Journey', icon: Compass, path: '/explorations' },
-  { name: 'Library', icon: BookOpen, path: '/library' },
   { name: 'Community', icon: Users, path: '/community' },
 ];
 

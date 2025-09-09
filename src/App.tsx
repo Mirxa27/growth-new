@@ -7,13 +7,13 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { useEffect } from "react";
-// import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
+import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
+import { performanceOptimizer } from "@/services/performance/performance-optimization.service";
+import { accessibilityService } from "@/services/accessibility/accessibility.service";
+import { environmentValidator } from "@/services/configuration/environment-validator.service";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { EnhancedErrorBoundary } from "@/components/ui/enhanced-error-boundary";
-import { EnhancedLoading } from "@/components/ui/enhanced-loading";
-import { addResourceHints, registerServiceWorker } from "@/utils/performance";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -29,6 +29,8 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const SimpleAdmin = lazy(() => import("./pages/SimpleAdmin"));
 const AdminTest = lazy(() => import("./pages/AdminTest"));
 const Community = lazy(() => import("./pages/Community"));
+const TranscriptionPage = lazy(() => import("./pages/TranscriptionPage"));
+const ConfigurationPage = lazy(() => import("./pages/ConfigurationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
@@ -45,44 +47,63 @@ const App = () => {
   // Fix viewport height on mobile devices
   useViewportHeight();
   
-  // Performance optimizations
   useEffect(() => {
-    // Add resource hints for better loading performance
-    addResourceHints();
+    // Validate environment configuration
+    environmentValidator.validateEnvironment().then(() => {
+      // Show configuration status (only if there are issues)
+      environmentValidator.showStartupNotification();
+    });
+
+    // Initialize performance optimizations
+    performanceOptimizer.preloadCriticalResources();
+    performanceOptimizer.lazyLoadImages();
+    
+    // Initialize accessibility features
+    accessibilityService.initialize();
+    accessibilityService.setupReducedMotion();
     
     // Register service worker for caching
-    registerServiceWorker();
+    performanceOptimizer.registerServiceWorker();
+    
+    // Monitor web vitals in production
+    if (process.env.NODE_ENV === 'production') {
+      performanceOptimizer.monitorWebVitals();
+    }
+    
+    // Debug and fix pointer events issues in development
+    if (process.env.NODE_ENV === 'development') {
+      const timer = setTimeout(() => {
+        debugPointerEvents();
+        autoFixPointerEvents();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+
+    // Cleanup function
+    return () => {
+      performanceOptimizer.cleanup();
+      accessibilityService.cleanup();
+    };
   }, []);
-  
-  // Remove debug code for production - keep only viewport height fix
-  // useEffect(() => {
-  //   // Debug and fix pointer events issues in development
-  //   if (process.env.NODE_ENV === 'development') {
-  //     const timer = setTimeout(() => {
-  //       debugPointerEvents();
-  //       autoFixPointerEvents();
-  //     }, 1000);
-  //     
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, []);
 
   return (
-  <EnhancedErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="relative">
-              <Suspense fallback={
-                <EnhancedLoading 
-                  variant="page" 
-                  message="Loading Newomen..." 
-                  animated={true}
-                />
-              }>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <div className="relative">
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+                <div className="text-center space-y-4">
+                  <LoadingSpinner size="lg" />
+                  <p className="text-muted-foreground">Loading Newomen...</p>
+                </div>
+              </div>
+            }>
+              <main id="main-content" className="focus:outline-none" tabIndex={-1}>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -138,13 +159,13 @@ const App = () => {
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <SimpleAdmin />
+                <ProtectedRoute>
+                  <AdminDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/advanced" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminDashboard />
+              <Route path="/simple-admin" element={
+                <ProtectedRoute>
+                  <SimpleAdmin />
                 </ProtectedRoute>
               } />
               <Route path="/admin-test" element={
@@ -152,9 +173,20 @@ const App = () => {
                   <AdminTest />
                 </ProtectedRoute>
               } />
+              <Route path="/transcription" element={
+                <ProtectedRoute>
+                  <TranscriptionPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/configuration" element={
+                <ProtectedRoute>
+                  <ConfigurationPage />
+                </ProtectedRoute>
+              } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
+              </main>
             </Suspense>
             <MobileNavigation />
           </div>
@@ -162,7 +194,6 @@ const App = () => {
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-  </EnhancedErrorBoundary>
   );
 };
 

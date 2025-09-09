@@ -1,25 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Heart, MessageCircle, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { handleNavigationError } from "@/services/error/error-handling.service";
 
 export const Hero = () => {
   const navigate = useNavigate();
 
   const handleStartDiscovery = () => {
-    console.log('Navigating to free assessments');
     try {
       navigate("/free-assessments");
     } catch (error) {
-      console.error('Navigation error:', error);
+      handleNavigationError(error, "/free-assessments");
     }
   };
 
   const handleSignIn = () => {
-    console.log('Navigating to /auth');
     try {
       navigate("/auth");
     } catch (error) {
-      console.error('Navigation error:', error);
+      handleNavigationError(error, "/auth");
     }
   };
 

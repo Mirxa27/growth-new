@@ -111,7 +111,7 @@ if (!window.__growthEchoInjected) {
           try {
             chrome.runtime.sendMessage({ type: 'healthcheck' }, (response) => {
               if (chrome.runtime.lastError) {
-                console.warn('Background unavailable:', chrome.runtime.lastError.message);
+                // Silently handle - extension may not be active
                 if (overlay.parentNode) {
                   overlay.style.background = 'rgba(239,68,68,0.95)';
                   overlay.title = 'Extension error: ' + chrome.runtime.lastError.message;
