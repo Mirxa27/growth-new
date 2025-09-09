@@ -43,6 +43,45 @@ Deno.serve(async (req) => {
       )
     }
 
+    // SECURITY: Verify admin status server-side before minting realtime token
+    // This is a critical security check for voice agent access
+    const { data: isAdminVerified, error: adminError } = await supabase.rpc('verify_admin_status')
+    
+    if (adminError) {
+      console.error('Admin verification failed:', adminError)
+      return new Response(
+        JSON.stringify({ error: 'Admin verification failed' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (!isAdminVerified) {
+      // Log unauthorized access attempt
+      await supabase
+        .from('admin_logs')
+        .insert({
+          admin_id: user.id,
+          action: 'unauthorized_realtime_token_attempt',
+          details: {
+            user_email: user.email,
+            ip_address: req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for'),
+            user_agent: req.headers.get('user-agent'),
+            timestamp: new Date().toISOString()
+          }
+        })
+
+      return new Response(
+        JSON.stringify({ error: 'Insufficient privileges. Admin access required for realtime voice features.' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Get the OpenAI API key from environment variables or the database
     let openaiApiKey = Deno.env.get('OPENAI_API_KEY')
 

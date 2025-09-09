@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { MobileWrapper } from "@/components/mobile/MobileWrapper";
 import { useEffect } from "react";
 import { debugPointerEvents, autoFixPointerEvents } from "@/utils/debugPointerEvents";
 import { useViewportHeight } from "@/hooks/useResponsive";
@@ -94,16 +95,17 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className="relative">
-            <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-                <div className="text-center space-y-4">
-                  <LoadingSpinner size="lg" />
-                  <p className="text-muted-foreground">Loading Newomen...</p>
+          <MobileWrapper>
+            <div className="relative">
+              <Suspense fallback={
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+                  <div className="text-center space-y-4">
+                    <LoadingSpinner size="lg" />
+                    <p className="text-muted-foreground">Loading Newomen...</p>
+                  </div>
                 </div>
-              </div>
-            }>
-              <main id="main-content" className="focus:outline-none" tabIndex={-1}>
+              }>
+                <main id="main-content" className="focus:outline-none" tabIndex={-1}>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -186,10 +188,11 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
-              </main>
-            </Suspense>
-            <MobileNavigation />
-          </div>
+                </main>
+              </Suspense>
+              <MobileNavigation />
+            </div>
+          </MobileWrapper>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
