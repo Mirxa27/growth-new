@@ -1,223 +1,237 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { QuestionDisplay } from '@/components/assessments/QuestionDisplay';
-import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { handleApiError, handleAssessmentError } from '@/services/error/error-handling.service';
+import { supabase } from '@/integrations/supabase/client';
+import { AnonymousAssessment, Assessment } from '@/components/assessments/AnonymousAssessment';
+import { AssessmentResults } from '@/components/assessments/AssessmentResults';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
-interface Assessment {
-  id: number;
-  title: string;
-  description: string;
-  type: string;
-}
-
-interface Question {
-  id: number;
-  question_text: string;
-  question_type: 'multiple_choice' | 'free_text';
-  position: number;
-  explanation?: string;
-  assessment_options: Option[];
-}
-
-interface Option {
-  id: number;
-  option_text: string;
-  position: number;
-}
-
-const AssessmentPage = () => {
-  const { id } = useParams();
+const AssessmentPage: React.FC = () => {
+  const { id: assessmentSlug } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  
   const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const startTimeRef = useRef<number>(Date.now());
-  const questionStartTimeRef = useRef<number>(Date.now());
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<any>(null);
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
-    loadAssessment();
-    startTimeRef.current = Date.now();
-    questionStartTimeRef.current = Date.now();
-  }, [id]);
+    if (assessmentSlug) {
+      loadAssessment(assessmentSlug);
+    } else {
+      setError('No assessment specified');
+      setLoading(false);
+    }
+  }, [assessmentSlug]);
 
-  useEffect(() => {
-    // Reset question start time when moving to new question
-    questionStartTimeRef.current = Date.now();
-  }, [currentQuestionIndex]);
-
-  const loadAssessment = async () => {
+  const loadAssessment = async (slug: string) => {
     try {
-      // Load assessment details
+      setLoading(true);
+      setError(null);
+
+      // Get assessment by slug using the new RPC function
+      const { data, error } = await supabase.rpc('get_assessment_with_questions', {
+        p_assessment_id: null // We'll need to get by slug instead
+      });
+
+      // Alternative approach - get assessment by slug directly
       const { data: assessmentData, error: assessmentError } = await supabase
         .from('assessments')
-        .select('*')
-        .eq('id', id)
+        .select(`
+          id,
+          slug,
+          title,
+          description,
+          instructions,
+          type,
+          difficulty,
+          estimated_time,
+          passing_score,
+          max_attempts,
+          is_public,
+          requires_auth,
+          tags,
+          learning_outcomes
+        `)
+        .eq('slug', slug)
+        .eq('is_public', true)
+        .eq('is_active', true)
         .single();
 
-      if (assessmentError) throw assessmentError;
-
-      // Check if assessment is private and user is not authenticated
-      if (assessmentData.visibility === 'private' && !user) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to access this assessment.",
-          variant: "destructive"
-        });
-        navigate('/auth');
-        return;
+      if (assessmentError || !assessmentData) {
+        throw new Error('Assessment not found or not accessible');
       }
 
-      setAssessment(assessmentData);
-
-      // Load questions with options
+      // Get questions for this assessment
       const { data: questionsData, error: questionsError } = await supabase
         .from('assessment_questions')
         .select(`
-          *,
-          assessment_options (*)
+          id,
+          question_text,
+          question_type,
+          order_index,
+          points,
+          time_limit,
+          hint,
+          explanation,
+          media_type,
+          media_url,
+          media_caption
         `)
-        .eq('assessment_id', id)
-        .order('position');
+        .eq('assessment_id', assessmentData.id)
+        .order('order_index');
 
-      if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      if (questionsError) {
+        throw new Error('Failed to load assessment questions');
+      }
+
+      // Get options for each question
+      const questions = await Promise.all(
+        (questionsData || []).map(async (question) => {
+          const { data: optionsData } = await supabase
+            .from('assessment_options')
+            .select(`
+              id,
+              option_text,
+              order_index,
+              media_url,
+              media_type
+            `)
+            .eq('question_id', question.id)
+            .order('order_index');
+
+          return {
+            ...question,
+            options: optionsData || []
+          };
+        })
+      );
+
+      // Create assessment object
+      const loadedAssessment: Assessment = {
+        ...assessmentData,
+        questions: questions
+      };
+
+      setAssessment(loadedAssessment);
+      logger.info('Assessment loaded successfully', { slug, title: assessmentData.title });
+
     } catch (error) {
-      handleAssessmentError(error, id, 'load_assessment');
+      logger.error('Failed to load assessment', 'AssessmentPage', error);
+      setError(error instanceof Error ? error.message : 'Failed to load assessment');
+      
+      toast({
+        title: 'Assessment Not Found',
+        description: 'The requested assessment could not be loaded.',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAnswerChange = (answer: string) => {
-    const currentQuestion = questions[currentQuestionIndex];
-    setAnswers({
-      ...answers,
-      [currentQuestion.id]: answer
+  const handleAssessmentComplete = (assessmentResults: any) => {
+    setResults(assessmentResults);
+    setShowResults(true);
+    
+    toast({
+      title: 'Assessment Complete!',
+      description: 'Your results are ready to view.',
+    });
+
+    logger.info('Assessment completed', { 
+      assessmentSlug, 
+      score: assessmentResults.percentage 
     });
   };
 
-  const handleNext = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      handleSubmit();
-    }
+  const handleRetakeAssessment = () => {
+    setResults(null);
+    setShowResults(false);
+    
+    toast({
+      title: 'Starting Fresh',
+      description: 'Beginning a new assessment attempt.',
+    });
   };
 
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
+  const handleBackToHub = () => {
+    navigate('/mobile-assessment-hub');
   };
 
-  const handleSubmit = async () => {
-    if (!user) {
-      // For public assessments, just show results without saving
-      const resultId = `temp-${Date.now()}`;
-      navigate(`/results/${resultId}`, {
-        state: {
-          assessment,
-          answers,
-          questions
-        }
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Calculate score for quizzes
-      let score = 0;
-      let totalPoints = 0;
-
-      if (assessment?.type === 'quiz') {
-        questions.forEach(question => {
-          if (question.question_type === 'multiple_choice') {
-            const selectedOptionId = parseInt(answers[question.id]);
-            const selectedOption = question.assessment_options.find(opt => opt.id === selectedOptionId);
-            // Note: We need to add is_correct field to options table
-            totalPoints += 1;
-          }
-        });
-      }
-
-      // Save results
-      const { data, error } = await supabase
-        .from('assessment_results')
-        .insert({
-          user_id: user.id,
-          assessment_id: parseInt(id!),
-          score,
-          total_points: totalPoints,
-          percentage: totalPoints > 0 ? (score / totalPoints) * 100 : 0,
-          answers,
-          completed: true,
-          time_taken: Math.round((Date.now() - startTimeRef.current) / 1000) // Time in seconds
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      navigate(`/results/${data.id}`);
-    } catch (error) {
-      handleAssessmentError(error, id, 'submit_assessment');
-    } finally {
-      setSubmitting(false);
-    }
+  const handleBackToAssessment = () => {
+    setShowResults(false);
+    setResults(null);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <LoadingSpinner size="lg" />
+          <h2 className="text-xl font-semibold">Loading Assessment</h2>
+          <p className="text-muted-foreground">Preparing your personalized assessment experience...</p>
+        </div>
       </div>
     );
   }
 
-  if (!assessment || questions.length === 0) {
+  if (error || !assessment) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Assessment not found.</p>
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+        <Card className="glass-strong max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Assessment Not Available</h2>
+            <p className="text-muted-foreground mb-6">
+              {error || 'The requested assessment could not be found.'}
+            </p>
+            <div className="space-y-2">
+              <Button onClick={handleBackToHub} className="w-full">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Assessment Hub
+              </Button>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline" 
+                className="w-full"
+              >
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const currentAnswer = answers[currentQuestion.id] || '';
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20">
-      <div className="container mx-auto">
-        <QuestionDisplay
-          question={currentQuestion}
-          currentAnswer={currentAnswer}
-          onAnswerChange={handleAnswerChange}
-          questionNumber={currentQuestionIndex + 1}
-          totalQuestions={questions.length}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
-          isFirst={currentQuestionIndex === 0}
-          isLast={currentQuestionIndex === questions.length - 1}
+  if (showResults && results) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+        <AssessmentResults
+          results={results}
+          showDetailedBreakdown={true}
+          showRecommendations={true}
+          onRetakeAssessment={handleRetakeAssessment}
+          onBackToHub={handleBackToHub}
         />
       </div>
-      {submitting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Submitting your assessment...</span>
-          </div>
-        </div>
-      )}
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <AnonymousAssessment
+        assessment={assessment}
+        onComplete={handleAssessmentComplete}
+        onBack={handleBackToAssessment}
+      />
     </div>
   );
 };
