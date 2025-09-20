@@ -1,11 +1,12 @@
 {
   "version": 2,
   "name": "newomen-platform",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
-  "framework": "vite",
+  "framework": null,
   "public": false,
+  "nodeVersion": "20.x",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],

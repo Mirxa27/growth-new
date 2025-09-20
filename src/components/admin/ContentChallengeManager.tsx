@@ -151,7 +151,7 @@ export const ContentChallengeManager: React.FC = () => {
       
       setIsDialogOpen(false);
       await fetchChallenges(); // Refresh the list
-      
+
     } catch (error) {
       if (error instanceof AdminError) {
         if (error.code === 'VALIDATION_ERROR' && error.details?.validationErrors) {
@@ -160,7 +160,7 @@ export const ContentChallengeManager: React.FC = () => {
             fieldErrors[validationError.field] = validationError.message;
           });
           setFormErrors(fieldErrors);
-          
+
           toast({
             title: "Validation Error",
             description: "Please check the form for errors",
@@ -168,8 +168,8 @@ export const ContentChallengeManager: React.FC = () => {
             duration: 5000
           });
         } else {
-          toast({ 
-            title: "Save Failed", 
+          toast({
+            title: "Save Failed",
             description: error.userMessage || 'Failed to save content challenge',
             variant: "destructive",
             duration: 5000
@@ -177,9 +177,9 @@ export const ContentChallengeManager: React.FC = () => {
         }
       } else {
         console.error('Unexpected error saving challenge:', error);
-        toast({ 
-          title: "Unexpected Error", 
-          description: 'An unexpected error occurred. Please try again.', 
+        toast({
+          title: "Unexpected Error",
+          description: 'An unexpected error occurred. Please try again.',
           variant: "destructive",
           duration: 5000
         });
@@ -188,8 +188,6 @@ export const ContentChallengeManager: React.FC = () => {
       setSaving(false);
     }
   };
-      fetchChallenges();
-    } catch (error: any) {
       toast({
         title: "Error",
         description: `Failed to save challenge: ${error.message}`,
