@@ -160,14 +160,27 @@ export const FreeAssessmentHub = () => {
     ? FREE_ASSESSMENTS 
     : FREE_ASSESSMENTS.filter(a => a.category === selectedCategory);
 
-  const handleStartAssessment = async (assessmentId: string) => {
+  const handleStartAssessment = async (assessmentSlug: string) => {
     setIsLoading(true);
     try {
-      // Check if assessment exists in database first
+      // Map old assessment IDs to new slugs
+      const slugMapping = {
+        'personality_insights': 'personality-type-indicator',
+        'relationship_patterns': 'relationship-patterns-reflection',
+        'life_balance_wheel': 'wellness-lifestyle-check',
+        'values_compass': 'values-exploration',
+        'communication_style': 'communication-skills-audio',
+        'growth_mindset': 'goal-setting-reflection'
+      };
+      
+      const actualSlug = slugMapping[assessmentSlug] || assessmentSlug;
+      
+      // Check if assessment exists in database by slug
       const { data: assessment, error } = await supabase
         .from('assessments')
-        .select('id, title')
-        .eq('id', assessmentId)
+        .select('id, title, slug')
+        .eq('slug', actualSlug)
+        .eq('is_public', true)
         .single();
 
       if (error || !assessment) {
@@ -179,7 +192,7 @@ export const FreeAssessmentHub = () => {
         });
         navigate('/mobile-assessment-hub');
       } else {
-        navigate(`/assessment/${assessmentId}`);
+        navigate(`/assessment/${assessment.slug}`);
       }
     } catch (error) {
       toast({

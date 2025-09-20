@@ -223,12 +223,22 @@ export class PerformanceOptimizationService {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
+        const registration = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        });
+        
+        registration.addEventListener('updatefound', () => {
+          console.info('Service Worker: Update found');
+        });
+        
         console.info('Service Worker registered:', registration);
         return registration;
       } catch (error) {
         console.warn('Service Worker registration failed:', error);
       }
+    } else {
+      console.info('Service Worker not available or not in production mode');
     }
   }
 }

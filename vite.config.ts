@@ -20,6 +20,19 @@ export default defineConfig({
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {
+      external: [
+        '@capacitor/app',
+        '@capacitor/camera', 
+        '@capacitor/core',
+        '@capacitor/network',
+        '@capacitor/preferences',
+        '@capacitor/push-notifications',
+        '@capacitor/geolocation',
+        '@capacitor/keyboard',
+        '@capacitor/local-notifications',
+        '@capacitor/splash-screen',
+        '@capacitor/status-bar'
+      ],
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
@@ -45,6 +58,14 @@ export default defineConfig({
       'react-router-dom',
       '@supabase/supabase-js',
       'openai'
+    ],
+    exclude: [
+      '@capacitor/app',
+      '@capacitor/camera',
+      '@capacitor/core',
+      '@capacitor/network',
+      '@capacitor/preferences',
+      '@capacitor/push-notifications'
     ]
   },
   server: {

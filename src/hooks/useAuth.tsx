@@ -39,20 +39,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAdminStatus = async () => {
       if (user) {
         try {
-          // Check multiple ways to determine admin status
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role, is_admin')
-            .eq('id', user.id)
-            .single();
-          
-          // Check admin status via multiple methods
-          const isAdminViaRole = profile?.role === 'admin';
-          const isAdminViaFlag = profile?.is_admin === true;
-          const isAdminViaMetadata = user.user_metadata?.role === 'admin';
-          const isAdminViaEmail = user.email === 'admin@newomen.me';
-          
-          const adminStatus = isAdminViaRole || isAdminViaFlag || isAdminViaMetadata || isAdminViaEmail;
+          // Use the secure admin service for consistent admin checking
+          const { AdminAuthService } = await import('@/services/admin-auth.service');
+          const adminStatus = await AdminAuthService.isUserAdmin(user);
           
           setIsAdmin(adminStatus);
           
@@ -60,9 +49,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             console.log('Admin check results:', {
               userId: user.id,
               email: user.email,
-              profileRole: profile?.role,
-              profileFlag: profile?.is_admin,
-              metadataRole: user.user_metadata?.role,
               finalAdminStatus: adminStatus
             });
           }

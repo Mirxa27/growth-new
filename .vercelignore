@@ -1,76 +1,100 @@
-# Vercel ignore file
-# Exclude files and directories from deployment
+# Vercel deployment ignore file
 
 # Development files
 .env.local
 .env.development
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.env.test
 
-# Testing
-coverage/
-.nyc_output
-*.test.ts
-*.test.tsx
-*.spec.ts
-*.spec.tsx
+# Build artifacts
+node_modules/
+.next/
+.nuxt/
+.vuepress/dist
+.temp
+.cache
 
-# Documentation
-*.md
-!README.md
-docs/
-CHANGELOG.md
-LICENSE
-
-# Build tools
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Temporary files
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Temporary folders
 tmp/
 temp/
-.tmp/
 
-# Supabase local development
-supabase/.temp/
-supabase/logs/
-
-# Scripts and deployment files
-scripts/
-deploy*.mjs
-build-and-deploy.mjs
-verify-deployment.mjs
-*.log
-
-# Extension files (not needed for web deployment)
-extension/
-
-# iOS app files (not needed for web deployment)
+# Mobile build artifacts
 ios/
-
-# Capacitor build files
 android/
 capacitor.config.ts
 
-# Database migration files
-*.sql
-apply-*.js
-apply-*.mjs
-run_migration.js
+# Documentation that doesn't need deployment
+*.md
+!README.md
 
-# Large dependencies that aren't needed
-all-app/
+# Scripts that don't need deployment
+scripts/
+!scripts/seed-assessments.js
+
+# Test files
+**/*.test.*
+**/*.spec.*
+__tests__/
+test/
+tests/
+
+# Supabase local development
+supabase/.temp/
+supabase/functions/.temp/

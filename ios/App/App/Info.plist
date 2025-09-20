@@ -46,14 +46,44 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to the camera to take photos for your profile.</string>
+	<string>Newomen uses the camera to capture images for assessments, profile photos, and visual learning experiences. This helps provide personalized content and enables image-based assessment questions.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to select images for your profile.</string>
+	<string>Newomen needs access to your photo library to select images for your profile, save assessment results, and enable image-based learning activities.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs location access to provide personalized experiences.</string>
+	<string>Newomen uses your location to provide personalized experiences, local content recommendations, and location-based wellness insights while you use the app.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Newomen may use your location to provide personalized experiences and local content recommendations.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access for voice features.</string>
+	<string>Newomen uses the microphone for voice-based assessments, audio responses, and interactive voice features that enhance your learning experience.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Newomen sends notifications to remind you about assessments, share insights, and keep you engaged with your personal growth journey.</string>
+	<key>NSFileProviderUsageDescription</key>
+	<string>Newomen needs file access to save and sync your assessment results, progress data, and learning materials across devices.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Newomen may access your music library for audio-based assessments and personalized content recommendations.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>remote-notification</string>
+		<string>background-sync</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.newomen.me</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>newomen</string>
+				<string>com.newomen.me</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
