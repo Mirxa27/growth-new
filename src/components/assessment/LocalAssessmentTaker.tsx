@@ -74,7 +74,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                 <RadioGroupItem value={option} id={`${question.id}-${index}`} />
                 <Label 
                   htmlFor={`${question.id}-${index}`} 
-                  className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
+                  className="flex-1 cursor-pointer p-3 rounded-lg glass-subtle hover:glass-glow transition-colors"
                 >
                   {option}
                 </Label>
@@ -104,7 +104,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                   />
                   <Label 
                     htmlFor={`${question.id}-${index}`} 
-                    className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
+                    className="flex-1 cursor-pointer p-3 rounded-lg glass-subtle hover:glass-glow transition-colors"
                   >
                     {option}
                   </Label>
@@ -149,7 +149,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
             value={currentAnswer || ''}
             onChange={(e) => handleAnswer(question.id, e.target.value)}
             placeholder="Type your answer here..."
-            className="min-h-[100px] bg-white/5 border-white/20 text-white placeholder:text-white/40"
+            className="min-h-[100px] input-glass text-glass placeholder:text-glass-muted"
           />
         );
 
@@ -161,7 +161,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   if (showResults) {
     return (
       <div className="max-w-2xl mx-auto">
-        <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+        <Card className="glass-strong">
           <CardHeader className="text-center">
             <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-8 h-8 text-green-400" />
@@ -255,7 +255,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 mb-8">
+          <Card className="glass-strong mb-8">
             <CardHeader>
               <CardTitle className="text-xl text-white">
                 {currentQuestion?.text}

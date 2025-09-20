@@ -295,7 +295,7 @@ export const FreeAssessmentResults: React.FC<FreeAssessmentResultsProps> = ({
     if (!results.aiAnalysis || results.aiAnalysis.length === 0) return null;
   
     return (
-      <Card className="mb-6">
+      <Card className="mb-6 glass border-card-border">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Lightbulb className="w-5 h-5 mr-2" />
@@ -308,9 +308,9 @@ export const FreeAssessmentResults: React.FC<FreeAssessmentResultsProps> = ({
         <CardContent>
           <div className="space-y-3">
             {results.aiAnalysis.map((analysis: string, index: number) => (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div key={index} className="flex items-start space-x-3 p-3 glass-subtle rounded-lg">
                 <TrendingUp className="w-5 h-5 text-primary mt-0.5" />
-                <p className="text-sm text-gray-700">{analysis}</p>
+                <p className="text-sm text-glass-muted">{analysis}</p>
               </div>
             ))}
           </div>

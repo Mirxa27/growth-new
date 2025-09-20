@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -13,24 +14,57 @@ import {
   X,
   Trophy,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Calendar,
+  Users,
+  Target
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { adminService } from '@/services/admin/comprehensive-admin.service';
+import { CreateContentChallengeSchema, CreateContentChallenge } from '@/schemas/admin.schemas';
+import { AdminError } from '@/services/admin/admin-error-handler.service';
+import { format } from 'date-fns';
 
-type Challenge = Tables<'content_challenges'>;
-type ChallengeInsert = TablesInsert<'content_challenges'>;
+type Challenge = Tables<'content_challenges'> & {
+  participants_count?: number;
+  completions_count?: number;
+};
+
+interface ChallengeFormData extends Omit<CreateContentChallenge, 'start_date' | 'end_date'> {
+  start_date?: string;
+  end_date?: string;
+}
 
 export const ContentChallengeManager: React.FC = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
-  const [formData, setFormData] = useState<Partial<ChallengeInsert>>({});
+  const [formData, setFormData] = useState<ChallengeFormData>({
+    title: '',
+    description: '',
+    challenge_type: 'completion',
+    difficulty: 'beginner',
+    duration_days: 7,
+    points_reward: 100,
+    badge_reward: '',
+    requirements: {},
+    content: {},
+    is_active: true,
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState('list');
   const { toast } = useToast();
 
   const fetchChallenges = useCallback(async () => {
@@ -59,25 +93,101 @@ export const ContentChallengeManager: React.FC = () => {
 
   const handleOpenDialog = (challenge: Challenge | null = null) => {
     setEditingChallenge(challenge);
-    setFormData(challenge ? { ...challenge } : { 
-      title: '', 
-      description: '', 
-      challenge_type: 'completion', 
-      difficulty: 'medium', 
-      reward: 100, 
-      is_active: false 
-    });
+    setFormErrors({});
+    
+    if (challenge) {
+      setFormData({
+        ...challenge,
+        start_date: challenge.start_date ? format(new Date(challenge.start_date), 'yyyy-MM-dd') : undefined,
+        end_date: challenge.end_date ? format(new Date(challenge.end_date), 'yyyy-MM-dd') : undefined,
+      });
+    } else {
+      setFormData({
+        title: '',
+        description: '',
+        challenge_type: 'completion',
+        difficulty: 'beginner',
+        duration_days: 7,
+        points_reward: 100,
+        badge_reward: '',
+        requirements: {},
+        content: {},
+        is_active: true,
+      });
+    }
+    
     setIsDialogOpen(true);
+    setActiveTab('basic');
   };
 
   const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('content_challenges')
-        .upsert([formData as ChallengeInsert]);
-      if (error) throw error;
-      toast({ title: "Success", description: `Challenge ${editingChallenge ? 'updated' : 'created'}` });
+      setSaving(true);
+      setFormErrors({});
+      
+      // Transform form data to match schema
+      const challengeData: CreateContentChallenge = {
+        title: formData.title || '',
+        description: formData.description || '',
+        challenge_type: formData.challenge_type || 'completion',
+        difficulty: formData.difficulty || 'beginner',
+        duration_days: Number(formData.duration_days) || 7,
+        points_reward: Number(formData.points_reward) || 0,
+        badge_reward: formData.badge_reward || undefined,
+        requirements: formData.requirements || {},
+        content: formData.content || {},
+        is_active: formData.is_active !== false,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : undefined,
+        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : undefined,
+      };
+      
+      const result = await adminService.createContentChallenge(challengeData);
+      
+      toast({ 
+        title: "Challenge Created", 
+        description: result.message,
+        duration: 3000
+      });
+      
       setIsDialogOpen(false);
+      await fetchChallenges(); // Refresh the list
+      
+    } catch (error) {
+      if (error instanceof AdminError) {
+        if (error.code === 'VALIDATION_ERROR' && error.details?.validationErrors) {
+          const fieldErrors: Record<string, string> = {};
+          error.details.validationErrors.forEach((validationError: any) => {
+            fieldErrors[validationError.field] = validationError.message;
+          });
+          setFormErrors(fieldErrors);
+          
+          toast({
+            title: "Validation Error",
+            description: "Please check the form for errors",
+            variant: "destructive",
+            duration: 5000
+          });
+        } else {
+          toast({ 
+            title: "Save Failed", 
+            description: error.userMessage || 'Failed to save content challenge',
+            variant: "destructive",
+            duration: 5000
+          });
+        }
+      } else {
+        console.error('Unexpected error saving challenge:', error);
+        toast({ 
+          title: "Unexpected Error", 
+          description: 'An unexpected error occurred. Please try again.', 
+          variant: "destructive",
+          duration: 5000
+        });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
       fetchChallenges();
     } catch (error: any) {
       toast({

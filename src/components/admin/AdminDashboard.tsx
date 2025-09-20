@@ -15,7 +15,8 @@ import {
   BookOpen,
   Target,
   Activity,
-  TrendingUp
+  TrendingUp,
+  CreditCard
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -36,6 +37,7 @@ import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
+import { PayPalSettingsManager } from '@/components/admin/PayPalSettingsManager';
 
 type AdminSection = 
   | 'overview'
@@ -48,6 +50,7 @@ type AdminSection =
   | 'voice'
   | 'ai-content'
   | 'settings'
+  | 'payments'
   | 'ai-providers'
   | 'moderation';
 
@@ -121,6 +124,12 @@ const AdminDashboard: React.FC = () => {
       label: 'Settings', 
       icon: Settings,
       description: 'General platform settings'
+    },
+    { 
+      id: 'payments' as AdminSection, 
+      label: 'Payments', 
+      icon: CreditCard,
+      description: 'PayPal and payment configuration'
     },
     { 
       id: 'ai-providers' as AdminSection, 
@@ -315,50 +324,90 @@ const AdminDashboard: React.FC = () => {
       <div className="space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Users className="h-8 w-8 text-blue-600" /><div><p className="text-2xl font-bold">{overviewData.totalUsers.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Users</p></div></div></CardContent></Card>
+          <Card className="glass-strong hover:bg-primary/5 transition-all duration-300 group">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Users className="h-8 w-8 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                <div>
+                  <p className="text-2xl font-bold text-glass">{overviewData.totalUsers.toLocaleString()}</p>
+                  <p className="text-xs text-glass-muted">Total Users</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><Target className="h-8 w-8 text-green-600" /><div><p className="text-2xl font-bold">{overviewData.totalAssessments}</p><p className="text-xs text-muted-foreground">Assessments</p></div></div></CardContent></Card>
+          <Card className="glass-strong hover:bg-primary/5 transition-all duration-300 group">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Target className="h-8 w-8 text-green-400 group-hover:text-green-300 transition-colors" />
+                <div>
+                  <p className="text-2xl font-bold text-glass">{overviewData.totalAssessments}</p>
+                  <p className="text-xs text-glass-muted">Assessments</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><MessageSquare className="h-8 w-8 text-purple-600" /><div><p className="text-2xl font-bold">{overviewData.totalCommunityPosts}</p><p className="text-xs text-muted-foreground">Community Posts</p></div></div></CardContent></Card>
+          <Card className="glass-strong hover:bg-primary/5 transition-all duration-300 group">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-8 w-8 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                <div>
+                  <p className="text-2xl font-bold text-glass">{overviewData.totalCommunityPosts}</p>
+                  <p className="text-xs text-glass-muted">Community Posts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <Card className="glass-strong"><CardContent className="p-6"><div className="flex items-center space-x-2"><TrendingUp className="h-8 w-8 text-orange-600" /><div><p className="text-2xl font-bold">
+          <Card className="glass-strong hover:bg-primary/5 transition-all duration-300 group">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-8 w-8 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                <div>
+                  <p className="text-2xl font-bold text-glass">
                     {overviewData.growthPercentage > 0 ? '+' : ''}{overviewData.growthPercentage}%
-                  </p><p className="text-xs text-muted-foreground">Growth This Week</p></div></div></CardContent></Card>
+                  </p>
+                  <p className="text-xs text-glass-muted">Growth This Week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Additional Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="glass-strong">
+          <Card className="glass-strong hover:bg-accent/5 transition-all duration-300 group">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <Activity className="h-6 w-6 text-green-500" />
+                <Activity className="h-6 w-6 text-green-400 group-hover:text-green-300 transition-colors" />
                 <div>
-                  <p className="text-xl font-bold">{overviewData.activeUsersToday}</p>
-                  <p className="text-xs text-muted-foreground">Active Today</p>
+                  <p className="text-xl font-bold text-glass">{overviewData.activeUsersToday}</p>
+                  <p className="text-xs text-glass-muted">Active Today</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="glass-strong">
+          <Card className="glass-strong hover:bg-accent/5 transition-all duration-300 group">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <Users className="h-6 w-6 text-blue-500" />
+                <Users className="h-6 w-6 text-blue-400 group-hover:text-blue-300 transition-colors" />
                 <div>
-                  <p className="text-xl font-bold">{overviewData.newUsersThisWeek}</p>
-                  <p className="text-xs text-muted-foreground">New This Week</p>
+                  <p className="text-xl font-bold text-glass">{overviewData.newUsersThisWeek}</p>
+                  <p className="text-xs text-glass-muted">New This Week</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="glass-strong">
+          <Card className="glass-strong hover:bg-accent/5 transition-all duration-300 group">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <Target className="h-6 w-6 text-purple-500" />
+                <Target className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
                 <div>
-                  <p className="text-xl font-bold">{overviewData.completionsThisMonth}</p>
-                  <p className="text-xs text-muted-foreground">Completions This Month</p>
+                  <p className="text-xl font-bold text-glass">{overviewData.completionsThisMonth}</p>
+                  <p className="text-xs text-glass-muted">Completions This Month</p>
                 </div>
               </div>
             </CardContent>
@@ -368,18 +417,23 @@ const AdminDashboard: React.FC = () => {
         {/* Quick Actions */}
         <Card className="glass-strong">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
+            <CardTitle className="text-glass flex items-center">
+              <Target className="h-5 w-5 mr-2 text-blue-400" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription className="text-glass-muted">
+              Common administrative tasks
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Button 
                 variant="outline" 
-                className="h-20 flex flex-col space-y-2 glass"
+                className="h-20 flex flex-col space-y-2 glass hover:glass-primary transition-all duration-300 group"
                 onClick={() => setActiveSection('assessments')}
               >
-                <Target className="h-6 w-6" />
-                <span>Create Assessment</span>
+                <Target className="h-6 w-6 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                <span className="text-glass">Create Assessment</span>
               </Button>
               
               <Button 
@@ -504,6 +558,8 @@ const AdminDashboard: React.FC = () => {
         return <AIContentBuilder />;
       case 'settings':
         return <GeneralSettings />;
+      case 'payments':
+        return <PayPalSettingsManager />;
       case 'ai-providers':
         return <AIProviderSettings />;
       case 'moderation':
@@ -541,16 +597,16 @@ const AdminDashboard: React.FC = () => {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-300 group ${
                       activeSection === item.id
-                        ? 'glass-strong border border-primary/20 text-primary'
-                        : 'glass hover:glass-strong text-foreground hover:text-primary'
+                        ? 'glass-strong border border-primary/30 text-glass shadow-lg shadow-primary/10'
+                        : 'glass hover:glass-strong text-glass-muted hover:text-glass'
                     }`}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-glass-muted truncate group-hover:text-glass-muted/80">
                         {item.description}
                       </p>
                     </div>
@@ -565,10 +621,10 @@ const AdminDashboard: React.FC = () => {
         <div className="flex-1 h-screen overflow-y-auto">
           <div className="p-8">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-foreground">
+              <h2 className="text-3xl font-bold text-glass">
                 {navigationItems.find(item => item.id === activeSection)?.label || 'Overview'}
               </h2>
-              <p className="text-muted-foreground mt-2">
+              <p className="text-glass-muted mt-2">
                 {navigationItems.find(item => item.id === activeSection)?.description}
               </p>
             </div>
