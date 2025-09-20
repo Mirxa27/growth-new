@@ -348,8 +348,30 @@ Format the response as a structured JSON object with:
 
   const publishGeneratedContent = async (job: AIBuildJob) => {
     try {
-      // Implementation would depend on the content type
-      // This is a placeholder for the publishing logic
+      if (!job.generated_content) {
+        toast({
+          title: 'No Content',
+          description: 'No generated content available to publish.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const content = job.generated_content;
+      
+      switch (job.job_type) {
+        case 'assessment':
+          await publishAssessment(content, job);
+          break;
+        case 'course':
+          await publishCourse(content, job);
+          break;
+        case 'exploration':
+          await publishExploration(content, job);
+          break;
+        default:
+          throw new Error('Unknown content type');
+      }
       
       toast({
         title: 'Content Published',
@@ -363,6 +385,67 @@ Format the response as a structured JSON object with:
         variant: 'destructive'
       });
     }
+  };
+
+  const publishAssessment = async (content: any, job: AIBuildJob) => {
+    const { data, error } = await supabase
+      .from('assessments')
+      .insert([{
+        title: content.title,
+        description: content.description,
+        type: job.content_specs?.assessment_type || 'multiple_choice',
+        visibility: 'public',
+        ai_provider: job.ai_provider,
+        ai_model: job.ai_model,
+        ai_prompt: job.prompt,
+        questions: content.questions || [],
+        created_by: 'ai-content-builder'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  };
+
+  const publishCourse = async (content: any, job: AIBuildJob) => {
+    const { data, error } = await supabase
+      .from('courses')
+      .insert([{
+        title: content.title,
+        description: content.description,
+        modules: content.modules || [],
+        estimated_duration: content.estimated_duration,
+        prerequisites: content.prerequisites || [],
+        ai_provider: job.ai_provider,
+        ai_model: job.ai_model,
+        created_by: 'ai-content-builder'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  };
+
+  const publishExploration = async (content: any, job: AIBuildJob) => {
+    const { data, error } = await supabase
+      .from('explorations')
+      .insert([{
+        title: content.title,
+        description: content.description,
+        content: content.content,
+        estimated_time: content.estimated_time,
+        outcomes: content.outcomes || [],
+        ai_provider: job.ai_provider,
+        ai_model: job.ai_model,
+        created_by: 'ai-content-builder'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   };
 
   const renderCreateTab = () => (

@@ -9,9 +9,12 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
-import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
+import { Save, AlertCircle, Mic, Settings, TestTube, Volume2, VolumeX, Play, Pause, RotateCcw } from 'lucide-react';
 import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
+import { VoiceAgentConfigSchema, validateData } from '@/lib/validation-dtos';
+import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/utils/logger';
 
 type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 
@@ -48,6 +51,13 @@ export const VoiceAgentConfigManager: React.FC = () => {
   const { toast } = useToast();
   
   const activeConfig = useMemo(() => configs?.find(c => c.is_active) ?? configs?.[0] ?? null, [configs]);
+  
+  // Voice testing state
+  const [isTesting, setIsTesting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [transcription, setTranscription] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const [form, setForm] = useState<VoiceAgentConfig>({
     id: '', name: '', provider: 'openai', voice: 'alloy', model: 'gpt-4o-mini', temperature: 0.7, instructions: '', is_active: true,
@@ -103,9 +113,8 @@ export const VoiceAgentConfigManager: React.FC = () => {
 
   const handleSave = async () => {
     setErrors({});
-    console.log('Saving voice agent config:', form);
     try {
-      const validatedConfig = validate(form);
+      const validatedConfig = validateData(VoiceAgentConfigSchema, form);
       setIsSaving(true);
       
       if (validatedConfig.is_active) {
@@ -115,7 +124,6 @@ export const VoiceAgentConfigManager: React.FC = () => {
           .neq('id', validatedConfig.id || '');
 
         if (deactivateError) {
-          console.error('Error deactivating other configs:', deactivateError);
           throw new Error('Failed to update active configuration status');
         }
       }
@@ -125,33 +133,147 @@ export const VoiceAgentConfigManager: React.FC = () => {
         .upsert([validatedConfig]);
 
       if (upsertError) {
-        console.error('Error upserting config:', upsertError);
         throw new Error('Failed to save configuration');
       }
 
+      logger.info('Voice agent configuration saved successfully', 'VoiceAgentConfigManager', {
+        name: validatedConfig.name,
+        voice: validatedConfig.voice,
+        model: validatedConfig.model
+      });
+
       toast({ title: "Success", description: "Configuration saved successfully." });
-    } catch (e: unknown) {
-      if (e instanceof z.ZodError) {
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'VoiceAgentConfigManager');
+      logger.error('Voice agent config save failed', 'VoiceAgentConfigManager', appError);
+      
+      if (appError.code === 'VALIDATION_ERROR') {
         const errors: Record<string, string> = {};
-        if (e.errors && Array.isArray(e.errors)) {
-          e.errors.forEach(err => {
+        if (appError.details && Array.isArray(appError.details)) {
+          appError.details.forEach((err: any) => {
             if (err.path && err.path.length > 0) {
               errors[err.path[0].toString()] = err.message;
             }
           });
         }
         setErrors(errors);
-      } else {
-        const error = e as Error;
-        console.error('Error saving config:', error);
-        toast({ 
-          title: "Error", 
-          description: error.message || 'An unexpected error occurred', 
-          variant: "destructive" 
-        });
       }
+      
+      toast({ 
+        title: "Error", 
+        description: errorHandler.getUserFriendlyMessage(appError), 
+        variant: "destructive" 
+      });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const startVoiceTest = async () => {
+    if (!form.id) {
+      toast({
+        title: "Save First",
+        description: "Please save the configuration before testing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('voice-agent-test', {
+        body: {
+          configId: form.id,
+          testType: 'full_voice_test'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Voice Test Successful",
+          description: "Voice agent is working correctly",
+        });
+      } else {
+        throw new Error(data.message || 'Voice test failed');
+      }
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'VoiceAgentConfigManager');
+      logger.error('Voice test failed', 'VoiceAgentConfigManager', appError);
+      
+      toast({
+        title: "Voice Test Failed",
+        description: errorHandler.getUserFriendlyMessage(appError),
+        variant: "destructive"
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      microphone.connect(analyser);
+      analyser.fftSize = 256;
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      const updateAudioLevel = () => {
+        if (isRecording) {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          setAudioLevel(average);
+          requestAnimationFrame(updateAudioLevel);
+        }
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      updateAudioLevel();
+      
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          // Send audio data for transcription
+          const formData = new FormData();
+          formData.append('audio', event.data, 'recording.webm');
+          
+          const response = await supabase.functions.invoke('transcribe-audio', {
+            body: {
+              audioData: await event.data.arrayBuffer(),
+              model: form.input_audio_transcription_model || 'whisper-1'
+            }
+          });
+          
+          if (response.data?.transcription) {
+            setTranscription(response.data.transcription);
+          }
+        }
+      };
+      
+      // Stop recording after 5 seconds
+      setTimeout(() => {
+        mediaRecorder.stop();
+        stream.getTracks().forEach(track => track.stop());
+        setIsRecording(false);
+        setAudioLevel(0);
+      }, 5000);
+      
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'VoiceAgentConfigManager');
+      logger.error('Recording failed', 'VoiceAgentConfigManager', appError);
+      
+      toast({
+        title: "Recording Failed",
+        description: errorHandler.getUserFriendlyMessage(appError),
+        variant: "destructive"
+      });
     }
   };
 
@@ -247,34 +369,99 @@ export const VoiceAgentConfigManager: React.FC = () => {
             </div>
             <div className="flex gap-2">
               <Button 
-                onClick={async () => {
-                  if (form.id) {
-                    const { voiceService } = await import('@/services');
-                    const result = await voiceService.testConfiguration(form.id);
-                    toast({ 
-                      title: result.data?.success ? "Test Successful" : "Test Failed",
-                      description: result.data?.message,
-                      variant: result.data?.success ? "default" : "destructive"
-                    });
-                  } else {
-                    toast({ 
-                      title: "Save First",
-                      description: "Please save the configuration before testing",
-                      variant: "destructive"
-                    });
-                  }
-                }}
+                onClick={startVoiceTest}
                 variant="outline" 
                 className="glass"
-                disabled={!form.id}
+                disabled={!form.id || isTesting}
               >
-                <TestTube className="h-4 w-4 mr-2" />
-                Test Config
+                {isTesting ? (
+                  <><TestTube className="h-4 w-4 mr-2 animate-spin" /> Testing...</>
+                ) : (
+                  <><TestTube className="h-4 w-4 mr-2" /> Test Config</>
+                )}
               </Button>
               <Button onClick={handleSave} disabled={isSaving} className="bg-gradient-primary">
                 <Save className="w-4 h-4 mr-2" />
                 {isSaving ? 'Saving...' : 'Save Configuration'}
               </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Voice Testing Interface */}
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Mic className="h-6 w-6" /> Voice Testing Interface</CardTitle>
+          <CardDescription>
+            Test voice recording, transcription, and audio output with real-time feedback.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Audio Level Indicator */}
+          <div className="space-y-2">
+            <Label>Audio Level</Label>
+            <div className="flex items-center space-x-2">
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-100"
+                  style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
+                />
+              </div>
+              <span className="text-sm text-muted-foreground w-12 text-right">
+                {Math.round(audioLevel)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Recording Controls */}
+          <div className="flex gap-4">
+            <Button
+              onClick={startRecording}
+              disabled={isRecording}
+              variant={isRecording ? "destructive" : "default"}
+              className="flex-1"
+            >
+              {isRecording ? (
+                <><Pause className="h-4 w-4 mr-2" /> Recording...</>
+              ) : (
+                <><Play className="h-4 w-4 mr-2" /> Start Recording</>
+              )}
+            </Button>
+            
+            <Button
+              onClick={() => {
+                setIsPlaying(!isPlaying);
+                // Toggle audio playback
+              }}
+              variant="outline"
+              disabled={!transcription}
+            >
+              {isPlaying ? (
+                <><Pause className="h-4 w-4 mr-2" /> Pause</>
+              ) : (
+                <><Volume2 className="h-4 w-4 mr-2" /> Play Response</>
+              )}
+            </Button>
+          </div>
+
+          {/* Transcription Display */}
+          {transcription && (
+            <div className="space-y-2">
+              <Label>Transcription</Label>
+              <div className="p-4 rounded-lg glass bg-muted/50">
+                <p className="text-sm">{transcription}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Voice Response */}
+          <div className="space-y-2">
+            <Label>AI Response</Label>
+            <div className="p-4 rounded-lg glass bg-primary/5">
+              <p className="text-sm text-muted-foreground">
+                {isRecording ? "Listening..." : "Click 'Start Recording' to test voice interaction"}
+              </p>
             </div>
           </div>
         </CardContent>

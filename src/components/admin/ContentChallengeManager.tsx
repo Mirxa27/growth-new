@@ -13,8 +13,15 @@ import {
   X,
   Trophy,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles,
+  Brain,
+  Wand2,
+  Loader2
 } from 'lucide-react';
+import { CreateLibraryItemSchema, validateData } from '@/lib/validation-dtos';
+import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/utils/logger';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +38,9 @@ export const ContentChallengeManager: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
   const [formData, setFormData] = useState<Partial<ChallengeInsert>>({});
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGeneratedContent, setAiGeneratedContent] = useState<any>(null);
   const { toast } = useToast();
 
   const fetchChallenges = useCallback(async () => {
@@ -70,19 +80,127 @@ export const ContentChallengeManager: React.FC = () => {
     setIsDialogOpen(true);
   };
 
+  const generateAIContent = async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "AI Prompt Required",
+        description: "Please describe the content challenge you want to create.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const response = await supabase.functions.invoke('ai-content-challenge-generator', {
+        body: {
+          prompt: aiPrompt,
+          challenge_type: formData.challenge_type || 'completion',
+          difficulty: formData.difficulty || 'medium',
+          target_audience: 'general'
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data) {
+        setAiGeneratedContent(response.data);
+        
+        // Auto-populate form with generated content
+        setFormData(prev => ({
+          ...prev,
+          title: response.data.title || prev.title,
+          description: response.data.description || prev.description,
+          challenge_type: response.data.challenge_type || prev.challenge_type,
+          difficulty: response.data.difficulty || prev.difficulty,
+          reward: response.data.reward || prev.reward
+        }));
+
+        logger.info('AI content challenge generated successfully', 'ContentChallengeManager', {
+          type: response.data.challenge_type,
+          difficulty: response.data.difficulty
+        });
+
+        toast({
+          title: "AI Content Generated",
+          description: "Review and customize the generated challenge content.",
+        });
+      }
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'ContentChallengeManager');
+      logger.error('AI content generation failed', 'ContentChallengeManager', appError);
+      
+      toast({
+        title: "AI Generation Failed",
+        description: errorHandler.getUserFriendlyMessage(appError),
+        variant: "destructive"
+      });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
+      // Validate the challenge data
+      const challengeData = {
+        title: formData.title || '',
+        description: formData.description || '',
+        challenge_type: formData.challenge_type || 'completion',
+        difficulty: formData.difficulty || 'medium',
+        reward: formData.reward || 100,
+        is_active: formData.is_active || false
+      };
+
+      const validatedData = validateData(CreateLibraryItemSchema, {
+        title: challengeData.title,
+        description: challengeData.description,
+        type: 'document',
+        category: 'challenge',
+        content: JSON.stringify({
+          challenge_type: challengeData.challenge_type,
+          difficulty: challengeData.difficulty,
+          reward: challengeData.reward,
+          ai_generated: !!aiGeneratedContent
+        }),
+        visibility: 'public',
+        metadata: {
+          ai_prompt: aiPrompt,
+          ai_generated_content: aiGeneratedContent
+        }
+      });
+
       const { error } = await supabase
         .from('content_challenges')
-        .upsert([formData as ChallengeInsert]);
+        .upsert([{
+          ...challengeData,
+          ai_generated: !!aiGeneratedContent,
+          ai_prompt: aiPrompt || null,
+          metadata: validatedData.metadata
+        } as ChallengeInsert]);
+
       if (error) throw error;
-      toast({ title: "Success", description: `Challenge ${editingChallenge ? 'updated' : 'created'}` });
+
+      logger.info('Content challenge saved successfully', 'ContentChallengeManager', {
+        title: challengeData.title,
+        type: challengeData.challenge_type
+      });
+
+      toast({ 
+        title: "Success", 
+        description: `Challenge ${editingChallenge ? 'updated' : 'created'} successfully` 
+      });
       setIsDialogOpen(false);
       fetchChallenges();
-    } catch (error: any) {
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'ContentChallengeManager');
+      logger.error('Challenge save failed', 'ContentChallengeManager', appError);
+      
       toast({
-        title: "Error",
-        description: `Failed to save challenge: ${error.message}`,
+        title: "Save Failed",
+        description: errorHandler.getUserFriendlyMessage(appError),
         variant: "destructive"
       });
     }
@@ -172,12 +290,57 @@ export const ContentChallengeManager: React.FC = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="glass-strong">
+        <DialogContent className="glass-strong max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingChallenge ? 'Edit' : 'Create'} Challenge</DialogTitle>
-            <DialogDescription>Fill in the details for the content challenge.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              {editingChallenge ? 'Edit' : 'Create'} Challenge
+              <Badge variant="outline" className="bg-primary/10">
+                <Brain className="h-4 w-4 mr-1" />
+                AI-Powered
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Create engaging content challenges with AI assistance or build them manually.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
+            {/* AI Generation Section */}
+            <Card className="glass">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI Content Generation
+                </CardTitle>
+                <CardDescription>
+                  Describe the challenge you want to create and let AI generate the content for you.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>AI Prompt</Label>
+                  <Textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="e.g., Create a 7-day mindfulness challenge that helps users develop a daily meditation practice with progressive difficulty levels..."
+                    className="glass-input min-h-20"
+                  />
+                </div>
+                <Button
+                  onClick={generateAIContent}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                  className="w-full bg-gradient-primary"
+                >
+                  {aiGenerating ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+                  ) : (
+                    <><Wand2 className="h-4 w-4 mr-2" /> Generate with AI</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Manual Form Section */}
+            <div className="space-y-4">
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={formData.title || ''} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="glass-input" />

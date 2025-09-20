@@ -274,6 +274,14 @@
     box-shadow: var(--shadow-glass);
     position: relative;
     transition: var(--transition-spring);
+    border-radius: 1rem;
+  }
+
+  .glass:hover {
+    background: rgba(var(--glass-strong));
+    border-color: rgba(var(--glass-glow));
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-2px);
   }
 
   .glass-card {
@@ -335,6 +343,14 @@
     box-shadow: var(--shadow-glass);
     position: relative;
     transition: var(--transition-spring);
+    border-radius: 1rem;
+  }
+
+  .glass-strong:hover {
+    background: rgba(var(--glass-strong));
+    border-color: rgba(var(--glass-glow));
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
   }
 
   .glass-subtle {
