@@ -8,9 +8,9 @@ export const Hero = () => {
 
   const handleStartDiscovery = () => {
     try {
-      navigate("/free-assessments");
+      navigate("/assessments");
     } catch (error) {
-      handleNavigationError(error, "/free-assessments");
+      handleNavigationError(error, "/assessments");
     }
   };
 
