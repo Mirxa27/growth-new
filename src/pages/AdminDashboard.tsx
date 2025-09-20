@@ -16,7 +16,8 @@ import {
   Target,
   Activity,
   TrendingUp,
-  Stethoscope
+  Stethoscope,
+  CreditCard
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -29,7 +30,7 @@ import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigMana
 import { VoicePlayground } from '@/components/admin/VoicePlayground';
 import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
 import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
-// import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
+import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
@@ -38,6 +39,7 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
+import { PayPalSettings } from '@/components/admin/PayPalSettings';
 
 type AdminSection = 
   | 'overview'
@@ -52,7 +54,8 @@ type AdminSection =
   | 'settings'
   | 'ai-providers'
   | 'moderation'
-  | 'diagnostics';
+  | 'diagnostics'
+  | 'paypal';
 
 interface RecentActivityItem {
   id: string;
@@ -142,6 +145,12 @@ const AdminDashboard: React.FC = () => {
       label: 'Diagnostics', 
       icon: Stethoscope,
       description: 'AI provider diagnostics and troubleshooting'
+    },
+    { 
+      id: 'paypal' as AdminSection, 
+      label: 'PayPal', 
+      icon: CreditCard,
+      description: 'PayPal payment settings and configuration'
     }
   ];
 
@@ -502,14 +511,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
       case 'ai-content':
-        return (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <h3 className="text-lg font-semibold mb-2">AI Content Builder</h3>
-              <p className="text-muted-foreground">Content management features coming soon...</p>
-            </CardContent>
-          </Card>
-        );
+        return <AIContentBuilder />;
       case 'settings':
         return <GeneralSettings />;
       case 'ai-providers':
@@ -528,6 +530,8 @@ const AdminDashboard: React.FC = () => {
             <AIDiagnosticsPanel />
           </div>
         );
+      case 'paypal':
+        return <PayPalSettings />;
       default:
         return renderOverview();
     }
@@ -535,9 +539,9 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         {/* Sidebar Navigation */}
-        <div className="w-72 glass-strong h-screen overflow-y-auto border-r border-glass">
+        <div className="w-full lg:w-72 glass-strong lg:h-screen overflow-y-auto border-r border-glass">
           <div className="p-6 border-b border-glass">
             <div className="flex items-center space-x-3">
               <button
@@ -582,8 +586,8 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 h-screen overflow-y-auto">
-          <div className="p-8">
+        <div className="flex-1 lg:h-screen overflow-y-auto">
+          <div className="p-4 lg:p-8">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-foreground">
                 {navigationItems.find(item => item.id === activeSection)?.label || 'Overview'}
