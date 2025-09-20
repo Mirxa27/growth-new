@@ -53,6 +53,7 @@ interface AIBuildJob {
   error_message?: string;
   created_at: string;
   completed_at?: string;
+  published_content_id?: string;
 }
 
 interface ContentSpecs {
@@ -100,6 +101,149 @@ export const AIContentBuilder: React.FC = () => {
 
   const [customPrompt, setCustomPrompt] = useState('');
   const [previewContent, setPreviewContent] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+
+  // Template definitions
+  const contentTemplates = {
+    assessment: [
+      {
+        id: 'personality-assessment',
+        title: 'Personality Assessment',
+        description: 'Comprehensive personality evaluation with detailed insights',
+        category: 'Psychology',
+        specs: {
+          target_audience: 'general',
+          difficulty: 'intermediate',
+          assessment_type: 'multiple_choice',
+          question_count: 25,
+          include_explanations: true,
+          tone: 'friendly',
+          topic: 'Personality Assessment',
+          learning_objectives: [
+            'Understand core personality traits',
+            'Identify strengths and growth areas',
+            'Develop self-awareness'
+          ]
+        }
+      },
+      {
+        id: 'skills-assessment',
+        title: 'Professional Skills Assessment',
+        description: 'Evaluate technical and soft skills for career development',
+        category: 'Career',
+        specs: {
+          target_audience: 'professionals',
+          difficulty: 'intermediate',
+          assessment_type: 'mixed',
+          question_count: 20,
+          include_explanations: true,
+          tone: 'professional',
+          topic: 'Professional Skills Evaluation',
+          learning_objectives: [
+            'Assess technical competencies',
+            'Evaluate communication skills',
+            'Identify learning opportunities'
+          ]
+        }
+      },
+      {
+        id: 'wellness-check',
+        title: 'Wellness Assessment',
+        description: 'Holistic health and wellness evaluation',
+        category: 'Health',
+        specs: {
+          target_audience: 'general',
+          difficulty: 'beginner',
+          assessment_type: 'likert_scale',
+          question_count: 15,
+          include_explanations: true,
+          tone: 'supportive',
+          topic: 'Overall Wellness Assessment',
+          learning_objectives: [
+            'Evaluate physical health habits',
+            'Assess mental wellbeing',
+            'Identify areas for improvement'
+          ]
+        }
+      }
+    ],
+    course: [
+      {
+        id: 'mindfulness-course',
+        title: 'Mindfulness for Beginners',
+        description: 'Introduction to mindfulness practices and techniques',
+        category: 'Wellness',
+        specs: {
+          target_audience: 'beginners',
+          difficulty: 'beginner',
+          length: 'medium',
+          tone: 'gentle',
+          topic: 'Mindfulness and Meditation Basics',
+          learning_objectives: [
+            'Learn basic mindfulness techniques',
+            'Develop daily meditation practice',
+            'Understand stress reduction methods'
+          ]
+        }
+      },
+      {
+        id: 'leadership-essentials',
+        title: 'Leadership Essentials',
+        description: 'Core leadership skills for emerging leaders',
+        category: 'Professional Development',
+        specs: {
+          target_audience: 'professionals',
+          difficulty: 'intermediate',
+          length: 'long',
+          tone: 'professional',
+          topic: 'Essential Leadership Skills',
+          learning_objectives: [
+            'Master communication techniques',
+            'Develop team management skills',
+            'Learn decision-making frameworks'
+          ]
+        }
+      }
+    ],
+    exploration: [
+      {
+        id: 'values-exploration',
+        title: 'Personal Values Discovery',
+        description: 'Deep dive into your core values and beliefs',
+        category: 'Self-Discovery',
+        specs: {
+          target_audience: 'general',
+          difficulty: 'intermediate',
+          length: 'medium',
+          tone: 'reflective',
+          topic: 'Personal Values and Beliefs System',
+          learning_objectives: [
+            'Identify core personal values',
+            'Understand value-based decision making',
+            'Align actions with values'
+          ]
+        }
+      },
+      {
+        id: 'career-path',
+        title: 'Career Path Exploration',
+        description: 'Discover potential career directions and opportunities',
+        category: 'Career',
+        specs: {
+          target_audience: 'professionals',
+          difficulty: 'intermediate',
+          length: 'long',
+          tone: 'encouraging',
+          topic: 'Career Development and Planning',
+          learning_objectives: [
+            'Explore career opportunities',
+            'Identify skill development needs',
+            'Create actionable career plans'
+          ]
+        }
+      }
+    ]
+  };
 
   useEffect(() => {
     if (verified) {
@@ -348,18 +492,121 @@ Format the response as a structured JSON object with:
 
   const publishGeneratedContent = async (job: AIBuildJob) => {
     try {
-      // Implementation would depend on the content type
-      // This is a placeholder for the publishing logic
+      if (!job.generated_content) {
+        throw new Error('No content to publish');
+      }
+
+      let publishedContent;
+      
+      // Publish based on content type
+      switch (job.target_type) {
+        case 'assessment':
+          // Create the assessment in the assessments table
+          const { data: assessment, error: assessmentError } = await supabase
+            .from('assessments')
+            .insert({
+              title: job.generated_content.title || `AI Generated: ${job.parameters?.topic}`,
+              description: job.generated_content.description || 'AI generated assessment',
+              type: job.parameters?.assessment_type || 'multiple_choice',
+              difficulty: job.parameters?.difficulty || 'intermediate',
+              is_public: true,
+              is_free: false,
+              estimated_duration: job.parameters?.question_count * 2 || 20, // 2 minutes per question
+              created_by: (await supabase.auth.getUser()).data.user?.id
+            })
+            .select('id')
+            .single();
+
+          if (assessmentError) throw assessmentError;
+
+          // Add questions to the assessment
+          if (job.generated_content.questions && assessment) {
+            const questionsToInsert = job.generated_content.questions.map((question: any, index: number) => ({
+              assessment_id: assessment.id,
+              question_text: question.text || question.question,
+              question_type: question.type || 'multiple_choice',
+              order_index: index,
+              points: question.points || 1,
+              options: question.options ? JSON.stringify(question.options) : null,
+              correct_answer: question.correct_answer || question.answer,
+              explanation: question.explanation
+            }));
+
+            const { error: questionsError } = await supabase
+              .from('assessment_questions')
+              .insert(questionsToInsert);
+
+            if (questionsError) throw questionsError;
+          }
+
+          publishedContent = assessment;
+          break;
+
+        case 'course':
+          // Create course in courses table
+          const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .insert({
+              title: job.generated_content.title || `AI Course: ${job.parameters?.topic}`,
+              description: job.generated_content.description || 'AI generated course',
+              content: JSON.stringify(job.generated_content),
+              difficulty: job.parameters?.difficulty || 'intermediate',
+              estimated_duration: parseInt(job.parameters?.length === 'short' ? '60' : job.parameters?.length === 'medium' ? '120' : '240'),
+              is_published: true,
+              created_by: (await supabase.auth.getUser()).data.user?.id
+            })
+            .select('id')
+            .single();
+
+          if (courseError) throw courseError;
+          publishedContent = course;
+          break;
+
+        case 'exploration':
+          // Create exploration in explorations table
+          const { data: exploration, error: explorationError } = await supabase
+            .from('explorations')
+            .insert({
+              title: job.generated_content.title || `AI Exploration: ${job.parameters?.topic}`,
+              description: job.generated_content.description || 'AI generated exploration',
+              content: JSON.stringify(job.generated_content),
+              is_public: true,
+              created_by: (await supabase.auth.getUser()).data.user?.id
+            })
+            .select('id')
+            .single();
+
+          if (explorationError) throw explorationError;
+          publishedContent = exploration;
+          break;
+
+        default:
+          throw new Error(`Unknown content type: ${job.target_type}`);
+      }
+
+      // Update job status to indicate it's been published
+      await supabase
+        .from('ai_build_jobs')
+        .update({ 
+          status: 'completed',
+          published_content_id: publishedContent.id,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', job.id);
       
       toast({
-        title: 'Content Published',
-        description: `Your ${job.job_type} has been published successfully.`,
+        title: 'Content Published Successfully',
+        description: `Your ${job.target_type} "${job.generated_content.title || job.parameters?.topic}" is now live and accessible to users.`,
       });
+
+      // Refresh the jobs list
+      await loadBuildJobs();
+      
     } catch (error) {
       logger.error('Failed to publish content', 'AIContentBuilder', error);
       toast({
         title: 'Publishing Failed',
-        description: 'Failed to publish the generated content.',
+        description: error instanceof Error ? error.message : 'Failed to publish the generated content.',
         variant: 'destructive'
       });
     }
@@ -717,13 +964,126 @@ Format the response as a structured JSON object with:
     </div>
   );
 
+  const renderTemplatesTab = () => (
+    <div className="space-y-6">
+      {/* Template Categories */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Object.entries(contentTemplates).map(([type, templates]) => (
+          <Card key={type} className="glass-strong">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                {type === 'assessment' && <Target className="h-5 w-5 mr-2" />}
+                {type === 'course' && <BookOpen className="h-5 w-5 mr-2" />}
+                {type === 'exploration' && <Brain className="h-5 w-5 mr-2" />}
+                {type.charAt(0).toUpperCase() + type.slice(1)} Templates
+              </CardTitle>
+              <CardDescription>
+                {templates.length} ready-to-use templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {templates.map((template) => (
+                <Card key={template.id} className="glass cursor-pointer hover:bg-primary/5 transition-colors"
+                      onClick={() => applyTemplate(template, type as 'assessment' | 'course' | 'exploration')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-sm mb-1">{template.title}</h4>
+                        <p className="text-xs text-muted-foreground mb-2">{template.description}</p>
+                        <Badge variant="outline" className="text-xs">
+                          {template.category}
+                        </Badge>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Selected Template Details */}
+      {selectedTemplate && (
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Template Preview</CardTitle>
+            <CardDescription>
+              Review and customize the template before applying
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="font-semibold">Target Audience</Label>
+                  <p className="text-muted-foreground">{(selectedTemplate as any).specs.target_audience}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Difficulty</Label>
+                  <p className="text-muted-foreground">{(selectedTemplate as any).specs.difficulty}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Tone</Label>
+                  <p className="text-muted-foreground">{(selectedTemplate as any).specs.tone}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Topic</Label>
+                  <p className="text-muted-foreground">{(selectedTemplate as any).specs.topic}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="font-semibold">Learning Objectives</Label>
+                <ul className="list-disc list-inside text-sm text-muted-foreground mt-1">
+                  {(selectedTemplate as any).specs.learning_objectives.map((obj: string, index: number) => (
+                    <li key={index}>{obj}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={() => setSelectedTemplate(null)} variant="outline">
+                  Close Preview
+                </Button>
+                <Button onClick={() => {
+                  // Apply template will be handled by the existing applyTemplate function
+                  setSelectedTemplate(null);
+                }}>
+                  Apply Template
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  const applyTemplate = (template: any, type: 'assessment' | 'course' | 'exploration') => {
+    // Set content type and specifications based on template
+    setContentType(type);
+    setContentSpecs(template.specs);
+    
+    // Switch to create tab to show the populated form
+    setActiveTab('create');
+    
+    toast({
+      title: 'Template Applied',
+      description: `${template.title} template has been applied. You can now generate or customize the content.`,
+    });
+  };
+
   if (!isAdmin) {
     return (
       <Card className="glass-strong">
         <CardContent className="p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-          <p className="text-muted-foreground">
+          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2 text-glass">Access Denied</h3>
+          <p className="text-glass-muted">
             You need admin privileges to access the AI Content Builder.
           </p>
         </CardContent>
@@ -735,11 +1095,11 @@ Format the response as a structured JSON object with:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold flex items-center">
+          <h2 className="text-2xl font-bold flex items-center text-glass">
             <Sparkles className="h-6 w-6 mr-2 text-primary" />
             AI Content Builder
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-glass-muted">
             Generate assessments, courses, and explorations using AI
           </p>
         </div>
@@ -765,15 +1125,7 @@ Format the response as a structured JSON object with:
         </TabsContent>
 
         <TabsContent value="templates">
-          <Card className="glass">
-            <CardContent className="p-8 text-center">
-              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Templates Coming Soon</h3>
-              <p className="text-muted-foreground">
-                Pre-built templates for common assessment and course types will be available here.
-              </p>
-            </CardContent>
-          </Card>
+          {renderTemplatesTab()}
         </TabsContent>
       </Tabs>
 

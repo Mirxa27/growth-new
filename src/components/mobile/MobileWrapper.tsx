@@ -278,7 +278,7 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
     }
 
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white text-sm text-center py-2">
+      <div className="fixed top-0 left-0 right-0 z-50 glass-strong text-orange-400 border-orange-400/20 text-sm text-center py-2">
         {!syncStatus.isOnline ? (
           <span>Offline - {syncStatus.pendingItems} items pending sync</span>
         ) : (
@@ -294,7 +294,7 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
     }
 
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 bg-gray-800 text-white text-sm text-center py-2 px-4 rounded-lg shadow-lg">
+      <div className="fixed bottom-4 left-4 right-4 z-50 glass-strong text-glass text-sm text-center py-2 px-4 rounded-lg shadow-lg">
         <div className="flex items-center justify-center space-x-2">
           <div className="w-2 h-2 bg-red-500 rounded-full"></div>
           <span>You're offline. Changes will sync when connected.</span>

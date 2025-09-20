@@ -164,11 +164,11 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
       <div className="text-center space-y-2">
         <div className="flex justify-center mb-4">
           {results.passed ? (
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+            <div className="w-20 h-20 glass-subtle text-green-400 border-green-400/20 rounded-full flex items-center justify-center">
               <Trophy className="h-10 w-10 text-green-600" />
             </div>
           ) : (
-            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
+            <div className="w-20 h-20 glass-subtle text-orange-400 border-orange-400/20 rounded-full flex items-center justify-center">
               <Target className="h-10 w-10 text-orange-600" />
             </div>
           )}
@@ -239,7 +239,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
               <h3 className="text-lg font-semibold">Detailed Breakdown</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
                   <span className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
                     Correct
@@ -249,7 +249,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                   </span>
                 </div>
                 
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
                   <span className="flex items-center">
                     <XCircle className="h-4 w-4 text-red-600 mr-2" />
                     Incorrect
@@ -260,7 +260,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                 </div>
                 
                 {results.detailed_breakdown.skipped_answers > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
                     <span className="flex items-center">
                       <Clock className="h-4 w-4 text-yellow-600 mr-2" />
                       Skipped
@@ -348,7 +348,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
         <Card className="glass border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50">
           <CardContent className="p-6 text-center">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 glass-subtle text-yellow-400 border-yellow-400/20 rounded-full flex items-center justify-center">
                 <Award className="h-8 w-8 text-yellow-600" />
               </div>
             </div>

@@ -55,44 +55,44 @@ const ASSESSMENT_TYPE_INFO = {
     icon: CheckSquare,
     name: 'Multiple Choice',
     description: 'Choose the best answer from given options',
-    color: 'bg-blue-100 text-blue-800'
+    color: 'glass-subtle text-blue-400 border-blue-400/20'
   },
   true_false: {
     icon: Zap,
     name: 'True/False',
     description: 'Quick true or false questions',
-    color: 'bg-green-100 text-green-800'
+    color: 'glass-subtle text-green-400 border-green-400/20'
   },
   short_answer: {
     icon: PenTool,
     name: 'Short Answer',
     description: 'Write thoughtful responses',
-    color: 'bg-purple-100 text-purple-800'
+    color: 'glass-subtle text-purple-400 border-purple-400/20'
   },
   timed_quiz: {
     icon: Timer,
     name: 'Timed Quiz',
     description: 'Answer questions within time limits',
-    color: 'bg-orange-100 text-orange-800'
+    color: 'glass-subtle text-orange-400 border-orange-400/20'
   },
   image_identification: {
     icon: ImageIcon,
     name: 'Image Tasks',
     description: 'Visual identification and analysis',
-    color: 'bg-pink-100 text-pink-800'
+    color: 'glass-subtle text-pink-400 border-pink-400/20'
   },
   audio_response: {
     icon: Volume2,
     name: 'Audio Response',
     description: 'Voice-based questions and responses',
-    color: 'bg-indigo-100 text-indigo-800'
+    color: 'glass-subtle text-indigo-400 border-indigo-400/20'
   }
 };
 
 const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-yellow-100 text-yellow-800',
-  advanced: 'bg-red-100 text-red-800'
+  beginner: 'glass-subtle text-green-400 border-green-400/20',
+  intermediate: 'glass-subtle text-yellow-400 border-yellow-400/20',
+  advanced: 'glass-subtle text-red-400 border-red-400/20'
 };
 
 const CATEGORY_ICONS = {
@@ -207,7 +207,7 @@ export const AssessmentHub: React.FC<AssessmentHubProps> = ({
                   <TypeIcon className="h-4 w-4" />
                 </div>
                 {assessment.is_featured && (
-                  <Badge variant="default" className="bg-yellow-100 text-yellow-800">
+                  <Badge variant="default" className="glass-subtle text-yellow-400 border-yellow-400/20">
                     <Star className="h-3 w-3 mr-1" />
                     Featured
                   </Badge>

@@ -6,42 +6,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
-import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
+import { Save, AlertCircle, Mic, Settings, TestTube, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
+import { adminService } from '@/services/admin/comprehensive-admin.service';
+import { VoiceAgentConfigSchema } from '@/schemas/admin.schemas';
+import { AdminError } from '@/services/admin/admin-error-handler.service';
 
 type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 
 const VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
 
-const voiceAgentConfigSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  provider: z.string().default('openai'),
-  voice: z.enum(VOICES, { errorMap: () => ({ message: 'Invalid voice selection' }) }),
-  model: z.string().min(3, 'Model name is required'),
-  temperature: z.number().min(0).max(1, 'Temperature must be between 0 and 1'),
-  instructions: z.string().optional(),
-  is_active: z.boolean().default(true),
-  enable_realtime: z.boolean().default(true).optional(),
-  use_proxy: z.boolean().default(true).optional(),
-  proxy_url: z.string().url('Invalid URL').optional().or(z.literal('')),
-  input_audio_transcription_model: z.string().default('whisper-1').optional(),
-  input_audio_format: z.string().default('pcm16').optional(),
-  output_audio_format: z.string().default('pcm16').optional(),
-  turn_detection_type: z.enum(['server_vad','none']).default('server_vad').optional(),
-  turn_detection_threshold: z.number().min(0).max(1).default(0.5).optional(),
-  turn_detection_prefix_padding_ms: z.number().min(0).max(2000).default(300).optional(),
-  turn_detection_silence_duration_ms: z.number().min(100).max(3000).default(1000).optional(),
-  language: z.string().default('en').optional(),
-  arabic_support: z.boolean().default(true).optional(),
-  emotion_detection: z.boolean().default(true).optional(),
-});
-
-type VoiceAgentConfig = z.infer<typeof voiceAgentConfigSchema>;
+type VoiceAgentConfig = z.infer<typeof VoiceAgentConfigSchema>;
 
 export const VoiceAgentConfigManager: React.FC = () => {
   const { configs, loading, error: fetchError } = useVoiceAgentConfig();
@@ -97,57 +78,72 @@ export const VoiceAgentConfigManager: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const validate = (data: typeof form) => {
-    return voiceAgentConfigSchema.parse(data);
-  };
-
   const handleSave = async () => {
     setErrors({});
-    console.log('Saving voice agent config:', form);
+    
     try {
-      const validatedConfig = validate(form);
       setIsSaving(true);
       
-      if (validatedConfig.is_active) {
-        const { error: deactivateError } = await supabase
-          .from('voice_agent_configs')
-          .update({ is_active: false })
-          .neq('id', validatedConfig.id || '');
-
-        if (deactivateError) {
-          console.error('Error deactivating other configs:', deactivateError);
-          throw new Error('Failed to update active configuration status');
-        }
-      }
-
-      const { error: upsertError } = await supabase
-        .from('voice_agent_configs')
-        .upsert([validatedConfig]);
-
-      if (upsertError) {
-        console.error('Error upserting config:', upsertError);
-        throw new Error('Failed to save configuration');
-      }
-
-      toast({ title: "Success", description: "Configuration saved successfully." });
-    } catch (e: unknown) {
-      if (e instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        if (e.errors && Array.isArray(e.errors)) {
-          e.errors.forEach(err => {
-            if (err.path && err.path.length > 0) {
-              errors[err.path[0].toString()] = err.message;
-            }
+      // Transform form data to match schema expectations
+      const configData = {
+        ...form,
+        ai_provider: form.provider === 'openai' ? 'openai' : form.provider,
+        ai_model: form.model,
+        max_response_output_tokens: Number(form.max_response_output_tokens) || 1000,
+        temperature: Number(form.temperature) || 0.7,
+        turn_detection_threshold: Number(form.turn_detection_threshold) || 0.5,
+        turn_detection_prefix_padding_ms: Number(form.turn_detection_prefix_padding_ms) || 300,
+        turn_detection_silence_duration_ms: Number(form.turn_detection_silence_duration_ms) || 500,
+        context_window_messages: Number(form.context_window_messages) || 10,
+        instructions: form.instructions || '',
+        conversation_memory: form.conversation_memory !== false,
+        input_audio_transcription: form.input_audio_transcription === true,
+        emotion_detection: form.emotion_detection === true,
+        arabic_support: form.arabic_support === true,
+      };
+      
+      const result = await adminService.saveVoiceAgentConfig(configData);
+      
+      toast({ 
+        title: "Configuration Saved", 
+        description: result.message,
+        duration: 3000
+      });
+      
+      // Refresh the page to reflect changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      if (error instanceof AdminError) {
+        if (error.code === 'VALIDATION_ERROR' && error.details?.validationErrors) {
+          const fieldErrors: Record<string, string> = {};
+          error.details.validationErrors.forEach((validationError: any) => {\n            fieldErrors[validationError.field] = validationError.message;
+          });
+          setErrors(fieldErrors);
+          
+          toast({
+            title: "Validation Error",
+            description: "Please check the form for errors and try again",
+            variant: "destructive",
+            duration: 5000
+          });
+        } else {
+          toast({ 
+            title: "Save Failed", 
+            description: error.userMessage || 'Failed to save voice agent configuration',
+            variant: "destructive",
+            duration: 5000
           });
         }
-        setErrors(errors);
       } else {
-        const error = e as Error;
-        console.error('Error saving config:', error);
+        console.error('Unexpected error saving voice agent config:', error);
         toast({ 
-          title: "Error", 
-          description: error.message || 'An unexpected error occurred', 
-          variant: "destructive" 
+          title: "Unexpected Error", 
+          description: 'An unexpected error occurred. Please try again.', 
+          variant: "destructive",
+          duration: 5000
         });
       }
     } finally {
@@ -155,15 +151,42 @@ export const VoiceAgentConfigManager: React.FC = () => {
     }
   };
 
-  if (loading) return <div>Loading configuration...</div>;
-  if (fetchError) return <div className="text-red-500">Error loading configuration: {fetchError}</div>;
+  if (loading) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Loading Configuration</h3>
+          <p className="text-glass-muted">Please wait while we fetch your voice agent settings...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (fetchError) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8">
+          <Alert variant="destructive" className="alert-glass border-red-400/20">
+            <XCircle className="h-4 w-4 text-red-400" />
+            <AlertDescription className="text-glass">
+              <strong>Failed to load voice agent configuration:</strong> {fetchError}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <Card className="glass-strong">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Mic className="h-6 w-6" /> Voice Agent Configuration</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-glass flex items-center gap-2">
+            <Mic className="h-6 w-6 text-primary" /> 
+            Voice Agent Configuration
+          </CardTitle>
+          <CardDescription className="text-glass-muted">
             Customize the active voice agent's personality, voice, and other settings.
           </CardDescription>
         </CardHeader>
@@ -171,7 +194,13 @@ export const VoiceAgentConfigManager: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="name">Configuration Name</Label>
-              <Input id="name" className="glass-input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+              <Input 
+                id="name" 
+                className="input-glass" 
+                value={form.name} 
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))} 
+                placeholder="Enter configuration name"
+              />
               {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
             </div>
             <div className="space-y-2">

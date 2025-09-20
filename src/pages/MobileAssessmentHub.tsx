@@ -87,9 +87,9 @@ const ASSESSMENT_TYPE_INFO = {
 };
 
 const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-yellow-100 text-yellow-800',
-  advanced: 'bg-red-100 text-red-800'
+  beginner: 'glass-subtle text-green-400 border-green-400/20',
+  intermediate: 'glass-subtle text-yellow-400 border-yellow-400/20',
+  advanced: 'glass-subtle text-red-400 border-red-400/20'
 };
 
 const MobileAssessmentHub: React.FC = () => {
@@ -219,7 +219,7 @@ const MobileAssessmentHub: React.FC = () => {
                   <TypeIcon className="h-4 w-4" />
                 </div>
                 {assessment.is_featured && (
-                  <Badge variant="default" className="bg-yellow-100 text-yellow-800">
+                  <Badge variant="default" className="glass-subtle text-yellow-400 border-yellow-400/20">
                     <Star className="h-3 w-3 mr-1" />
                     Featured
                   </Badge>

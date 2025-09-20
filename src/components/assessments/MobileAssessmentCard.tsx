@@ -41,13 +41,13 @@ const getCategoryIcon = (category?: string) => {
 const getDifficultyColor = (difficulty?: string) => {
   switch (difficulty?.toLowerCase()) {
     case 'beginner':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      return 'glass-subtle text-green-400 border-green-400/20';
     case 'intermediate':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
+      return 'glass-subtle text-yellow-400 border-yellow-400/20';
     case 'advanced':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+      return 'glass-subtle text-red-400 border-red-400/20';
     default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
+      return 'glass-subtle text-glass-muted border-border';
   }
 };
 
