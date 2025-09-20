@@ -33,6 +33,10 @@ const Community = lazy(() => import("./pages/Community"));
 const TranscriptionPage = lazy(() => import("./pages/TranscriptionPage"));
 const ConfigurationPage = lazy(() => import("./pages/ConfigurationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Visitor Assessment Components
+const VisitorAssessmentsList = lazy(() => import("./components/assessments/VisitorAssessmentsList"));
+const VisitorAssessmentComponent = lazy(() => import("./components/assessments/VisitorAssessment"));
 import ExplorationSession from "./components/exploration/ExplorationSession";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import { NewomenOnboardingFlow } from "./components/onboarding/NewomenOnboardingFlow";
@@ -41,6 +45,7 @@ import { FreeAssessmentHub } from "./components/assessments/FreeAssessmentHub";
 import MobileAssessmentHub from "./pages/MobileAssessmentHub";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
+import VisitorLayout from "./components/layouts/VisitorLayout";
 
 const queryClient = new QueryClient();
 
@@ -106,9 +111,18 @@ const App = () => {
                 </div>
               }>
                 <main id="main-content" className="focus:outline-none" tabIndex={-1}>
-              <Routes>
+              <VisitorLayout>
+                <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/login" element={<Auth />} />
+              <Route path="/auth/register" element={<Auth />} />
+              
+              {/* Visitor Assessment Routes */}
+              <Route path="/assessments" element={<VisitorAssessmentsList />} />
+              <Route path="/assessment/:slug" element={<VisitorAssessmentComponent />} />
+              
+              {/* Legacy Assessment Routes */}
               <Route path="/assessment" element={<PublicAssessment />} />
               <Route path="/mobile-assessment" element={<MobileAssessment />} />
               <Route path="/mobile-assessment-hub" element={<MobileAssessmentHub />} />
@@ -188,6 +202,7 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
+              </VisitorLayout>
                 </main>
               </Suspense>
               <MobileNavigation />
