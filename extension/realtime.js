@@ -1,6 +1,7 @@
-import { ensureSettingsLoaded, getSetting } from './utils.js';
+// Realtime voice session management for Chrome Extension MV3
+// Traditional script approach - no ES modules
 
-export async function createVoiceSession(sessionId, metadata = {}) {
+async function createVoiceSession(sessionId, metadata = {}) {
   await ensureSettingsLoaded();
   const supabaseUrl = await getSetting('supabase_url');
   const anonKey = await getSetting('supabase_anon_key');

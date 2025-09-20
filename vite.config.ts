@@ -7,7 +7,42 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [
     react(),
-    tsconfigPaths()
+    tsconfigPaths(),
+    // Custom plugin to handle Capacitor imports gracefully in web builds
+    {
+      name: 'capacitor-web-handler',
+      resolveId(id) {
+        // Handle Capacitor imports by providing web-compatible stubs
+        if (id.startsWith('@capacitor/')) {
+          return id;
+        }
+        return null;
+      },
+      load(id) {
+        // Provide empty exports for Capacitor modules in web builds
+        if (id.startsWith('@capacitor/')) {
+          return `
+            console.warn('Capacitor module ${id} is not available in web builds');
+            export const Capacitor = {
+              isNativePlatform: () => false,
+              getPlatform: () => 'web'
+            };
+            export const Camera = {};
+            export const App = {};
+            export const StatusBar = {};
+            export const SplashScreen = {};
+            export const Keyboard = {};
+            export const Preferences = {};
+            export const Network = {};
+            export const PushNotifications = {};
+            export const Geolocation = {};
+            export const LocalNotifications = {};
+            export default {};
+          `;
+        }
+        return null;
+      }
+    }
   ],
   resolve: {
     alias: {
@@ -20,19 +55,7 @@ export default defineConfig({
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {
-      external: [
-        '@capacitor/app',
-        '@capacitor/camera', 
-        '@capacitor/core',
-        '@capacitor/network',
-        '@capacitor/preferences',
-        '@capacitor/push-notifications',
-        '@capacitor/geolocation',
-        '@capacitor/keyboard',
-        '@capacitor/local-notifications',
-        '@capacitor/splash-screen',
-        '@capacitor/status-bar'
-      ],
+      // Removed Capacitor externals - now handled by custom plugin
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
@@ -58,15 +81,8 @@ export default defineConfig({
       'react-router-dom',
       '@supabase/supabase-js',
       'openai'
-    ],
-    exclude: [
-      '@capacitor/app',
-      '@capacitor/camera',
-      '@capacitor/core',
-      '@capacitor/network',
-      '@capacitor/preferences',
-      '@capacitor/push-notifications'
     ]
+    // Removed Capacitor excludes - now handled by custom plugin
   },
   server: {
     port: 5173,
@@ -78,6 +94,8 @@ export default defineConfig({
     host: true
   },
   define: {
-    'process.env': {}
+    'process.env': {},
+    // Prevent Capacitor import errors in web builds
+    '__CAPACITOR_WEB__': true
   }
 });
