@@ -2,9 +2,9 @@ name: CodeQL + Supabase DB/Functions + Types + Vercel
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
     - cron: "21 22 * * 3"
 
@@ -27,7 +27,8 @@ env:
 jobs:
   codeql:
     name: CodeQL Analyze (${{ matrix.language }})
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ${{
+      (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -40,10 +41,10 @@ jobs:
             build-mode: autobuild
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@b611370bb5703a7efb587f9d136a52ea24c5c38c  # v3.25.11
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -51,11 +52,11 @@ jobs:
       - name: Manual build (only if build-mode == manual)
         if: matrix.build-mode == 'manual'
         run: |
-          echo "Configure your project's manual build here (e.g., make build)" >&2
+          echo "Configure your project's manual build here" >&2
           exit 1
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@b611370bb5703a7efb587f9d136a52ea24c5c38c  # v3.25.11
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -67,10 +68,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
@@ -81,7 +82,7 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@f6c681b29b2825e49d5ac4ae0782f447e8a6de33  # v1.4.0
         with:
           # version: "1.136.3"  # pin if you require
           # default = latest stable
@@ -138,13 +139,13 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@f6c681b29b2825e49d5ac4ae0782f447e8a6de33  # v1.4.0
 
       - name: Generate & Commit Types
-        uses: lyqht/generate-supabase-db-types-github-action@v1.0.0
+        uses: lyqht/generate-supabase-db-types-github-action@5b1c20ce54ef7e8c93a0edb6f9d41a2897efd1f7  # v1.0.0
         with:
           SUPABASE_REF_ID: ${{ secrets.SUPABASE_REF_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -160,10 +161,10 @@ jobs:
       deployments: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
@@ -178,7 +179,7 @@ jobs:
           npm run build --if-present
 
       - name: Vercel Deploy
-        uses: nexterias/actions-vercel@v1.2.3
+        uses: nexterias/actions-vercel@21ad1e6eb2b7bf4dd60e4421e20c9cf8c6d0deca  # v1.2.3
         with:
           token: ${{ secrets.VERCEL_TOKEN }}
           project-id: ${{ secrets.VERCEL_PROJECT_ID }}
