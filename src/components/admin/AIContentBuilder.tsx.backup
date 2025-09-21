@@ -19,6 +19,7 @@ import {
   Target,
   CheckCircle,
   RefreshCw,
+} from 'lucide-react';
 
 import { openaiService } from '@/services/ai/openai.service';
 import { 
@@ -28,27 +29,20 @@ import {
   Upload, 
   RefreshCw, 
   Settings, 
-
   Eye,
   Plus,
   Trash2,
-
-  Settings,
   AlertCircle,
   Lightbulb,
   Zap,
-  Plus,
-  Filter
-=======
+  Filter,
   Edit,
   CheckCircle,
-  AlertCircle,
   Loader2,
   BookOpen,
   FileText,
   HelpCircle,
   Target
-
 } from 'lucide-react';
 
 
@@ -88,6 +82,7 @@ interface AIBuildJobInsert {
   prompt: string;
   parameters: Record<string, unknown>;
   content_specs: ContentSpecs;
+}
 
 interface ContentTemplate {
   id: string;
@@ -1509,10 +1504,10 @@ Guidelines:
       if (jobUpdateError) {
         throw jobUpdateError;
       }
-=======
-  /**
-   * Publish template
-   */
+
+      /**
+       * Publish template
+       */
   const publishTemplate = async (template: ContentTemplate) => {
     try {
       // Update status to published

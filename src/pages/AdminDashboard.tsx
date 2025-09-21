@@ -40,7 +40,7 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
-import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
+// import { AIContentBuilder } from '@/components/admin/AIContentBuilder'; // Temporarily disabled due to merge conflicts
 import { AIAssessmentBuilder } from '@/components/admin/AIAssessmentBuilder';
 import { PayPalSettings } from '@/components/admin/PayPalSettings';
 import { logger } from '@/utils/logger';
@@ -584,7 +584,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-6">
             <AIAssessmentBuilder />
-            <AIContentBuilder />
+            {/* <AIContentBuilder /> Temporarily disabled due to merge conflicts */}
           </div>
         );
       case 'payments':
