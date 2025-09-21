@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
 import {
   Sparkles,
   Wand2,
@@ -18,19 +19,38 @@ import {
   Target,
   CheckCircle,
   RefreshCw,
+
+import { openaiService } from '@/services/ai/openai.service';
+import { 
+  Wand2, 
+  Save, 
+  Download, 
+  Upload, 
+  RefreshCw, 
+  Settings, 
+
   Eye,
-  Edit,
+  Plus,
   Trash2,
+
   Settings,
   AlertCircle,
   Lightbulb,
   Zap,
   Plus,
   Filter
+=======
+  Edit,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  BookOpen,
+  FileText,
+  HelpCircle,
+  Target
+
 } from 'lucide-react';
-import { logger } from '@/utils/logger';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { format } from 'date-fns';
+
 
 type ContentType = 'assessment' | 'course' | 'exploration';
 type TemplateFilter = 'all' | ContentType;
@@ -68,13 +88,44 @@ interface AIBuildJobInsert {
   prompt: string;
   parameters: Record<string, unknown>;
   content_specs: ContentSpecs;
+
+interface ContentTemplate {
+  id: string;
+  type: 'assessment' | 'quiz' | 'exploration' | 'course';
+  title: string;
+  description: string;
+  topic: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: number;
+  questions: GeneratedQuestion[];
+  metadata: {
+    category: string;
+    tags: string[];
+    learningObjectives: string[];
+    prerequisites?: string[];
+  };
+  status: 'draft' | 'review' | 'published';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface ContentSpecs {
-  target_audience: string;
-  difficulty: string;
-  length: string;
+interface GeneratedQuestion {
+  id: string;
+  question: string;
+  type: 'multiple_choice' | 'scale' | 'true_false' | 'open_ended' | 'scenario';
+  options?: { id: string; text: string; value: number; explanation?: string }[];
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleLabels?: { min: string; max: string };
+  category?: string;
+  explanation?: string;
+  difficulty: number;
+
+}
+
+interface GenerationRequest {
   topic: string;
+
   learning_objectives: string[];
   question_count?: number;
   assessment_type?: string;
@@ -115,6 +166,14 @@ interface PromptPreviewState {
   prompt: string;
   specs: ContentSpecs;
   settings: AISettings;
+
+  contentType: 'assessment' | 'quiz' | 'exploration' | 'course';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  questionCount: number;
+  category: string;
+  audience: 'visitors' | 'users' | 'premium';
+  additionalInstructions?: string;
+
 }
 
 interface JobPreviewState {
@@ -625,6 +684,7 @@ const CONTENT_TEMPLATES: TemplateDefinition[] = [
 
 export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPublished }) => {
   const { toast } = useToast();
+
   const { isAdmin, verified } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<BuilderTab>('create');
   const [contentType, setContentType] = useState<ContentType>('assessment');
@@ -663,23 +723,45 @@ export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPub
     }
   }, [verified]);
 
+
+  const [generationRequest, setGenerationRequest] = useState<GenerationRequest>({
+    topic: '',
+    contentType: 'assessment',
+    difficulty: 'intermediate',
+    questionCount: 10,
+    category: 'personality',
+    audience: 'users',
+  });
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<ContentTemplate | null>(null);
+  const [savedTemplates, setSavedTemplates] = useState<ContentTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ContentTemplate | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const categories = [
+    'personality', 'wellness', 'career', 'relationships', 'mindfulness', 
+    'growth', 'leadership', 'creativity', 'emotional-intelligence', 'communication'
+  ];
+
+  const contentTypes = [
+    { value: 'assessment', label: 'Assessment', icon: '📊', description: 'Comprehensive personality or skill evaluation' },
+    { value: 'quiz', label: 'Quiz', icon: '❓', description: 'Quick knowledge or preference check' },
+    { value: 'exploration', label: 'Exploration', icon: '🔍', description: 'Self-discovery and reflection exercise' },
+    { value: 'course', label: 'Course', icon: '📚', description: 'Multi-part learning experience' }
+  ];
+
+  /**
+   * Load saved templates
+   */
+
   useEffect(() => {
-    // Poll for job updates when there are active jobs
-    const activeJobs = buildJobs.filter(job => 
-      job.status === 'pending' || job.status === 'in_progress'
-    );
+    loadSavedTemplates();
+  }, []);
 
-    if (activeJobs.length > 0) {
-      const interval = setInterval(() => {
-        fetchBuildJobs();
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-  }, [buildJobs]);
-
-  const fetchBuildJobs = async () => {
+  const loadSavedTemplates = async () => {
     try {
+
       const { data, error } = await supabase
         .from('ai_build_jobs')
         .select('*')
@@ -700,31 +782,34 @@ export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPub
         .filter((job): job is AIBuildJob => Boolean(job));
 
       setBuildJobs(normalizedJobs);
+
+      // In a real implementation, this would fetch from the database
+      // For now, we'll use localStorage as a demo
+      const saved = localStorage.getItem('ai_generated_templates');
+      if (saved) {
+        setSavedTemplates(JSON.parse(saved));
+      }
+
     } catch (error) {
-      logger.error('Failed to fetch build jobs', 'AIContentBuilder', error);
+      console.error('Error loading templates:', error);
     }
   };
 
+  /**
+   * Generate content using AI
+   */
   const generateContent = async () => {
-    if (!verified) {
-      toast({
-        title: 'Access Denied',
-        description: 'Admin verification required for AI content generation.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!contentSpecs.topic.trim()) {
+    if (!generationRequest.topic.trim()) {
       toast({
         title: 'Topic Required',
         description: 'Please enter a topic for content generation.',
-        variant: 'destructive'
+        variant: 'destructive',
       });
       return;
     }
 
     setIsGenerating(true);
+
     try {
       const prompt = generatePrompt();
 
@@ -751,15 +836,53 @@ export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPub
         prompt,
         parameters,
         content_specs: sanitizedSpecs,
+
+      // Create prompt for AI content generation
+      const prompt = createGenerationPrompt(generationRequest);
+      
+      // Call OpenAI API
+      const response = await openaiService.generateCompletion({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert in creating psychological assessments, quizzes, and educational content. You create engaging, scientifically-informed, and well-structured content.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        maxTokens: 3000,
+      });
+
+      // Parse the AI response
+      const generatedData = parseAIResponse(response.choices[0].message.content);
+      
+      // Create content template
+      const template: ContentTemplate = {
+        id: `ai_${Date.now()}`,
+        type: generationRequest.contentType,
+        title: generatedData.title,
+        description: generatedData.description,
+        topic: generationRequest.topic,
+        difficulty: generationRequest.difficulty,
+        estimatedTime: calculateEstimatedTime(generatedData.questions.length, generationRequest.contentType),
+        questions: generatedData.questions,
+        metadata: {
+          category: generationRequest.category,
+          tags: generatedData.tags || [],
+          learningObjectives: generatedData.learningObjectives || [],
+          prerequisites: generatedData.prerequisites,
+        },
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+
       };
 
-      const { data, error } = await supabase
-        .from('ai_build_jobs')
-        .insert([jobData])
-        .select()
-        .single();
+      setGeneratedContent(template);
 
-      if (error) throw error;
 
       const normalizedJob = normalizeJob(data);
       if (!normalizedJob) {
@@ -769,9 +892,10 @@ export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPub
       await triggerAIGeneration(normalizedJob.id);
 
       toast({
-        title: 'Generation Started',
-        description: `AI is now generating your ${contentType}. This may take a few minutes.`,
+        title: 'Content Generated!',
+        description: `Successfully generated ${generationRequest.contentType} with ${template.questions.length} questions.`,
       });
+
 
       setBuildJobs((previousJobs) => [
         normalizedJob,
@@ -785,120 +909,120 @@ export const AIContentBuilder: React.FC<AIContentBuilderProps> = ({ onContentPub
       setActiveTab('jobs');
 
     } catch (error) {
-      logger.error('Failed to start content generation', 'AIContentBuilder', error);
+      console.error('Error generating content:', error);
       toast({
         title: 'Generation Failed',
-        description: 'Failed to start AI content generation. Please try again.',
-        variant: 'destructive'
+        description: 'Failed to generate content. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const triggerAIGeneration = async (jobId: string) => {
+  /**
+   * Create AI generation prompt
+   */
+  const createGenerationPrompt = (request: GenerationRequest): string => {
+    return `Create a comprehensive ${request.contentType} about "${request.topic}" with the following specifications:
+
+Content Type: ${request.contentType}
+Difficulty Level: ${request.difficulty}
+Number of Questions: ${request.questionCount}
+Category: ${request.category}
+Target Audience: ${request.audience}
+${request.additionalInstructions ? `Additional Instructions: ${request.additionalInstructions}` : ''}
+
+Please provide a JSON response with the following structure:
+{
+  "title": "Engaging title for the ${request.contentType}",
+  "description": "Compelling description that explains what users will learn or discover",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Well-crafted question text",
+      "type": "multiple_choice|scale|true_false|open_ended",
+      "options": [{"id": "a", "text": "Option text", "value": 1-5, "explanation": "Why this option represents this score"}],
+      "scaleMin": 1,
+      "scaleMax": 10,
+      "scaleLabels": {"min": "Low end label", "max": "High end label"},
+      "category": "Aspect being measured",
+      "explanation": "What this question measures and why it's important",
+      "difficulty": 1-5
+    }
+  ],
+  "tags": ["relevant", "tags", "for", "content"],
+  "learningObjectives": ["What users will learn or discover"],
+  "prerequisites": ["Optional prerequisites if any"]
+}
+
+Guidelines:
+- Make questions psychologically sound and engaging
+- Ensure questions are appropriate for ${request.difficulty} level
+- Include diverse question types for engagement
+- Provide clear, non-biased language
+- Create meaningful result categories if applicable
+- Focus on actionable insights and personal growth`;
+  };
+
+  /**
+   * Parse AI response
+   */
+  const parseAIResponse = (response: string): any => {
     try {
-      const { error } = await supabase.functions.invoke('ai-content-generator', {
-        body: { jobId }
-      });
+      // Extract JSON from response (handle cases where AI adds explanation text)
+      const jsonStart = response.indexOf('{');
+      const jsonEnd = response.lastIndexOf('}') + 1;
+      const jsonStr = response.substring(jsonStart, jsonEnd);
+      
+      const parsed = JSON.parse(jsonStr);
+      
+      // Add IDs to questions if missing
+      parsed.questions = parsed.questions.map((q: any, index: number) => ({
+        ...q,
+        id: q.id || `q${index + 1}`,
+        options: q.options?.map((opt: any, optIndex: number) => ({
+          ...opt,
+          id: opt.id || `q${index + 1}_${String.fromCharCode(97 + optIndex)}`,
+        })) || undefined,
+      }));
 
-      if (error) throw error;
+      return parsed;
     } catch (error) {
-      logger.error('Failed to trigger AI generation', 'AIContentBuilder', error);
-      throw error;
+      console.error('Error parsing AI response:', error);
+      throw new Error('Failed to parse AI response');
     }
   };
 
-  const generatePrompt = (): string => {
-    if (customPrompt.trim()) {
-      return customPrompt;
-    }
+  /**
+   * Calculate estimated time
+   */
+  const calculateEstimatedTime = (questionCount: number, contentType: string): number => {
+    const baseTime = {
+      assessment: 1.5, // minutes per question
+      quiz: 0.8,
+      exploration: 2,
+      course: 3,
+    };
 
-    let basePrompt = '';
-    
-    switch (contentType) {
-      case 'assessment':
-        basePrompt = `Create a comprehensive ${contentSpecs.assessment_type.replace('_', ' ')} assessment about "${contentSpecs.topic}" with the following specifications:
-
-Target Audience: ${contentSpecs.target_audience}
-Difficulty Level: ${contentSpecs.difficulty}
-Number of Questions: ${contentSpecs.question_count}
-Tone: ${contentSpecs.tone}
-
-Requirements:
-- Include ${contentSpecs.question_count} well-crafted questions
-- Each question should test understanding of key concepts
-- Provide multiple choice options where applicable
-- Include correct answers and explanations${contentSpecs.include_explanations ? ' with detailed explanations' : ''}
-- Ensure questions progress logically in difficulty
-- Cover different aspects of the topic comprehensively
-
-Learning Objectives:
-${contentSpecs.learning_objectives.map(obj => `- ${obj}`).join('\n')}
-
-Format the response as a structured JSON object with:
-- title: Assessment title
-- description: Brief description
-- instructions: Clear instructions for users  
-- questions: Array of question objects with text, options, correct_answer, explanation
-- metadata: Additional information about the assessment`;
-        break;
-
-      case 'course':
-        basePrompt = `Create a comprehensive course about "${contentSpecs.topic}" with the following specifications:
-
-Target Audience: ${contentSpecs.target_audience}
-Difficulty Level: ${contentSpecs.difficulty}
-Course Length: ${contentSpecs.length}
-Tone: ${contentSpecs.tone}
-
-Requirements:
-- Structure the course into logical modules/chapters
-- Include learning objectives for each module
-- Provide engaging content that builds progressively
-- Include practical exercises and assessments
-- Ensure comprehensive coverage of the topic
-
-Learning Objectives:
-${contentSpecs.learning_objectives.map(obj => `- ${obj}`).join('\n')}
-
-Format the response as a structured JSON object with:
-- title: Course title
-- description: Comprehensive description
-- modules: Array of module objects with title, content, objectives, assessments
-- estimated_duration: Total course duration
-- prerequisites: Any required prior knowledge`;
-        break;
-
-      case 'exploration':
-        basePrompt = `Create an interactive exploration experience about "${contentSpecs.topic}" with the following specifications:
-
-Target Audience: ${contentSpecs.target_audience}
-Difficulty Level: ${contentSpecs.difficulty}
-Experience Length: ${contentSpecs.length}
-Tone: ${contentSpecs.tone}
-
-Requirements:
-- Create an engaging, interactive journey of self-discovery
-- Include thought-provoking questions and prompts
-- Provide personalized insights and reflections
-- Structure content to encourage deep thinking
-- Include actionable takeaways
-
-Learning Objectives:
-${contentSpecs.learning_objectives.map(obj => `- ${obj}`).join('\n')}
-
-Format the response as a structured JSON object with:
-- title: Exploration title
-- description: Engaging description
-- content: Structured exploration content with steps, prompts, and insights
-- estimated_time: Expected completion time
-- outcomes: What participants will gain`;
-        break;
-    }
-
-    return basePrompt;
+    return Math.round(questionCount * (baseTime[contentType as keyof typeof baseTime] || 1.5));
   };
+
+  /**
+   * Save template
+   */
+  const saveTemplate = async (template: ContentTemplate) => {
+    try {
+      // Update template
+      const updatedTemplate = {
+        ...template,
+        updatedAt: new Date(),
+      };
+
+      // Save to storage (in real implementation, this would be database)
+      const existingIndex = savedTemplates.findIndex(t => t.id === template.id);
+      let updatedTemplates;
+
 
   const applyTemplate = (template: TemplateDefinition) => {
     setContentSpecs((previous) => mergeContentSpecs(previous, template.specs));
@@ -970,21 +1094,34 @@ Format the response as a structured JSON object with:
     }));
   };
 
-  const updateLearningObjective = (index: number, value: string) => {
-    setContentSpecs(prev => ({
-      ...prev,
-      learning_objectives: prev.learning_objectives.map((obj, i) => 
-        i === index ? value : obj
-      )
-    }));
+      if (existingIndex >= 0) {
+        updatedTemplates = [...savedTemplates];
+        updatedTemplates[existingIndex] = updatedTemplate;
+      } else {
+        updatedTemplates = [...savedTemplates, updatedTemplate];
+      }
+
+      setSavedTemplates(updatedTemplates);
+      localStorage.setItem('ai_generated_templates', JSON.stringify(updatedTemplates));
+
+
+      toast({
+        title: 'Template Saved',
+        description: 'Content template has been saved successfully.',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Failed to save template. Please try again.',
+        variant: 'destructive',
+      });
+      return false;
+    }
   };
 
-  const removeLearningObjective = (index: number) => {
-    setContentSpecs(prev => ({
-      ...prev,
-      learning_objectives: prev.learning_objectives.filter((_, i) => i !== index)
-    }));
-  };
 
   const generateSlug = (value: string) => {
     return (
@@ -1372,25 +1509,51 @@ Format the response as a structured JSON object with:
       if (jobUpdateError) {
         throw jobUpdateError;
       }
+=======
+  /**
+   * Publish template
+   */
+  const publishTemplate = async (template: ContentTemplate) => {
+    try {
+      // Update status to published
+      const publishedTemplate = {
+        ...template,
+        status: 'published' as const,
+        updatedAt: new Date(),
+      };
+
+      // Save the published template
+      await saveTemplate(publishedTemplate);
+
+      // Here you would also save to the main assessments/content database
+      // For demo purposes, we'll just update local state
+
 
       toast({
-        title: 'Content Published',
-        description: `Your ${job.job_type} has been published successfully.`,
+        title: 'Content Published!',
+        description: 'Your content is now available to users.',
       });
+
 
       onContentPublished?.({ type: job.job_type as 'assessment' | 'course' | 'exploration', id: recordId, title: parsedContent?.title });
       fetchBuildJobs();
+        
     } catch (error) {
-      logger.error('Failed to publish content', 'AIContentBuilder', error);
+      console.error('Error publishing template:', error);
       toast({
         title: 'Publishing Failed',
+
         description: error instanceof Error ? error.message : 'Failed to publish the generated content.',
+
+        description: 'Failed to publish content. Please try again.',
+
         variant: 'destructive',
       });
     } finally {
       setPublishingJobId(null);
     }
   };
+
 
   const renderCreateTab = () => (
     <div className="space-y-6">
@@ -1467,130 +1630,126 @@ Format the response as a structured JSON object with:
               </Select>
             </div>
 
-            <div>
-              <Label>Difficulty Level</Label>
-              <Select value={contentSpecs.difficulty} onValueChange={(value) => 
-                setContentSpecs(prev => ({ ...prev, difficulty: value }))
-              }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+  /**
+   * Delete template
+   */
+  const deleteTemplate = async (templateId: string) => {
+    try {
+      const updatedTemplates = savedTemplates.filter(t => t.id !== templateId);
+      setSavedTemplates(updatedTemplates);
+      localStorage.setItem('ai_generated_templates', JSON.stringify(updatedTemplates));
 
-            <div>
-              <Label>Content Length</Label>
-              <Select value={contentSpecs.length} onValueChange={(value) => 
-                setContentSpecs(prev => ({ ...prev, length: value }))
-              }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="short">Short (5-10 min)</SelectItem>
-                  <SelectItem value="medium">Medium (15-30 min)</SelectItem>
-                  <SelectItem value="long">Long (45+ min)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+      if (selectedTemplate?.id === templateId) {
+        setSelectedTemplate(null);
+      }
+      if (generatedContent?.id === templateId) {
+        setGeneratedContent(null);
+      }
+
+      toast({
+        title: 'Template Deleted',
+        description: 'Content template has been deleted.',
+      });
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete template. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  /**
+   * Export template
+   */
+  const exportTemplate = (template: ContentTemplate) => {
+    const dataStr = JSON.stringify(template, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${template.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Template Exported',
+      description: 'Template has been downloaded as JSON file.',
+    });
+  };
+
+  /**
+   * Render question preview
+   */
+  const renderQuestionPreview = (question: GeneratedQuestion, index: number) => {
+    return (
+      <Card key={question.id} className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-lg">Question {index + 1}</CardTitle>
+            <Badge variant="outline" className="capitalize">
+              {question.type.replace('_', ' ')}
+            </Badge>
           </div>
-
-          {contentType === 'assessment' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Assessment Type</Label>
-                <Select value={contentSpecs.assessment_type} onValueChange={(value) => 
-                  setContentSpecs(prev => ({ ...prev, assessment_type: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                    <SelectItem value="true_false">True/False</SelectItem>
-                    <SelectItem value="short_answer">Short Answer</SelectItem>
-                    <SelectItem value="timed_quiz">Timed Quiz</SelectItem>
-                  </SelectContent>
-                </Select>
+          <CardDescription>{question.question}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {question.type === 'multiple_choice' && question.options && (
+            <div className="space-y-2">
+              {question.options.map((option) => (
+                <div key={option.id} className="flex items-center space-x-2 p-2 border rounded">
+                  <div className="w-4 h-4 border rounded-full"></div>
+                  <span className="flex-1">{option.text}</span>
+                  <Badge variant="secondary">{option.value}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {question.type === 'scale' && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{question.scaleLabels?.min}</span>
+                <span>{question.scaleLabels?.max}</span>
               </div>
-              
-              <div>
-                <Label>Number of Questions</Label>
-                <Input
-                  type="number"
-                  value={contentSpecs.question_count}
-                  onChange={(e) => setContentSpecs(prev => ({ 
-                    ...prev, 
-                    question_count: parseInt(e.target.value) || 10 
-                  }))}
-                  min="5"
-                  max="50"
-                />
+              <div className="w-full h-2 bg-gray-200 rounded-full">
+                <div className="w-1/2 h-full bg-blue-500 rounded-full"></div>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span>{question.scaleMin}</span>
+                <span>{question.scaleMax}</span>
               </div>
             </div>
           )}
 
-          <div>
-            <Label>Learning Objectives</Label>
-            <div className="space-y-2">
-              {contentSpecs.learning_objectives.map((objective, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    value={objective}
-                    onChange={(e) => updateLearningObjective(index, e.target.value)}
-                    placeholder={`Learning objective ${index + 1}`}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeLearningObjective(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" onClick={addLearningObjective}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Learning Objective
-              </Button>
+          {question.explanation && (
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">{question.explanation}</p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Tone</Label>
-              <Select value={contentSpecs.tone} onValueChange={(value) => 
-                setContentSpecs(prev => ({ ...prev, tone: value }))
-              }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="academic">Academic</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="motivational">Motivational</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
+    );
+  };
 
-      {/* AI Settings */}
-      <Card className="glass-strong">
+  return (
+    <div className="space-y-6">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Settings className="h-5 w-5 mr-2" />
-            AI Generation Settings
+          <CardTitle className="flex items-center gap-2">
+            <Wand2 className="w-6 h-6" />
+            AI Content Builder
           </CardTitle>
+          <CardDescription>
+            Generate assessments, quizzes, explorations, and courses using AI. Simply provide a topic and let AI create comprehensive content for you.
+          </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1636,26 +1795,16 @@ Format the response as a structured JSON object with:
             />
           </div>
         </CardContent>
+
       </Card>
 
-      {/* Actions */}
-      <div className="flex gap-4">
-        <Button onClick={previewGeneration} variant="outline">
-          <Eye className="h-4 w-4 mr-2" />
-          Preview Prompt
-        </Button>
-        
-        <Button onClick={generateContent} disabled={isGenerating || !contentSpecs.topic.trim()}>
-          {isGenerating ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
-          )}
-          {isGenerating ? 'Generating...' : 'Generate Content'}
-        </Button>
-      </div>
-    </div>
-  );
+      <Tabs defaultValue="generate" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="generate">Generate Content</TabsTrigger>
+          <TabsTrigger value="preview">Preview & Edit</TabsTrigger>
+          <TabsTrigger value="manage">Manage Templates</TabsTrigger>
+        </TabsList>
+
 
   const renderJobsTab = () => (
     <div className="space-y-4">
@@ -1678,28 +1827,18 @@ Format the response as a structured JSON object with:
 
           return (
             <Card key={job.id} className="glass-strong">
+
+        {/* Generate Content Tab */}
+        <TabsContent value="generate" className="space-y-6">
+          <Card>
+
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center">
-                    {job.job_type === 'assessment' && <Target className="h-5 w-5 mr-2" />}
-                    {job.job_type === 'course' && <BookOpen className="h-5 w-5 mr-2" />}
-                    {job.job_type === 'exploration' && <Brain className="h-5 w-5 mr-2" />}
-                    {job.content_specs?.topic || 'Untitled'} - {job.job_type}
-                  </CardTitle>
-                  <CardDescription>
-                    {format(new Date(job.created_at), 'PPp')}
-                  </CardDescription>
-                </div>
-                <Badge variant={
-                  job.status === 'completed' ? 'default' :
-                  job.status === 'failed' ? 'destructive' :
-                  job.status === 'in_progress' ? 'secondary' : 'outline'
-                }>
-                  {job.status.replace('_', ' ')}
-                </Badge>
-              </div>
+              <CardTitle>Content Generation Settings</CardTitle>
+              <CardDescription>
+                Configure the parameters for AI content generation
+              </CardDescription>
             </CardHeader>
+
 
             <CardContent className="space-y-4">
               {job.status === 'in_progress' && (
@@ -1709,18 +1848,45 @@ Format the response as a structured JSON object with:
                     <span>{job.progress}%</span>
                   </div>
                   <Progress value={job.progress} />
-                </div>
-              )}
 
-              {job.status === 'failed' && job.error_message && (
-                <div className="flex items-start space-x-2 p-3 bg-red-50 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-red-800">Generation Failed</p>
-                    <p className="text-sm text-red-600">{job.error_message}</p>
-                  </div>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="topic">Topic *</Label>
+                  <Input
+                    id="topic"
+                    placeholder="e.g., Emotional Intelligence, Leadership Skills, Stress Management"
+                    value={generationRequest.topic}
+                    onChange={(e) => setGenerationRequest(prev => ({ ...prev, topic: e.target.value }))}
+                  />
+
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="contentType">Content Type</Label>
+                  <Select
+                    value={generationRequest.contentType}
+                    onValueChange={(value: any) => setGenerationRequest(prev => ({ ...prev, contentType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contentTypes.map(type => (
+                        <SelectItem key={type.value} value={type.value}>
+                          <div className="flex items-center gap-2">
+                            <span>{type.icon}</span>
+                            <div>
+                              <div className="font-medium">{type.label}</div>
+                              <div className="text-xs text-muted-foreground">{type.description}</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
 
               {job.status === 'completed' && (
                 <div className="flex flex-wrap items-center gap-2">
@@ -1764,8 +1930,25 @@ Format the response as a structured JSON object with:
                       Published
                     </Badge>
                   )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="difficulty">Difficulty Level</Label>
+                  <Select
+                    value={generationRequest.difficulty}
+                    onValueChange={(value: any) => setGenerationRequest(prev => ({ ...prev, difficulty: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+
                 </div>
-              )}
+
 
               <div className="text-sm text-muted-foreground">
                 <p>Provider: {job.ai_provider} ({job.ai_model})</p>
@@ -1773,8 +1956,88 @@ Format the response as a structured JSON object with:
                 {publishedId && (
                   <p className="text-xs mt-1">Published ID: {publishedId}</p>
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="questionCount">Number of Questions</Label>
+                  <Input
+                    id="questionCount"
+                    type="number"
+                    min={5}
+                    max={50}
+                    value={generationRequest.questionCount}
+                    onChange={(e) => setGenerationRequest(prev => ({ ...prev, questionCount: parseInt(e.target.value) }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={generationRequest.category}
+                    onValueChange={(value) => setGenerationRequest(prev => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category} value={category}>
+                          <span className="capitalize">{category.replace('-', ' ')}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="audience">Target Audience</Label>
+                  <Select
+                    value={generationRequest.audience}
+                    onValueChange={(value: any) => setGenerationRequest(prev => ({ ...prev, audience: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="visitors">Visitors (Free)</SelectItem>
+                      <SelectItem value="users">Registered Users</SelectItem>
+                      <SelectItem value="premium">Premium Users</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="additionalInstructions">Additional Instructions (Optional)</Label>
+                <Textarea
+                  id="additionalInstructions"
+                  placeholder="Any specific requirements, focus areas, or constraints for the content generation..."
+                  value={generationRequest.additionalInstructions || ''}
+                  onChange={(e) => setGenerationRequest(prev => ({ ...prev, additionalInstructions: e.target.value }))}
+                  rows={3}
+                />
+
+              </div>
+
+              <Button
+                onClick={generateContent}
+                disabled={isGenerating || !generationRequest.topic.trim()}
+                size="lg"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Generating Content...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Generate Content
+                  </>
+                )}
+              </Button>
             </CardContent>
+
             </Card>
           );
         })
@@ -1969,18 +2232,123 @@ Format the response as a structured JSON object with:
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="create">
-          {renderCreateTab()}
+          </Card>
         </TabsContent>
 
-        <TabsContent value="jobs">
-          {renderJobsTab()}
-        </TabsContent>
+        {/* Preview & Edit Tab */}
+        <TabsContent value="preview" className="space-y-6">
+          {generatedContent ? (
+            <div className="space-y-6">
+              {/* Content Header */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-2xl">{generatedContent.title}</CardTitle>
+                      <CardDescription className="text-lg mt-2">
+                        {generatedContent.description}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => saveTemplate(generatedContent)}
+                        variant="outline"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Draft
+                      </Button>
+                      <Button
+                        onClick={() => publishTemplate(generatedContent)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Publish
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Target className="w-4 h-4" />
+                      <span className="capitalize">{generatedContent.type}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4" />
+                      <span className="capitalize">{generatedContent.difficulty}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <HelpCircle className="w-4 h-4" />
+                      <span>{generatedContent.questions.length} questions</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span>~{generatedContent.estimatedTime} minutes</span>
+                    </div>
+                  </div>
+
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {generatedContent.metadata.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary">{tag}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Questions Preview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Questions Preview</CardTitle>
+                  <CardDescription>
+                    Review and edit the generated questions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {generatedContent.questions.map((question, index) => 
+                      renderQuestionPreview(question, index)
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
 
         <TabsContent value="templates">
           {renderTemplatesTab()}
+
+              {/* Learning Objectives */}
+              {generatedContent.metadata.learningObjectives.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Learning Objectives</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {generatedContent.metadata.learningObjectives.map((objective, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>{objective}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No Content Generated</h3>
+                <p className="text-muted-foreground">
+                  Generate content first to see the preview here.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
         </TabsContent>
-      </Tabs>
+
 
       {/* Preview Modal */}
       {previewState && (
@@ -2083,9 +2451,93 @@ Format the response as a structured JSON object with:
                 </Button>
               )}
             </CardFooter>
+
+        {/* Manage Templates Tab */}
+        <TabsContent value="manage" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Saved Templates</CardTitle>
+              <CardDescription>
+                Manage your AI-generated content templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {savedTemplates.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {savedTemplates.map((template) => (
+                    <Card key={template.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg line-clamp-2">{template.title}</CardTitle>
+                            <CardDescription className="line-clamp-2">
+                              {template.description}
+                            </CardDescription>
+                          </div>
+                          <Badge 
+                            variant={template.status === 'published' ? 'default' : 'secondary'}
+                            className="ml-2"
+                          >
+                            {template.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                          <span className="capitalize">{template.type}</span>
+                          <span>{template.questions.length} questions</span>
+                          <span>{template.estimatedTime}min</span>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setGeneratedContent(template);
+                              // Switch to preview tab
+                              const tabTrigger = document.querySelector('[value="preview"]') as HTMLElement;
+                              tabTrigger?.click();
+                            }}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => exportTemplate(template)}
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Export
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteTemplate(template.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No Templates Saved</h3>
+                  <p className="text-muted-foreground">
+                    Generate and save content templates to see them here.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+
           </Card>
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

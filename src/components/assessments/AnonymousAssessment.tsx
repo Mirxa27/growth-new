@@ -24,8 +24,28 @@ import {
   RotateCcw,
   Share2
 } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
-import { Camera as CapCamera } from '@capacitor/camera';
+// Dynamic imports for Capacitor to avoid build issues on web
+let Capacitor: any;
+let CapCamera: any;
+
+// Initialize Capacitor modules dynamically
+const initializeCapacitorModules = async () => {
+  try {
+    const capacitorCore = await import('@capacitor/core');
+    Capacitor = capacitorCore.Capacitor;
+    
+    if (Capacitor.isNativePlatform()) {
+      const cameraModule = await import('@capacitor/camera');
+      CapCamera = cameraModule.Camera;
+    }
+    
+    return true;
+  } catch (error) {
+    console.warn('Capacitor modules not available, running in web mode', error);
+    return false;
+  }
+};
+
 import { logger } from '@/utils/logger';
 
 export interface AssessmentQuestion {
@@ -86,6 +106,7 @@ export const AnonymousAssessment: React.FC<AnonymousAssessmentProps> = ({
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [questionStartTime, setQuestionStartTime] = useState<Date>(new Date());
+  const [capacitorInitialized, setCapacitorInitialized] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -99,6 +120,13 @@ export const AnonymousAssessment: React.FC<AnonymousAssessmentProps> = ({
   const currentQuestion = assessment.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === assessment.questions.length - 1;
   const progress = ((currentQuestionIndex + 1) / assessment.questions.length) * 100;
+
+  // Initialize Capacitor modules on component mount
+  useEffect(() => {
+    initializeCapacitorModules().then((initialized) => {
+      setCapacitorInitialized(initialized);
+    });
+  }, []);
 
   useEffect(() => {
     initializeAttempt();
@@ -172,7 +200,7 @@ export const AnonymousAssessment: React.FC<AnonymousAssessmentProps> = ({
   };
 
   const generateDeviceFingerprint = async (): Promise<string> => {
-    const platform = Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web';
+    const platform = (Capacitor && Capacitor.isNativePlatform()) ? Capacitor.getPlatform() : 'web';
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2);
     return `${platform}_${timestamp}_${random}`;
@@ -205,7 +233,7 @@ export const AnonymousAssessment: React.FC<AnonymousAssessmentProps> = ({
   };
 
   const handleImageCapture = async () => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!Capacitor || !Capacitor.isNativePlatform()) {
       // Web fallback - use file input
       const input = document.createElement('input');
       input.type = 'file';
@@ -227,6 +255,10 @@ export const AnonymousAssessment: React.FC<AnonymousAssessmentProps> = ({
     }
 
     try {
+      if (!CapCamera) {
+        throw new Error('Camera not available');
+      }
+      
       const image = await CapCamera.getPhoto({
         quality: 90,
         allowEditing: true,

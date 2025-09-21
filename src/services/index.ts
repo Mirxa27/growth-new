@@ -20,6 +20,11 @@ export { anthropicService, anthropic } from './ai/anthropic.service';
 export { googleAIService, googleAI } from './ai/google.service';
 export { unifiedAI, ai } from './ai/unified-ai.service';
 
+// Realtime AI Services
+export { realtimeService as aiRealtimeService } from './ai/realtime.service';
+export { realtimeWebSocketService } from './ai/realtime-websocket.service';
+export { realtimeTranscriptionService } from './ai/realtime-transcription.service';
+
 // Error Handling
 export { errorHandler, handleError, getRecoveryStrategy } from './error/error-handler.service';
 export { ErrorCategory, ErrorSeverity } from './error/error-handler.service';
@@ -70,6 +75,21 @@ export type {
   VoiceToken,
   RealtimeConfig,
 } from './api/voice.service';
+
+export type {
+  RealtimeConfig as AIRealtimeConfig,
+  RealtimeSessionState,
+} from './ai/realtime.service';
+
+export type {
+  WebSocketRealtimeSession,
+} from './ai/realtime-websocket.service';
+
+export type {
+  TranscriptionConfig,
+  TranscriptionSession,
+  TranscriptionResult,
+} from './ai/realtime-transcription.service';
 
 export type {
   CommunityPost,

@@ -36,6 +36,8 @@ import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
 import { AssessmentManager } from '@/components/admin/AssessmentManager';
 import { LibraryManager } from '@/components/admin/LibraryManager';
+import ContentManagement from '@/components/admin/ContentManagement';
+import RealtimeAPIConfig from '@/components/admin/RealtimeAPIConfig';
 
 type AdminSection = 
   | 'overview'
@@ -47,6 +49,8 @@ type AdminSection =
   | 'content'
   | 'voice'
   | 'ai-content'
+  | 'content-management'
+  | 'realtime-api'
   | 'settings'
   | 'ai-providers'
   | 'moderation';
@@ -115,6 +119,18 @@ const AdminDashboard: React.FC = () => {
       label: 'Content Builder', 
       icon: Sparkles,
       description: 'Smart content generation'
+    },
+    { 
+      id: 'content-management' as AdminSection, 
+      label: 'Content Management', 
+      icon: FileText,
+      description: 'Manage all assessments, quizzes, and courses'
+    },
+    { 
+      id: 'realtime-api' as AdminSection, 
+      label: 'Realtime API', 
+      icon: Activity,
+      description: 'OpenAI Realtime API configuration'
     },
     { 
       id: 'settings' as AdminSection, 
@@ -502,6 +518,10 @@ const AdminDashboard: React.FC = () => {
         );
       case 'ai-content':
         return <AIContentBuilder />;
+      case 'content-management':
+        return <ContentManagement />;
+      case 'realtime-api':
+        return <RealtimeAPIConfig />;
       case 'settings':
         return <GeneralSettings />;
       case 'ai-providers':
