@@ -15,6 +15,7 @@ import { TablesInsert } from '@/integrations/supabase/types';
 import { VoiceAgentConfigSchema, validateData } from '@/lib/validation-dtos';
 import { errorHandler } from '@/lib/error-handler';
 import { logger } from '@/utils/logger';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 
@@ -47,6 +48,7 @@ const voiceAgentConfigSchema = z.object({
 type VoiceAgentConfig = z.infer<typeof voiceAgentConfigSchema>;
 
 export const VoiceAgentConfigManager: React.FC = () => {
+  const { isAdmin, verified } = useAdminAuth();
   const { configs, loading, error: fetchError } = useVoiceAgentConfig();
   const { toast } = useToast();
   
@@ -276,6 +278,20 @@ export const VoiceAgentConfigManager: React.FC = () => {
       });
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground">
+            You need admin privileges to access the Voice Agent Configuration.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) return <div>Loading configuration...</div>;
   if (fetchError) return <div className="text-red-500">Error loading configuration: {fetchError}</div>;

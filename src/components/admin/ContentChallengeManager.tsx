@@ -17,11 +17,13 @@ import {
   Sparkles,
   Brain,
   Wand2,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { CreateLibraryItemSchema, validateData } from '@/lib/validation-dtos';
 import { errorHandler } from '@/lib/error-handler';
 import { logger } from '@/utils/logger';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +35,7 @@ type Challenge = Tables<'content_challenges'>;
 type ChallengeInsert = TablesInsert<'content_challenges'>;
 
 export const ContentChallengeManager: React.FC = () => {
+  const { isAdmin, verified } = useAdminAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -242,6 +245,20 @@ export const ContentChallengeManager: React.FC = () => {
       });
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground">
+            You need admin privileges to access the Content Challenge Manager.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;

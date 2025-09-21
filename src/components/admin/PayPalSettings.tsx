@@ -27,9 +27,13 @@ import {
   DollarSign,
   Globe,
   Lock,
-  Unlock
+  Unlock,
+  AlertCircle
 } from 'lucide-react';
 import { z } from 'zod';
+import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/utils/logger';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 const PayPalConfigSchema = z.object({
   client_id: z.string().min(1, 'Client ID is required'),
@@ -54,6 +58,7 @@ interface PayPalPlan {
 }
 
 export const PayPalSettings: React.FC = () => {
+  const { isAdmin, verified } = useAdminAuth();
   const { toast } = useToast();
   const [config, setConfig] = useState<PayPalConfig>({
     client_id: '',
@@ -129,10 +134,12 @@ export const PayPalSettings: React.FC = () => {
 
       setConfig(prev => ({ ...prev, ...configData }));
     } catch (error) {
-      console.error('Error fetching PayPal config:', error);
+      const appError = errorHandler.handleError(error, 'PayPalSettings');
+      logger.error('Failed to fetch PayPal config', 'PayPalSettings', appError);
+      
       toast({
         title: "Error",
-        description: "Failed to load PayPal configuration",
+        description: errorHandler.getUserFriendlyMessage(appError),
         variant: "destructive"
       });
     } finally {
@@ -223,10 +230,13 @@ export const PayPalSettings: React.FC = () => {
         title: "Success",
         description: "PayPal configuration saved successfully",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'PayPalSettings');
+      logger.error('Failed to save PayPal configuration', 'PayPalSettings', appError);
+      
       toast({
         title: "Error",
-        description: `Failed to save configuration: ${error.message}`,
+        description: errorHandler.getUserFriendlyMessage(appError),
         variant: "destructive"
       });
     } finally {
@@ -262,10 +272,13 @@ export const PayPalSettings: React.FC = () => {
         description: data.message,
         variant: data.success ? "default" : "destructive"
       });
-    } catch (error: any) {
+    } catch (error) {
+      const appError = errorHandler.handleError(error, 'PayPalSettings');
+      logger.error('PayPal connection test failed', 'PayPalSettings', appError);
+      
       toast({
         title: "Test Failed",
-        description: error.message || "Failed to test PayPal connection",
+        description: errorHandler.getUserFriendlyMessage(appError),
         variant: "destructive"
       });
     } finally {
@@ -280,6 +293,20 @@ export const PayPalSettings: React.FC = () => {
       description: "Text copied to clipboard",
     });
   };
+
+  if (!isAdmin) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground">
+            You need admin privileges to access PayPal Settings.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (

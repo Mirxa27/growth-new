@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Sparkles, Save, Plus, Trash2, Copy } from 'lucide-react';
+import { Loader2, Sparkles, Save, Plus, Trash2, Copy, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Assessment } from '@/data/assessments';
 import { CreateAssessmentSchema, validateData } from '@/lib/validation-dtos';
 import { errorHandler } from '@/lib/error-handler';
 import { logger } from '@/utils/logger';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface AIAssessmentBuilderProps {
   assessment?: Assessment;
@@ -52,11 +53,12 @@ interface GeneratedAssessment {
   results?: AssessmentResults;
 }
 
-export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
-  assessment,
-  onSave,
-  onCancel
+export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({ 
+  assessment, 
+  onSave, 
+  onCancel 
 }) => {
+  const { isAdmin, verified } = useAdminAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAILoading] = useState(false);
@@ -388,6 +390,20 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
       </CardContent>
     </Card>
   );
+
+  if (!isAdmin) {
+    return (
+      <Card className="glass-strong">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground">
+            You need admin privileges to access the AI Assessment Builder.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6">
