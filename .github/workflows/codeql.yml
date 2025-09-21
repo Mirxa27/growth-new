@@ -27,8 +27,7 @@ env:
 jobs:
   codeql:
     name: CodeQL Analyze (${{ matrix.language }})
-    runs-on: ${{
-      (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
