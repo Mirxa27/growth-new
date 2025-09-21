@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,12 +19,12 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EnhancedErrorBoundary } from '@/components/ui/enhanced-error-boundary';
-import { EnhancedLoading, ChatSkeleton } from '@/components/ui/enhanced-loading';
-import { newMeAI, ConversationContext } from '@/services/ai/fallback-newme-ai-service';
+import { newMeAI, ConversationContext } from '@/services/ai/newme-ai-service';
 import { newMeVoice } from '@/services/voice/newme-voice-service';
 import { useNavigate } from 'react-router-dom';
 import { useViewportHeight, useKeyboardVisible } from '@/hooks/useResponsive';
 import { useDebounce, usePerformanceMonitor, globalCache } from '@/utils/performance';
+import { logger } from '@/utils/logger';
 
 interface Message {
   id: string;
@@ -34,6 +34,8 @@ interface Message {
   emotion?: string;
   insights?: string[];
 }
+
+type StoredMessage = Omit<Message, 'timestamp'> & { timestamp: string };
 
 const Chat = () => {
   const { user } = useAuth();
@@ -46,11 +48,42 @@ const Chat = () => {
     const saved = localStorage.getItem(`chat_messages_${user?.id}`);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        return parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
+        const parsed = JSON.parse(saved) as unknown;
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .map((msg): Message | null => {
+              if (!msg || typeof msg !== 'object') {
+                return null;
+              }
+
+              const candidate = msg as Partial<StoredMessage>;
+              if (
+                !candidate.id ||
+                !candidate.content ||
+                !candidate.sender ||
+                !candidate.timestamp ||
+                (candidate.sender !== 'user' && candidate.sender !== 'ai')
+              ) {
+                return null;
+              }
+
+              return {
+                id: String(candidate.id),
+                content: String(candidate.content),
+                sender: candidate.sender,
+                timestamp: new Date(candidate.timestamp),
+                emotion: candidate.emotion ? String(candidate.emotion) : undefined,
+                insights: Array.isArray(candidate.insights)
+                  ? candidate.insights.map(String)
+                  : undefined,
+              };
+            })
+            .filter((item): item is Message => Boolean(item));
+
+          if (normalized.length > 0) {
+            return normalized;
+          }
+        }
       } catch {
         // If parsing fails, return default message
       }
@@ -87,20 +120,22 @@ const Chat = () => {
   }, [messages, user]);
 
   // Debounced scroll to bottom for performance
-  const scrollToBottom = useDebounce(() => {
+  const scrollToBottomImmediate = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, 100);
+  }, []);
+
+  const scrollToBottom = useDebounce(scrollToBottomImmediate, 100);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   // Handle keyboard visibility for mobile
   useEffect(() => {
     if (isKeyboardVisible) {
       setTimeout(scrollToBottom, 100);
     }
-  }, [isKeyboardVisible]);
+  }, [isKeyboardVisible, scrollToBottom]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || !user) return;
@@ -169,15 +204,12 @@ const Chat = () => {
           utterance.pitch = 1.1;
           utterance.volume = 0.7;
           speechSynthesis.speak(utterance);
-        } catch (audioError) {
-          // Text-to-speech failed silently
+        } catch (ttsError) {
+          logger.warn('Text-to-speech playback failed', 'ChatPage', ttsError);
         }
       }
     } catch (error) {
-      // Log error for debugging in development only
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error sending message:', error);
-      }
+      logger.error('Error sending chat message', 'ChatPage', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "I'm having a moment of reflection, but I'm still here with you. Your thoughts and feelings matter to me. Could you share what's on your heart again?",
@@ -226,6 +258,7 @@ const Chat = () => {
           setVoiceError(result.error || 'Failed to start voice session');
         }
       } catch (error) {
+        logger.error('Failed to initialize voice features', 'ChatPage', error);
         setVoiceError('Failed to initialize voice features');
       }
     }
@@ -245,6 +278,7 @@ const Chat = () => {
       setVoiceError(null);
       await newMeVoice.startRecording();
     } catch (error) {
+      logger.error('Failed to start voice recording', 'ChatPage', error);
       setVoiceError('Failed to start recording');
       setIsRecording(false);
     }
@@ -257,6 +291,7 @@ const Chat = () => {
       await newMeVoice.stopRecording();
       setIsProcessing(false);
     } catch (error) {
+      logger.error('Failed to process voice recording', 'ChatPage', error);
       setVoiceError('Failed to process recording');
       setIsProcessing(false);
     }
@@ -274,19 +309,6 @@ const Chat = () => {
         return <Zap className="w-3 h-3 text-primary flex-shrink-0" />;
       default:
         return <MessageCircle className="w-3 h-3 text-muted-foreground flex-shrink-0" />;
-    }
-  };
-
-  const clearChat = () => {
-    if (user) {
-      localStorage.removeItem(`chat_messages_${user.id}`);
-      setMessages([{
-        id: '1',
-        content: "Hello beautiful soul! I'm NewMe, your AI companion for personal growth and self-discovery. I'm here to guide you through narrative identity exploration in a safe, culturally sensitive space. What story would you like to explore today?",
-        sender: 'ai',
-        timestamp: new Date(),
-        emotion: 'supportive'
-      }]);
     }
   };
 

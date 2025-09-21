@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface Achievement {
   id: string;
@@ -265,7 +266,7 @@ export class GamificationService {
         achievements: newAchievements
       };
     } catch (error) {
-      console.error('Error awarding crystals:', error);
+      logger.error('Error awarding crystals', 'GamificationService', error);
       return {
         success: false,
         newBalance: 0,
@@ -277,11 +278,12 @@ export class GamificationService {
   /**
    * Record user action and check for achievements
    */
-  static async recordAction(userId: string, action: string, metadata?: any): Promise<{
+  static async recordAction(userId: string, action: string, _metadata?: Record<string, unknown>): Promise<{
     achievements: Achievement[];
     crystalsAwarded: number;
   }> {
     try {
+      void _metadata;
       // Update action count
       const { data: profile, error: profileError } = await supabase
         .from('user_memory_profiles')
@@ -322,7 +324,7 @@ export class GamificationService {
         crystalsAwarded: totalCrystalsAwarded
       };
     } catch (error) {
-      console.error('Error recording action:', error);
+      logger.error('Error recording action', 'GamificationService', error);
       return {
         achievements: [],
         crystalsAwarded: 0
@@ -404,7 +406,7 @@ export class GamificationService {
         bonusCrystals
       };
     } catch (error) {
-      console.error('Error updating daily streak:', error);
+      logger.error('Error updating daily streak', 'GamificationService', error);
       return {
         streakCount: 1,
         streakBroken: false,
@@ -457,7 +459,7 @@ export class GamificationService {
         levelProgress
       };
     } catch (error) {
-      console.error('Error getting user progress:', error);
+      logger.error('Error getting user progress', 'GamificationService', error);
       return null;
     }
   }
@@ -486,7 +488,7 @@ export class GamificationService {
         .map(ua => this.ACHIEVEMENTS.find(a => a.id === ua.achievement_id))
         .filter(Boolean) as Achievement[];
     } catch (error) {
-      console.error('Error getting user achievements:', error);
+      logger.error('Error getting user achievements', 'GamificationService', error);
       return [];
     }
   }
@@ -529,10 +531,11 @@ export class GamificationService {
         let unlocked = false;
 
         switch (achievement.unlockCriteria.type) {
-          case 'action_count':
+          case 'action_count': {
             const count = progress.actionCounts[achievement.unlockCriteria.action || action] || 0;
             unlocked = count >= achievement.unlockCriteria.target;
             break;
+          }
 
           case 'streak':
             unlocked = progress.dailyStreak >= achievement.unlockCriteria.target;
@@ -542,10 +545,11 @@ export class GamificationService {
             unlocked = progress.currentLevel >= achievement.unlockCriteria.target;
             break;
 
-          case 'assessment_complete':
+          case 'assessment_complete': {
             const assessmentCount = progress.actionCounts[achievement.unlockCriteria.action || ''] || 0;
             unlocked = assessmentCount >= achievement.unlockCriteria.target;
             break;
+          }
         }
 
         if (unlocked) {
@@ -564,7 +568,7 @@ export class GamificationService {
 
       return newAchievements;
     } catch (error) {
-      console.error('Error checking achievements:', error);
+      logger.error('Error checking achievements', 'GamificationService', error);
       return [];
     }
   }
@@ -584,14 +588,14 @@ export class GamificationService {
         });
     } catch (error) {
       // Non-critical, just log
-      console.warn('Failed to log crystal activity:', error);
+      logger.warn('Failed to log crystal activity', 'GamificationService', error);
     }
   }
 
   /**
    * Extract action counts from metrics
    */
-  private static extractActionCounts(metrics: any): Record<string, number> {
+  private static extractActionCounts(metrics: Record<string, unknown>): Record<string, number> {
     const actionCounts: Record<string, number> = {};
     
     for (const [key, value] of Object.entries(metrics)) {

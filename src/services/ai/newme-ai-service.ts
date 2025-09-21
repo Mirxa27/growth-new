@@ -1,7 +1,6 @@
-import { OpenAI } from 'openai';
 import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/environment';
-import { openaiWrapper } from '@/services/api/openai-wrapper.service';
+import { openaiWrapper, OpenAIServiceError } from '@/services/api/openai-wrapper.service';
+import { logger } from '@/utils/logger';
 
 export interface UserMemoryProfile {
   personalityType: string;
@@ -43,22 +42,17 @@ export interface ConversationContext {
   conversationGoal?: string;
 }
 
-export class NewMeAIService {
-  private openai: OpenAI;
-  private memoryCache = new Map<string, UserMemoryProfile>();
+type ConversationAnalysisResult = {
+  insights: string[];
+  emotionalAnalysis: {
+    detectedEmotion: string;
+    supportLevel: 'basic' | 'intermediate' | 'advanced';
+    recommendedActions: string[];
+  };
+};
 
-  constructor() {
-    const apiKey = env.openai.apiKey;
-    if (!apiKey || apiKey === 'your-openai-api-key-here') {
-      // Silently use fallback - no need to warn user
-      this.openai = null as any; // Will use wrapper service instead
-    } else {
-      this.openai = new OpenAI({
-        apiKey,
-        dangerouslyAllowBrowser: true,
-      });
-    }
-  }
+export class NewMeAIService {
+  private memoryCache = new Map<string, UserMemoryProfile>();
 
   /**
    * Generate AI response using dynamic prompting based on user's profile and tier
@@ -102,7 +96,13 @@ export class NewMeAIService {
         memoryUpdates,
       };
     } catch (error) {
-      console.error('Error generating NewMe AI response:', error);
+      if (error instanceof OpenAIServiceError) {
+        logger.warn('OpenAI unavailable for NewMe response, using fallback', 'NewMeAIService', {
+          message: error.message,
+        });
+      } else {
+        logger.error('Error generating NewMe AI response', 'NewMeAIService', error);
+      }
       return this.getFallbackResponse(context);
     }
   }
@@ -212,14 +212,7 @@ CONVERSATION APPROACH:`;
     userMessage: string,
     aiResponse: string,
     context: ConversationContext
-  ): Promise<{
-    insights: string[];
-    emotionalAnalysis: {
-      detectedEmotion: string;
-      supportLevel: 'basic' | 'intermediate' | 'advanced';
-      recommendedActions: string[];
-    };
-  }> {
+  ): Promise<ConversationAnalysisResult> {
     try {
       const analysisPrompt = `Analyze this conversation for emotional patterns and growth insights:
 
@@ -238,26 +231,59 @@ Provide analysis in this JSON format:
   }
 }`;
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: analysisPrompt }],
-        temperature: 0.3,
-        max_tokens: 400,
+      const rawAnalysis = await openaiWrapper.generateCompletion(analysisPrompt, {
+        model: 'gpt-4o-mini',
+        maxTokens: 600,
+        temperature: 0.2,
+        responseFormat: 'json_object',
       });
 
-      const analysisText = response.choices[0]?.message?.content || '{}';
-      const analysis = JSON.parse(analysisText);
-      
+      let parsed: {
+        insights?: unknown;
+        emotionalAnalysis?: {
+          detectedEmotion?: unknown;
+          supportLevel?: unknown;
+          recommendedActions?: unknown;
+        };
+      } = {};
+      try {
+        parsed = JSON.parse(rawAnalysis) as typeof parsed;
+      } catch (parseError) {
+        logger.warn('Unable to parse OpenAI conversation analysis response', 'NewMeAIService', {
+          rawAnalysis,
+          parseError,
+        });
+      }
+
+      const emotionAnalysis = parsed.emotionalAnalysis ?? {};
+      const recommendedActions = Array.isArray(emotionAnalysis.recommendedActions)
+        ? emotionAnalysis.recommendedActions.map(String)
+        : ['Continue sharing your thoughts and feelings'];
+      const supportLevel =
+        emotionAnalysis.supportLevel === 'intermediate' || emotionAnalysis.supportLevel === 'advanced'
+          ? emotionAnalysis.supportLevel
+          : 'basic';
+      const detectedEmotion =
+        typeof emotionAnalysis.detectedEmotion === 'string'
+          ? emotionAnalysis.detectedEmotion
+          : 'neutral';
+
       return {
-        insights: analysis.insights || [],
+        insights: Array.isArray(parsed.insights) ? parsed.insights.map(String) : [],
         emotionalAnalysis: {
-          detectedEmotion: analysis.emotionalAnalysis?.detectedEmotion || 'neutral',
-          supportLevel: analysis.emotionalAnalysis?.supportLevel || 'basic',
-          recommendedActions: analysis.emotionalAnalysis?.recommendedActions || [],
-        }
+          detectedEmotion,
+          supportLevel,
+          recommendedActions,
+        },
       };
     } catch (error) {
-      console.error('Error analyzing conversation:', error);
+      if (error instanceof OpenAIServiceError) {
+        logger.warn('OpenAI unavailable for conversation analysis', 'NewMeAIService', {
+          message: error.message,
+        });
+      } else {
+        logger.error('Error analyzing conversation', 'NewMeAIService', error);
+      }
       return {
         insights: ['Continuing to learn about your unique journey'],
         emotionalAnalysis: {
@@ -274,7 +300,7 @@ Provide analysis in this JSON format:
    */
   private async updateUserMemory(
     context: ConversationContext,
-    analysis: any
+    analysis: ConversationAnalysisResult
   ): Promise<Partial<UserMemoryProfile>> {
     const updates: Partial<UserMemoryProfile> = {
       emotionalStateHistory: [
@@ -308,7 +334,7 @@ Provide analysis in this JSON format:
           updated_at: new Date().toISOString(),
         });
     } catch (error) {
-      console.error('Error updating user memory profile:', error);
+      logger.error('Error updating user memory profile', 'NewMeAIService', error);
     }
 
     return updates;
@@ -399,7 +425,7 @@ Provide analysis in this JSON format:
       this.memoryCache.set(userId, profile);
       return profile;
     } catch (error) {
-      console.error('Error fetching user memory profile:', error);
+      logger.error('Error fetching user memory profile', 'NewMeAIService', error);
       return null;
     }
   }
@@ -416,10 +442,16 @@ Provide analysis in this JSON format:
     ];
 
     const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+    const subscriptionTier = context.userProfile.subscriptionTier;
+    const tierInsight = subscriptionTier === 'transformation'
+      ? 'Take a mindful pause and revisit your transformation commitments when you are ready.'
+      : subscriptionTier === 'growth'
+        ? 'Consider journaling one insight while I reconnect — your progress is building beautifully.'
+        : 'Keep noticing what feels most present right now; your reflections guide our next steps.';
 
     return {
       response: randomResponse,
-      insights: ['Continuing to support your growth journey'],
+      insights: ['Continuing to support your growth journey', tierInsight],
       emotionalAnalysis: {
         detectedEmotion: 'supportive',
         supportLevel: 'basic' as const,
@@ -438,23 +470,28 @@ Provide analysis in this JSON format:
 - Personality: ${userProfile.personalityType}
 - Cultural Context: ${userProfile.culturalContext.region}
 - Current Focus Areas: ${Object.entries(userProfile.balanceWheelScores)
-  .filter(([_, score]) => score < 7)
+  .filter(([, score]) => score < 7)
   .map(([area]) => area)
   .join(', ')}
 - Recent Emotional Patterns: ${userProfile.emotionalStateHistory.slice(-3).map(e => e.emotion).join(', ')}
 
 Create an empowering, culturally sensitive affirmation that speaks to her current journey. Keep it under 50 words.`;
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
+      const affirmation = await openaiWrapper.generateCompletion(prompt, {
+        model: 'gpt-4o-mini',
+        maxTokens: 120,
         temperature: 0.8,
-        max_tokens: 100,
       });
 
-      return response.choices[0]?.message?.content || "You are worthy of love, growth, and all the beautiful possibilities that await you today.";
+      return affirmation.trim() || "You are worthy of love, growth, and all the beautiful possibilities that await you today.";
     } catch (error) {
-      console.error('Error generating daily affirmation:', error);
+      if (error instanceof OpenAIServiceError) {
+        logger.warn('OpenAI unavailable for daily affirmation generation', 'NewMeAIService', {
+          message: error.message,
+        });
+      } else {
+        logger.error('Error generating daily affirmation', 'NewMeAIService', error);
+      }
       return "You are worthy of love, growth, and all the beautiful possibilities that await you today.";
     }
   }

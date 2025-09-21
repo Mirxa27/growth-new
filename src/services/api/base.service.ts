@@ -4,10 +4,10 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/environment';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { z } from 'zod';
-import { validateDTO, formatValidationErrors } from '@/services/validation/schemas';
+import { validateDTO } from '@/services/validation/schemas';
+import { logger } from '@/utils/logger';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -18,7 +18,7 @@ export interface ApiResponse<T> {
 export interface ApiError {
   message: string;
   code?: string;
-  details?: any;
+  details?: unknown;
   statusCode?: number;
 }
 
@@ -30,8 +30,42 @@ export interface PaginationOptions {
 }
 
 export interface FilterOptions {
-  [key: string]: any;
+  [key: string]: unknown;
 }
+
+type OrderOptions = { ascending?: boolean };
+
+type PaginatableQuery<T> = {
+  range(from: number, to: number): T;
+  order(column: string, options?: OrderOptions): T;
+};
+
+type FilterableQuery<T> = PaginatableQuery<T> & {
+  eq(column: string, value: unknown): T;
+  neq(column: string, value: unknown): T;
+  gt(column: string, value: unknown): T;
+  gte(column: string, value: unknown): T;
+  lt(column: string, value: unknown): T;
+  lte(column: string, value: unknown): T;
+  like(column: string, value: string): T;
+  ilike(column: string, value: string): T;
+  contains(column: string, value: unknown): T;
+  containedBy(column: string, value: unknown): T;
+  ['in'](column: string, values: unknown[]): T;
+};
+
+type OperatorFilter = {
+  operator: string;
+  value: unknown;
+};
+
+const isOperatorFilter = (value: unknown): value is OperatorFilter => (
+  typeof value === 'object'
+  && value !== null
+  && !Array.isArray(value)
+  && 'operator' in value
+  && 'value' in value
+);
 
 export abstract class BaseApiService {
   protected tableName: string;
@@ -45,21 +79,22 @@ export abstract class BaseApiService {
    */
   protected handleError(error: PostgrestError | Error | unknown): ApiError {
     if (error instanceof Error) {
+      const extended = error as Error & { code?: string; details?: unknown; status?: number };
       return {
         message: error.message,
-        code: (error as any).code,
-        details: (error as any).details,
-        statusCode: (error as any).status,
+        code: extended.code,
+        details: extended.details,
+        statusCode: extended.status,
       };
     }
-    
+
     if (typeof error === 'object' && error !== null) {
       const pgError = error as PostgrestError;
       return {
         message: pgError.message || 'An unexpected error occurred',
         code: pgError.code,
         details: pgError.details,
-        statusCode: (pgError as any).status,
+        statusCode: (pgError as { status?: number }).status,
       };
     }
     
@@ -72,92 +107,96 @@ export abstract class BaseApiService {
   /**
    * Log errors in development mode
    */
-  protected logError(context: string, error: any): void {
-    if (env.logging.enabled) {
-      console.error(`[${this.tableName}] ${context}:`, error);
-    }
+  protected logError(context: string, error: unknown): void {
+    logger.error(`Error in ${context}`, this.tableName, error);
   }
   
   /**
    * Apply pagination to a query
    */
-  protected applyPagination<T>(
-    query: any,
+  protected applyPagination<TQuery extends PaginatableQuery<TQuery>>(
+    query: TQuery,
     options?: PaginationOptions
-  ): any {
+  ): TQuery {
     if (!options) return query;
-    
+
     const { page = 1, pageSize = 10, sortBy, sortOrder = 'desc' } = options;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
-    
+
     let paginatedQuery = query.range(from, to);
-    
+
     if (sortBy) {
       paginatedQuery = paginatedQuery.order(sortBy, { ascending: sortOrder === 'asc' });
     }
-    
+
     return paginatedQuery;
   }
   
   /**
    * Apply filters to a query
    */
-  protected applyFilters<T>(
-    query: any,
+  protected applyFilters<TQuery extends FilterableQuery<TQuery>>(
+    query: TQuery,
     filters?: FilterOptions
-  ): any {
+  ): TQuery {
     if (!filters) return query;
-    
+
     let filteredQuery = query;
-    
+
     Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (Array.isArray(value)) {
-          filteredQuery = filteredQuery.in(key, value);
-        } else if (typeof value === 'object' && value.operator) {
-          // Support complex filters like { operator: 'gte', value: 10 }
-          const { operator, value: filterValue } = value;
-          switch (operator) {
-            case 'eq':
-              filteredQuery = filteredQuery.eq(key, filterValue);
-              break;
-            case 'neq':
-              filteredQuery = filteredQuery.neq(key, filterValue);
-              break;
-            case 'gt':
-              filteredQuery = filteredQuery.gt(key, filterValue);
-              break;
-            case 'gte':
-              filteredQuery = filteredQuery.gte(key, filterValue);
-              break;
-            case 'lt':
-              filteredQuery = filteredQuery.lt(key, filterValue);
-              break;
-            case 'lte':
-              filteredQuery = filteredQuery.lte(key, filterValue);
-              break;
-            case 'like':
-              filteredQuery = filteredQuery.like(key, filterValue);
-              break;
-            case 'ilike':
-              filteredQuery = filteredQuery.ilike(key, filterValue);
-              break;
-            case 'contains':
-              filteredQuery = filteredQuery.contains(key, filterValue);
-              break;
-            case 'containedBy':
-              filteredQuery = filteredQuery.containedBy(key, filterValue);
-              break;
-            default:
-              filteredQuery = filteredQuery.eq(key, value);
-          }
-        } else {
-          filteredQuery = filteredQuery.eq(key, value);
-        }
+      if (value === undefined || value === null) {
+        return;
       }
+
+      if (Array.isArray(value)) {
+        filteredQuery = filteredQuery['in'](key, value as unknown[]);
+        return;
+      }
+
+      if (isOperatorFilter(value)) {
+        const { operator, value: filterValue } = value;
+        switch (operator) {
+          case 'eq':
+            filteredQuery = filteredQuery.eq(key, filterValue);
+            break;
+          case 'neq':
+            filteredQuery = filteredQuery.neq(key, filterValue);
+            break;
+          case 'gt':
+            filteredQuery = filteredQuery.gt(key, filterValue);
+            break;
+          case 'gte':
+            filteredQuery = filteredQuery.gte(key, filterValue);
+            break;
+          case 'lt':
+            filteredQuery = filteredQuery.lt(key, filterValue);
+            break;
+          case 'lte':
+            filteredQuery = filteredQuery.lte(key, filterValue);
+            break;
+          case 'like':
+            filteredQuery = filteredQuery.like(key, String(filterValue));
+            break;
+          case 'ilike':
+            filteredQuery = filteredQuery.ilike(key, String(filterValue));
+            break;
+          case 'contains':
+            filteredQuery = filteredQuery.contains(key, filterValue);
+            break;
+          case 'containedBy':
+            filteredQuery = filteredQuery.containedBy(key, filterValue);
+            break;
+          default:
+            filteredQuery = filteredQuery.eq(key, filterValue);
+            break;
+        }
+        return;
+      }
+
+      filteredQuery = filteredQuery.eq(key, value);
     });
-    
+
     return filteredQuery;
   }
   
@@ -454,15 +493,15 @@ export abstract class BaseApiService {
   /**
    * Validate and sanitize query parameters
    */
-  protected validateQueryParams(params: Record<string, any>): Record<string, any> {
-    const sanitized: Record<string, any> = {};
-    
+  protected validateQueryParams(params: Record<string, unknown>): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {};
+
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'string') {
         sanitized[key] = this.sanitizeInput(value);
       } else if (Array.isArray(value)) {
-        sanitized[key] = value.map(v => 
-          typeof v === 'string' ? this.sanitizeInput(v) : v
+        sanitized[key] = value.map(item =>
+          typeof item === 'string' ? this.sanitizeInput(item) : item
         );
       } else {
         sanitized[key] = value;

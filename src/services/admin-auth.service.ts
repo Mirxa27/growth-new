@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 /**
  * Secure admin authentication service
@@ -43,8 +44,8 @@ export class AdminAuthService {
 
       return false;
     } catch (error) {
-      console.warn('Admin check failed:', error);
-      
+      logger.error('Admin check failed', 'AdminAuthService', error);
+
       // Fallback to email check only
       return this.ADMIN_EMAILS.includes(user.email || '');
     }
@@ -58,7 +59,7 @@ export class AdminAuthService {
       const { data: { user } } = await supabase.auth.getUser();
       return await this.isUserAdmin(user);
     } catch (error) {
-      console.warn('Failed to get current user admin status:', error);
+      logger.error('Failed to get current user admin status', 'AdminAuthService', error);
       return false;
     }
   }
@@ -72,13 +73,13 @@ export class AdminAuthService {
       const { data, error } = await supabase.rpc('verify_admin_status');
       
       if (error) {
-        console.warn('Server-side admin verification failed:', error);
+        logger.error('Server-side admin verification failed', 'AdminAuthService', error);
         return false;
       }
-      
+
       return data === true;
     } catch (error) {
-      console.warn('Server-side admin verification error:', error);
+      logger.error('Server-side admin verification error', 'AdminAuthService', error);
       return false;
     }
   }
@@ -90,9 +91,10 @@ export class AdminAuthService {
     try {
       // Test admin access by calling a protected function
       const { error } = await supabase.rpc('check_admin_access');
-      
+
       return !error;
     } catch (error) {
+      logger.error('Admin API access check failed', 'AdminAuthService', error);
       return false;
     }
   }
@@ -105,13 +107,13 @@ export class AdminAuthService {
       const { data, error } = await supabase.functions.invoke('create-admin-token');
       
       if (error || !data?.token) {
-        console.warn('Failed to create admin token:', error);
+        logger.error('Failed to create admin token', 'AdminAuthService', error);
         return null;
       }
-      
+
       return data.token;
     } catch (error) {
-      console.warn('Admin token creation error:', error);
+      logger.error('Admin token creation error', 'AdminAuthService', error);
       return null;
     }
   }
