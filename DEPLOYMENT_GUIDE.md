@@ -1,504 +1,250 @@
-# Newomen.me Deployment Guide
+# 🚀 Newomen Platform - Vercel Deployment Guide
 
-Complete deployment guide for the Newomen personal growth platform with mobile app, assessments, and AI features.
+## Prerequisites
 
-## 📋 Overview
+1. **Node.js** 18+ installed
+2. **npm** 8+ installed
+3. **Vercel CLI** installed globally (`npm install -g vercel`)
+4. **Supabase** project configured
+5. **Environment variables** set up
 
-This guide covers:
-- Web application deployment (Vercel/Netlify)
-- iOS mobile app build and TestFlight deployment
-- Database setup and migrations (Supabase)
-- Edge functions deployment
-- Environment configuration
-- Testing and QA procedures
+## Environment Variables Required
 
-## 🏗️ Architecture
+### Required Variables
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web App       │    │   Mobile App    │    │   Admin Panel   │
-│   (React/Vite)  │    │   (Capacitor)   │    │   (React)       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-         ┌───────────────────────▼───────────────────────┐
-         │              Supabase Backend                 │
-         │  ┌─────────────┐ ┌─────────────┐ ┌──────────┐ │
-         │  │ PostgreSQL  │ │Edge Functions│ │   Auth   │ │
-         │  │  Database   │ │   (Deno)     │ │ Service  │ │
-         │  └─────────────┘ └─────────────┘ └──────────┘ │
-         └───────────────────────────────────────────────┘
-                                 │
-         ┌───────────────────────▼───────────────────────┐
-         │              External APIs                    │
-         │  ┌─────────────┐ ┌─────────────┐ ┌──────────┐ │
-         │  │   OpenAI    │ │  Anthropic  │ │  Others  │ │
-         │  │ Realtime API│ │     API     │ │   APIs   │ │
-         │  └─────────────┘ └─────────────┘ └──────────┘ │
-         └───────────────────────────────────────────────┘
-```
+### Optional Variables (for enhanced functionality)
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+- `OPENAI_API_KEY` - OpenAI API key
+- `ANTHROPIC_API_KEY` - Anthropic API key
+- `GOOGLE_AI_API_KEY` - Google AI API key
+- `VITE_APP_URL` - Your deployed app URL
+- `VITE_ENVIRONMENT` - Environment setting
 
-## 🚀 Quick Start
+## Quick Deployment (Recommended)
 
-### Prerequisites
-
-- Node.js 18+
-- npm or pnpm
-- Supabase CLI
-- Xcode (for iOS builds)
-- macOS (for iOS development)
-
-### 1. Clone and Setup
-
+### 1. Install Dependencies
 ```bash
-git clone <repository-url>
-cd newomen-platform
 npm install --legacy-peer-deps
 ```
 
-### 2. Environment Setup
-
-Copy and configure environment variables:
-
+### 2. Build the Application
 ```bash
-cp .env.example .env.local
-```
-
-Required environment variables:
-```env
-# Supabase
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# OpenAI (for AI features)
-OPENAI_API_KEY=your_openai_api_key
-
-# Optional: Other AI providers
-ANTHROPIC_API_KEY=your_anthropic_key
-GOOGLE_AI_API_KEY=your_google_ai_key
-
-# App Configuration
-VITE_APP_URL=https://your-domain.com
-VITE_ENVIRONMENT=production
-```
-
-### 3. Database Setup
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Login to Supabase
-supabase login
-
-# Link to your project
-supabase link --project-ref your-project-ref
-
-# Run migrations
-supabase db push
-
-# Deploy edge functions
-supabase functions deploy
-```
-
-### 4. Build and Deploy
-
-```bash
-# Build web app
 npm run build:production
+```
 
-# Deploy to Vercel (recommended)
+### 3. Deploy to Vercel
+```bash
 npm run deploy:vercel
-
-# Or deploy to Netlify
-npm run deploy:netlify
 ```
 
-## 📱 Mobile App Deployment
-
-### iOS Build Process
-
-1. **Setup Xcode Environment**
-   ```bash
-   # Install Xcode from Mac App Store
-   # Install Xcode command line tools
-   xcode-select --install
-   
-   # Install CocoaPods
-   sudo gem install cocoapods
-   ```
-
-2. **Build iOS App**
-   ```bash
-   # Make build script executable
-   chmod +x ./scripts/build-ios.sh
-   
-   # Development build (opens Xcode)
-   ./scripts/build-ios.sh --dev
-   
-   # TestFlight build (creates IPA)
-   ./scripts/build-ios.sh --testflight
-   ```
-
-3. **Configure App Store Connect**
-   - Create app in App Store Connect
-   - Configure app information, screenshots, description
-   - Set up TestFlight for beta testing
-
-4. **Upload to TestFlight**
-   ```bash
-   # Upload IPA using Xcode or Application Loader
-   # Or use command line:
-   xcrun altool --upload-app -f ios/App/build/App.ipa \
-     -u your-apple-id@email.com -p your-app-specific-password
-   ```
-
-### Mobile App Features
-
-The iOS app includes:
-- ✅ Full offline functionality with sync
-- ✅ Push notifications
-- ✅ Camera/microphone access for assessments
-- ✅ Deep linking support
-- ✅ Native iOS UI components
-- ✅ Biometric authentication support
-- ✅ Background sync capabilities
-
-### Required iOS Permissions
-
-The app requests these permissions (already configured in Info.plist):
-- Camera: For image-based assessments and profile photos
-- Microphone: For voice assessments and AI conversations
-- Location: For personalized content recommendations
-- Notifications: For assessment reminders and insights
-- File Access: For saving and syncing assessment results
-
-## 🗄️ Database Schema
-
-### Core Tables
-
-```sql
--- Users and Authentication
-profiles (id, email, display_name, role, is_admin, created_at)
-admin_logs (id, admin_id, action, details, timestamp)
-
--- Assessment System
-assessments (id, slug, title, description, type, difficulty, is_public, requires_auth)
-assessment_questions (id, assessment_id, question_text, question_type, order_index)
-assessment_options (id, question_id, option_text, is_correct, score_points)
-assessment_attempts (id, assessment_id, user_id, visitor_session_id, score, status)
-assessment_responses (id, attempt_id, question_id, response_text, selected_option_ids)
-assessment_analytics (id, assessment_id, total_attempts, average_score)
-
--- Course System
-courses (id, slug, title, description, is_published, created_by)
-course_modules (id, course_id, title, content_type, order_index)
-course_progress (id, course_id, user_id, progress_percentage, completed_at)
-
--- AI Content Generation
-ai_build_jobs (id, admin_id, job_type, ai_provider, status, generated_content)
-admin_ai_providers (id, provider_type, configuration, is_active)
-
--- Voice Features
-voice_agent_configs (id, model, voice, instructions, is_active)
-voice_sessions (id, user_id, session_token, transcript, metadata)
-```
-
-### Migrations
-
-All database migrations are located in `/supabase/migrations/` and are automatically applied during deployment.
-
-Key migrations:
-- `20250907100000_secure_admin_verification.sql` - Admin security system
-- `20250907110000_comprehensive_assessment_system_v2.sql` - Complete assessment schema
-- `20250907111000_assessment_functions.sql` - Assessment management functions
-- `20250907112000_seed_assessments.sql` - 20 ready-to-use assessments
-
-## 🔧 Edge Functions
-
-### Deployed Functions
-
-1. **get-realtime-token** - OpenAI Realtime API authentication
-2. **ai-content-generator** - AI-powered content creation
-3. **create-admin-token** - Secure admin token generation
-4. **test-ai-provider** - AI provider connection testing
-
-### Function Deployment
-
+### 4. Alternative: Use the deployment script
 ```bash
-# Deploy all functions
-supabase functions deploy
-
-# Deploy specific function
-supabase functions deploy get-realtime-token
-
-# Set environment variables for functions
-supabase secrets set OPENAI_API_KEY=your_key
-supabase secrets set ANTHROPIC_API_KEY=your_key
+./scripts/deploy-vercel.sh
 ```
 
-## 🔐 Security Configuration
+## Manual Deployment Steps
 
-### Admin Access Control
-
-The platform implements multi-layered admin security:
-
-1. **Database-level checks** - RLS policies verify admin status
-2. **Server-side verification** - Edge functions validate admin tokens
-3. **Client-side protection** - UI components check admin permissions
-4. **Audit logging** - All admin actions are logged
-
-### API Security
-
-- All sensitive endpoints require authentication
-- Admin-only functions verify server-side admin status
-- Rate limiting prevents abuse of anonymous endpoints
-- CORS properly configured for cross-origin requests
-
-### Data Protection
-
-- User data encrypted in transit and at rest
-- Anonymous assessments don't store personal information
-- GDPR-compliant data handling procedures
-- Regular security audits and updates
-
-## 🧪 Testing
-
-### Test Suite
-
-Run the complete test suite:
-
+### Step 1: Environment Setup
 ```bash
-# Unit tests
-npm run test
+# Check and setup environment variables
+node scripts/setup-vercel-env.js
 
-# Integration tests
-npm run test:integration
-
-# E2E tests
-npm run test:e2e
-
-# Mobile tests (requires iOS simulator)
-npm run test:ios
+# Or manually set environment variables in Vercel dashboard
+vercel env add VITE_SUPABASE_URL production
+vercel env add VITE_SUPABASE_ANON_KEY production
 ```
 
-### Manual Testing Checklist
+### Step 2: Build Configuration
+The application is configured with:
+- **Framework**: Vite
+- **Build Command**: `npm run vercel-build`
+- **Output Directory**: `dist`
+- **Install Command**: `npm install --legacy-peer-deps`
 
-#### Web Application
-- [ ] User registration and login
-- [ ] Anonymous assessment completion
-- [ ] Admin panel access and functionality
-- [ ] AI content generation
-- [ ] Voice conversation features
-- [ ] Mobile responsive design
+### Step 3: Deploy
+```bash
+# Deploy to production
+vercel --prod
 
-#### Mobile Application
-- [ ] App installation and launch
-- [ ] Offline assessment completion
-- [ ] Data synchronization
-- [ ] Push notifications
-- [ ] Camera/microphone functionality
-- [ ] Deep linking from web
+# Or deploy with confirmation prompts
+vercel --prod --yes
+```
 
-#### Admin Features
-- [ ] User management
-- [ ] Assessment creation and editing
-- [ ] AI content generation
-- [ ] Analytics and reporting
-- [ ] Voice agent configuration
+## Configuration Files
 
-## 📊 Analytics and Monitoring
+### vercel.json
+```json
+{
+  "version": 2,
+  "name": "newomen-platform",
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "vite",
+  "functions": {
+    "src/api/**/*.ts": {
+      "runtime": "@vercel/node@2"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
 
-### Built-in Analytics
+### package.json Scripts
+```json
+{
+  "scripts": {
+    "build": "npm run clean && vite build",
+    "build:production": "npm run clean && npm run type-check && vite build",
+    "build:vercel": "npm run clean && vite build",
+    "deploy:vercel": "vercel --prod",
+    "vercel-build": "npm run build:vercel"
+  }
+}
+```
 
-The platform tracks:
-- Assessment completion rates
-- User engagement metrics
-- Popular assessment types
-- Performance analytics
-- Error rates and issues
+## Troubleshooting
 
-### Monitoring Setup
+### Build Issues
 
-1. **Supabase Dashboard** - Database and API metrics
-2. **Vercel Analytics** - Web performance and usage
-3. **Custom Logging** - Application-specific events
-4. **Error Tracking** - Automated error reporting
-
-### Performance Optimization
-
-- Lazy loading of components and routes
-- Image optimization and caching
-- Database query optimization
-- CDN usage for static assets
-- Mobile app offline caching
-
-## 🚀 Production Deployment
-
-### Pre-deployment Checklist
-
-- [ ] All tests passing
-- [ ] Environment variables configured
-- [ ] Database migrations applied
-- [ ] Edge functions deployed
-- [ ] SSL certificates configured
-- [ ] Domain DNS configured
-- [ ] Admin accounts created
-- [ ] Backup procedures tested
-
-### Deployment Steps
-
-1. **Build and Test**
+1. **Dependency Conflicts**
    ```bash
-   npm run build:production
-   npm run test
+   npm install --legacy-peer-deps
    ```
 
-2. **Deploy Database**
+2. **TypeScript Errors**
    ```bash
-   supabase db push
-   supabase functions deploy
+   npm run type-check
    ```
 
-3. **Deploy Web App**
+3. **Missing Environment Variables**
    ```bash
-   # Vercel deployment
-   vercel --prod
-   
-   # Or manual deployment
-   npm run deploy:production
+   node scripts/setup-vercel-env.js
    ```
 
-4. **Deploy Mobile App**
-   ```bash
-   ./scripts/build-ios.sh --testflight
-   # Upload to App Store Connect
-   # Submit for TestFlight review
-   ```
+### Runtime Issues
 
-### Post-deployment Verification
+1. **Supabase Connection Issues**
+   - Verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+   - Check Supabase project status
 
-1. **Smoke Tests**
-   - Homepage loads correctly
-   - User registration works
-   - Anonymous assessments function
-   - Admin panel accessible
+2. **API Key Issues**
+   - Ensure API keys are set in Vercel environment variables
+   - Test API connections
 
-2. **Performance Tests**
-   - Page load times < 3 seconds
-   - Assessment completion < 30 seconds
-   - Mobile app responsiveness
+3. **CORS Issues**
+   - The app includes CORS configuration in `vercel.json`
 
-3. **Security Tests**
-   - Admin endpoints protected
-   - Anonymous access working
-   - No sensitive data exposed
+### Performance Issues
 
-## 🔄 Maintenance and Updates
+1. **Large Bundle Size**
+   - Manual chunks are configured in `vite.config.ts`
+   - Tree shaking is enabled by default
 
-### Regular Maintenance
+2. **Slow Cold Starts**
+   - Functions are optimized for performance
+   - Edge runtime is used where appropriate
 
-- Weekly dependency updates
-- Monthly security patches
-- Quarterly feature releases
-- Database performance optimization
-- Log rotation and cleanup
+## Post-Deployment Checklist
 
-### Backup Procedures
+### ✅ Basic Functionality
+- [ ] Homepage loads correctly
+- [ ] Anonymous assessment completion works
+- [ ] User registration/login functions
+- [ ] Admin panel is accessible
 
-- Daily database backups (automated by Supabase)
-- Weekly full system backup
-- Monthly disaster recovery testing
-- Configuration backup in version control
+### ✅ Core Features
+- [ ] AI content generation works
+- [ ] Voice agent functionality
+- [ ] Assessment creation and management
+- [ ] Payment integration (if configured)
 
-### Update Process
+### ✅ Mobile Responsiveness
+- [ ] App works on mobile devices
+- [ ] Touch interactions function properly
+- [ ] Responsive design adapts to screen sizes
 
-1. **Development** - Feature development and testing
-2. **Staging** - Full integration testing
-3. **Production** - Gradual rollout with monitoring
-4. **Rollback** - Quick rollback procedures if needed
+### ✅ Performance
+- [ ] Fast loading times
+- [ ] No console errors
+- [ ] Proper caching headers
 
-## 📞 Support and Troubleshooting
+## Environment Configuration
 
-### Common Issues
+### Development
+- Set `VITE_ENVIRONMENT=development`
+- Use local Supabase instance if available
 
-1. **Build Failures**
-   - Check Node.js version compatibility
-   - Clear node_modules and reinstall
-   - Verify environment variables
+### Production
+- Set `VITE_ENVIRONMENT=production`
+- Configure production Supabase project
+- Set up monitoring and analytics
 
-2. **Database Connection Issues**
-   - Verify Supabase credentials
-   - Check network connectivity
-   - Review RLS policies
+## Monitoring and Analytics
 
-3. **Mobile App Issues**
-   - Ensure Xcode is up to date
-   - Check iOS deployment target
-   - Verify signing certificates
+1. **Vercel Analytics**
+   - Enabled by default
+   - Monitor traffic and performance
 
-4. **AI Feature Issues**
-   - Verify API keys are set
-   - Check rate limits
-   - Review model availability
+2. **Custom Monitoring**
+   - Error tracking with Sentry (recommended)
+   - Performance monitoring with Vercel
 
-### Support Contacts
+3. **Database Monitoring**
+   - Supabase dashboard
+   - Query performance insights
 
-- **Technical Issues**: Create GitHub issue
-- **Security Concerns**: security@newomen.me
-- **General Support**: support@newomen.me
+## Security Considerations
 
-### Documentation
+1. **Environment Variables**
+   - Never commit sensitive keys to version control
+   - Use Vercel secrets for sensitive data
 
-- **API Documentation**: `/docs/api`
-- **Component Library**: `/docs/components`
-- **Database Schema**: `/docs/database`
-- **Mobile Development**: `/docs/mobile`
+2. **CORS Configuration**
+   - Properly configured in `vercel.json`
+   - Restrict origins if necessary
 
-## 📈 Scaling Considerations
+3. **Authentication**
+   - Supabase handles auth securely
+   - Row Level Security (RLS) policies in place
 
-### Performance Scaling
+## Backup and Recovery
 
-- **Database**: Supabase automatically scales
-- **Edge Functions**: Serverless auto-scaling
-- **CDN**: Global content distribution
-- **Caching**: Redis for session management
+1. **Database Backups**
+   - Supabase automatic backups
+   - Manual export before major changes
 
-### Feature Scaling
+2. **Code Backups**
+   - Git version control
+   - Vercel deployment history
 
-- **Multi-language Support**: i18n implementation ready
-- **Multi-tenant**: Architecture supports multiple organizations
-- **API Versioning**: Structured for backward compatibility
-- **Mobile Platforms**: Android support can be added
+3. **Configuration Backups**
+   - Environment variables documented
+   - Deployment configurations saved
 
-### Cost Optimization
+## Support
 
-- **Supabase**: Monitor database usage and optimize queries
-- **Vercel**: Use appropriate plan based on traffic
-- **AI APIs**: Implement caching and rate limiting
-- **Storage**: Optimize media storage and delivery
+If you encounter issues:
+
+1. Check the Vercel dashboard for error logs
+2. Review the deployment guide above
+3. Check Supabase status and logs
+4. Test locally before deploying
+
+## Next Steps
+
+After successful deployment:
+
+1. Set up domain (if not using Vercel domain)
+2. Configure custom domains and SSL
+3. Set up monitoring and alerting
+4. Configure CDN and caching
+5. Set up CI/CD pipeline for automated deployments
 
 ---
 
-## 🎯 Success Metrics
-
-### Key Performance Indicators
-
-- **User Engagement**: Daily/Monthly active users
-- **Assessment Completion**: Completion rate > 80%
-- **Mobile Adoption**: iOS app installs and usage
-- **AI Usage**: Content generation requests
-- **Performance**: Page load times < 3 seconds
-
-### Business Metrics
-
-- **User Growth**: Month-over-month growth rate
-- **Retention**: 7-day and 30-day retention rates
-- **Conversion**: Anonymous to registered user conversion
-- **Satisfaction**: User feedback and ratings
-
----
-
-This deployment guide ensures a successful launch of the Newomen platform with all features working correctly across web and mobile platforms. Regular updates to this guide will be made as the platform evolves.
+🎉 **Congratulations!** Your Newomen Platform is now deployed on Vercel and ready for users!

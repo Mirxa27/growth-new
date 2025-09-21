@@ -25,7 +25,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "verify-deployment": "node scripts/verify-deployment.js",
+    "deploy:vercel-with-check": "npm run verify-deployment && npm run deploy:vercel"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
