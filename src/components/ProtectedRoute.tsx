@@ -59,7 +59,7 @@ export const ProtectedRoute = ({
   // Loading state with better UX
   if (loading) {
     return (
-      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 p-4">
+      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 p-4">
         <div className="text-center space-y-4 max-w-md">
           <LoadingSpinner size="lg" />
           <div className="space-y-2">
@@ -76,7 +76,7 @@ export const ProtectedRoute = ({
   // Authentication error state
   if (!user) {
     return (
-      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 p-4">
+      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 p-4">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center space-y-2">
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto" />
@@ -118,7 +118,7 @@ export const ProtectedRoute = ({
   // Admin access error state
   if (requireAdmin && !isAdmin) {
     return (
-      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 p-4">
+      <div className="min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 p-4">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center space-y-2">
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto" />

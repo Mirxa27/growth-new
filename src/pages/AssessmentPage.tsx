@@ -172,7 +172,7 @@ const AssessmentPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center">
         <div className="text-center space-y-4">
           <LoadingSpinner size="lg" />
           <h2 className="text-xl font-semibold">Loading Assessment</h2>
@@ -184,7 +184,7 @@ const AssessmentPage: React.FC = () => {
 
   if (error || !assessment) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center p-4">
         <Card className="glass-strong max-w-md w-full">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -213,7 +213,7 @@ const AssessmentPage: React.FC = () => {
 
   if (showResults && results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
         <AssessmentResults
           results={results}
           showDetailedBreakdown={true}
@@ -226,7 +226,7 @@ const AssessmentPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
       <AnonymousAssessment
         assessment={assessment}
         onComplete={handleAssessmentComplete}

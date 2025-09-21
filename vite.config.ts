@@ -57,22 +57,53 @@ export default defineConfig({
     rollupOptions: {
       // Removed Capacitor externals - now handled by custom plugin
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-tooltip'
-          ],
-          'supabase': ['@supabase/supabase-js'],
-          'ai-services': ['openai'],
-          'utils': ['date-fns', 'clsx', 'zod']
+        manualChunks: (id) => {
+          // React ecosystem
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+            return 'react-vendor';
+          }
+          
+          // Radix UI components
+          if (id.includes('@radix-ui')) {
+            return 'ui-vendor';
+          }
+          
+          // Supabase
+          if (id.includes('@supabase')) {
+            return 'supabase';
+          }
+          
+          // OpenAI and AI services
+          if (id.includes('openai') || id.includes('@anthropic-ai') || id.includes('@google/generative-ai')) {
+            return 'ai-services';
+          }
+          
+          // Admin components (large bundle)
+          if (id.includes('src/components/admin') || id.includes('src/pages/AdminDashboard')) {
+            return 'admin';
+          }
+          
+          // Assessment components
+          if (id.includes('src/components/assessment') || id.includes('src/data/assessments')) {
+            return 'assessments';
+          }
+          
+          // Utilities and helpers
+          if (id.includes('date-fns') || id.includes('clsx') || id.includes('zod') || id.includes('framer-motion')) {
+            return 'utils';
+          }
+          
+          // Node modules (third-party)
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+          
+          // Default chunk for app code
+          return 'index';
         }
       }
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 2000
   },
   optimizeDeps: {
     include: [

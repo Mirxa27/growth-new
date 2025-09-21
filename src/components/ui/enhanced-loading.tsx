@@ -20,7 +20,7 @@ export const EnhancedLoading: React.FC<EnhancedLoadingProps> = ({
 }) => {
   const baseClasses = {
     default: 'flex items-center justify-center',
-    page: 'min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 p-4',
+    page: 'min-h-screen-safe flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 p-4',
     inline: 'inline-flex items-center gap-2',
     overlay: 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm'
   };

@@ -26,7 +26,7 @@ export const MobilePage: React.FC<MobilePageProps> = ({
 
   const backgroundClasses = {
     default: '',
-    gradient: 'bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5',
+    gradient: 'bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10',
     glass: 'bg-gradient-ambient'
   };
 

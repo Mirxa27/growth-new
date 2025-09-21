@@ -200,7 +200,7 @@ const ExplorationSession = () => {
 
   if (isComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center p-4">
         <Card className="glass border-card-border max-w-2xl w-full text-center">
           <CardContent className="p-8">
             <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
@@ -240,7 +240,7 @@ const ExplorationSession = () => {
   const canProceed = currentAnswer.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

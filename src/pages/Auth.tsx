@@ -69,7 +69,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen-safe flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 sm:p-6">
+    <div className="min-h-screen-safe flex items-center justify-center bg-gradient-to-br from-primary-100 via-background to-secondary/5 p-4 sm:p-6">
       <Tabs defaultValue="sign-in" className="w-full max-w-[400px]">
         <TabsList className="grid w-full grid-cols-2 touch-target-large">
           <TabsTrigger value="sign-in" className="touch-target">Sign In</TabsTrigger>

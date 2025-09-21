@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { RefreshCw, Save, CheckCircle2, ShieldOff } from 'lucide-react';
+import { RefreshCw, Save, CheckCircle2, ShieldOff, CreditCard } from 'lucide-react';
 import { logger } from '@/utils/logger';
 
 interface PayPalConfigForm {
@@ -273,14 +273,18 @@ export const PayPalSettings = () => {
   }
 
   return (
-    <Card className="glass-strong">
-      <CardHeader>
-        <CardTitle>PayPal Integration</CardTitle>
-        <CardDescription>
-          Configure PayPal API credentials and endpoints used for subscriptions and checkout flows.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-6 w-6" />
+            PayPal Integration
+          </CardTitle>
+          <CardDescription>
+            Configure PayPal API credentials and endpoints for secure payment processing
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
         {loadError && (
           <Alert variant="destructive">
             <AlertDescription>{loadError}</AlertDescription>
@@ -461,8 +465,55 @@ export const PayPalSettings = () => {
             </Badge>
           )}
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Payment Plans Configuration */}
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle>Payment Plans</CardTitle>
+          <CardDescription>
+            Configure subscription plans and pricing tiers
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 border rounded-lg glass">
+              <h4 className="font-semibold">Basic Plan</h4>
+              <p className="text-2xl font-bold">$9.99/mo</p>
+              <p className="text-sm text-muted-foreground">Essential features</p>
+            </div>
+            <div className="p-4 border rounded-lg glass">
+              <h4 className="font-semibold">Premium Plan</h4>
+              <p className="text-2xl font-bold">$19.99/mo</p>
+              <p className="text-sm text-muted-foreground">Advanced features</p>
+            </div>
+            <div className="p-4 border rounded-lg glass">
+              <h4 className="font-semibold">Enterprise</h4>
+              <p className="text-2xl font-bold">$49.99/mo</p>
+              <p className="text-sm text-muted-foreground">Full access</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transaction History */}
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle>Recent Transactions</CardTitle>
+          <CardDescription>
+            Monitor payment activity and transaction status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No recent transactions</p>
+            <p className="text-sm">Payment data will appear here once configured</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
