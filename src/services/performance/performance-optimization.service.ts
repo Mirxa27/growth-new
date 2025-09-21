@@ -72,8 +72,8 @@ export class PerformanceOptimizationService {
    */
   preloadCriticalResources() {
     const criticalResources = [
-      '/loader.svg',
-      '/symbol.svg'
+      '/loader.svg'
+      // symbol.svg is now preloaded in index.html
     ];
 
     criticalResources.forEach(resource => {

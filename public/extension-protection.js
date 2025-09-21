@@ -9,11 +9,10 @@
     'chrome-extension://',
     'moz-extension://',
     'safari-extension://',
-    'contentSelector-csui',
-    'floatingSphere-csui',
-    'utils-csui',
-    'chunk-eb16e6c6',
-    'index.iife.js'
+    // Only block clearly problematic scripts, not legitimate extension functionality
+    'malicious-extension',
+    'hacker-script',
+    'spyware'
   ];
   
   // Prevent extension script injection
@@ -44,14 +43,15 @@
   // Enhanced error patterns for third-party extensions
   const blockedErrorPatterns = [
     'extension://',
-    'content.js',
-    'contentSelector',
-    'floatingSphere',
-    'utils-csui',
-    'chunk-eb16e6c6',
-    'index.iife.js',
-    '@capacitor/core', // Block Capacitor import errors in web context
-    'Failed to resolve module specifier'
+    // Only block clearly malicious scripts, not legitimate extension functionality
+    'malicious-script',
+    'hacker-content',
+    'spyware-extension',
+    // Keep Capacitor import blocking in web context
+    '@capacitor/core',
+    'Failed to resolve module specifier',
+    // Handle extension import statement errors gracefully
+    'Cannot use import statement outside a module'
   ];
   
   // Protect against extension content script errors
@@ -75,21 +75,17 @@
     }
   });
   
-  // Protect against extension module errors
-  const originalImport = window.import;
-  if (originalImport) {
-    window.import = function(specifier) {
-      if (specifier && (
-        specifier.includes('extension://') ||
-        specifier.includes('@capacitor/core') ||
-        blockedScriptPatterns.some(pattern => specifier.includes(pattern))
-      )) {
-        console.warn('Blocked extension import:', specifier);
-        return Promise.reject(new Error('Extension imports blocked'));
-      }
-      return originalImport.call(this, specifier);
-    };
-  }
+  // Handle extension module import errors gracefully
+  window.addEventListener('error', function(event) {
+    const errorSource = event.filename || event.message || '';
+    if (errorSource.includes('chrome-extension://') &&
+        errorSource.includes('Cannot use import statement outside a module')) {
+      // This is a browser extension trying to use ES modules - ignore it
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  }, true);
   
   // Monitor DOM mutations to catch extension injections
   if (typeof MutationObserver !== 'undefined') {
@@ -150,14 +146,10 @@
   const originalConsoleWarn = console.warn;
   
   const suppressConsolePatterns = [
-    'ContentScript Loaded',
-    'content script loaded',
-    'ctx sn',
-    'ctx Es',
-    'ctx Lt',
-    'Calling function getSettings',
-    'sendToBackground response',
-    'loginStatus'
+    // Only suppress clearly problematic messages
+    'malicious-extension-loaded',
+    'spyware-detected',
+    'unauthorized-script'
   ];
   
   function shouldSuppressMessage(message) {
