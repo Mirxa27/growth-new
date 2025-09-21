@@ -9,7 +9,13 @@
     'chrome-extension://',
     'moz-extension://',
     'safari-extension://',
-    // Only block clearly problematic scripts, not legitimate extension functionality
+    // Block extension scripts that cause console spam
+    'contentSelector-csui',
+    'floatingSphere-csui',
+    'utils-csui',
+    'chunk-eb16e6c6',
+    'index.iife.js',
+    // Only block clearly malicious scripts
     'malicious-extension',
     'hacker-script',
     'spyware'
@@ -43,6 +49,12 @@
   // Enhanced error patterns for third-party extensions
   const blockedErrorPatterns = [
     'extension://',
+    // Block extension scripts that cause console spam
+    'contentSelector-csui',
+    'floatingSphere-csui',
+    'utils-csui',
+    'chunk-eb16e6c6',
+    'index.iife.js',
     // Only block clearly malicious scripts, not legitimate extension functionality
     'malicious-script',
     'hacker-content',
@@ -160,11 +172,16 @@
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
   const originalConsoleInfo = console.info;
+
+  // Also override debug, trace, and any other console methods
+  const originalConsoleDebug = console.debug;
+  const originalConsoleTrace = console.trace;
   
   const suppressConsolePatterns = [
     // Suppress extension-related console messages
     'ContentScript Loaded',
     'content script loaded',
+    ' content script loaded', // With leading space
     'ctx sn',
     'ctx Es',
     'ctx Lt',
@@ -207,6 +224,18 @@
       originalConsoleInfo.apply(console, args);
     }
   };
-  
+
+  console.debug = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleDebug.apply(console, args);
+    }
+  };
+
+  console.trace = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleTrace.apply(console, args);
+    }
+  };
+
   console.log('Extension protection initialized');
 })();
