@@ -2,25 +2,26 @@ import { Brain, MessageCircle, Trophy, Users, Globe, Shield } from "lucide-react
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { logger } from '@/utils/logger';
 
 export const Features = () => {
   const navigate = useNavigate();
 
   const handleStartDiscovery = () => {
-    console.log('Navigating to /mobile-assessment-hub');
+    logger.info('Navigating to assessment hub', 'Features');
     try {
       navigate("/mobile-assessment-hub");
     } catch (error) {
-      console.error('Navigation error:', error);
+      logger.error('Navigation error to assessment hub', 'Features', error);
     }
   };
 
   const handleAuth = () => {
-    console.log('Navigating to /auth');
+    logger.info('Navigating to authentication', 'Features');
     try {
       navigate("/auth");
     } catch (error) {
-      console.error('Navigation error:', error);
+      logger.error('Navigation error to auth', 'Features', error);
     }
   };
   

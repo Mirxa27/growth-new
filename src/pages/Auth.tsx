@@ -85,7 +85,7 @@ const Auth = () => {
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email-in">Email</Label>
-                  <Input id="email-in" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                  <Input id="email-in" name="email" type="email" placeholder="your.email@example.com" required className="glass-input" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-in">Password</Label>
@@ -109,11 +109,11 @@ const Auth = () => {
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name-up">Name</Label>
-                  <Input id="name-up" name="name" placeholder="Your Name" required className="glass-input" />
+                  <Input id="name-up" name="name" placeholder="Your Full Name" required className="glass-input" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-up">Email</Label>
-                  <Input id="email-up" name="email" type="email" placeholder="m@example.com" required className="glass-input" />
+                  <Input id="email-up" name="email" type="email" placeholder="your.email@example.com" required className="glass-input" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-up">Password</Label>

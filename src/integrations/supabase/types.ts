@@ -707,6 +707,144 @@ export type Database = {
           },
         ]
       }
+      platform_settings: {
+        Row: {
+          created_at: string | null
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
+      content_challenges: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          challenge_type: string
+          difficulty: string
+          reward: number
+          is_active: boolean | null
+          ai_generated: boolean | null
+          ai_prompt: string | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          challenge_type: string
+          difficulty: string
+          reward: number
+          is_active?: boolean | null
+          ai_generated?: boolean | null
+          ai_prompt?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          challenge_type?: string
+          difficulty?: string
+          reward?: number
+          is_active?: boolean | null
+          ai_generated?: boolean | null
+          ai_prompt?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      courses: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          content: Json
+          difficulty: string | null
+          estimated_duration: number | null
+          is_published: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          content: Json
+          difficulty?: string | null
+          estimated_duration?: number | null
+          is_published?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          content?: Json
+          difficulty?: string | null
+          estimated_duration?: number | null
+          is_published?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      explorations: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          content: Json
+          category: string | null
+          estimated_duration: number | null
+          is_published: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          content: Json
+          category?: string | null
+          estimated_duration?: number | null
+          is_published?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          content?: Json
+          category?: string | null
+          estimated_duration?: number | null
+          is_published?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

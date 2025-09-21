@@ -398,6 +398,7 @@ export const ContentChallengeManager: React.FC = () => {
               <Switch id="is_active" checked={formData.is_active} onCheckedChange={c => setFormData(p => ({...p, is_active: c}))} />
               <Label htmlFor="is_active">Active</Label>
             </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}><X className="w-4 h-4 mr-2" />Cancel</Button>

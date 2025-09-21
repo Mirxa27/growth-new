@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminAuthService, AdminAuthStatus } from '@/services/admin-auth.service';
 import { supabase } from '@/integrations/supabase/client';
+import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/utils/logger';
 
 /**
  * React hook for admin authentication
@@ -25,7 +27,8 @@ export const useAdminAuth = (): AdminAuthStatus => {
         setVerified(false);
       }
     } catch (error) {
-      console.warn('Admin status check failed:', error);
+      const appError = errorHandler.handleError(error, 'useAdminAuth');
+      logger.warn('Admin status check failed', 'useAdminAuth', appError);
       setIsAdmin(false);
       setVerified(false);
     } finally {

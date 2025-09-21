@@ -158,7 +158,8 @@ export const PayPalSettings: React.FC = () => {
       if (error) throw error;
       setPlans(data || []);
     } catch (error) {
-      console.error('Error fetching plans:', error);
+      const appError = errorHandler.handleError(error, 'PayPalSettings');
+      logger.error('Failed to fetch PayPal plans', 'PayPalSettings', appError);
     }
   };
 
@@ -213,18 +214,22 @@ export const PayPalSettings: React.FC = () => {
         { key: 'paypal_active', value: config.is_active.toString() },
       ];
 
-      const updates = settings.map(({ key, value }) =>
-        supabase.rpc('update_platform_setting', {
-          setting_key: key,
-          setting_value: value
-        })
-      );
-
-      const results = await Promise.all(updates);
-      
-      results.forEach(result => {
-        if (result.error) throw result.error;
+      // Use upsert operations for platform settings
+      const updates = settings.map(async ({ key, value }) => {
+        const { error } = await supabase
+          .from('platform_settings')
+          .upsert({
+            key,
+            value,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'key'
+          });
+        
+        if (error) throw error;
       });
+
+      await Promise.all(updates);
 
       toast({
         title: "Success",
@@ -364,7 +369,7 @@ export const PayPalSettings: React.FC = () => {
                     className="glass-input"
                     value={config.client_id}
                     onChange={(e) => handleConfigChange('client_id', e.target.value)}
-                    placeholder="Your PayPal Client ID"
+                    placeholder="AYiPC9BjuuO2FkRGbaw8v1..."
                   />
                   {errors.client_id && (
                     <p className="text-sm text-red-500">{errors.client_id}</p>
@@ -380,7 +385,7 @@ export const PayPalSettings: React.FC = () => {
                       className="glass-input pr-10"
                       value={config.client_secret}
                       onChange={(e) => handleConfigChange('client_secret', e.target.value)}
-                      placeholder="Your PayPal Client Secret"
+                      placeholder="ENlbMdVgvO7IJSjGix6qRP..."
                     />
                     <Button
                       type="button"
@@ -423,7 +428,7 @@ export const PayPalSettings: React.FC = () => {
                     className="glass-input"
                     value={config.currency}
                     onChange={(e) => handleConfigChange('currency', e.target.value.toUpperCase())}
-                    placeholder="USD"
+                    placeholder="USD, EUR, GBP, CAD, AUD"
                     maxLength={3}
                   />
                   {errors.currency && (
@@ -440,7 +445,7 @@ export const PayPalSettings: React.FC = () => {
                     className="glass-input"
                     value={config.return_url}
                     onChange={(e) => handleConfigChange('return_url', e.target.value)}
-                    placeholder="https://yourdomain.com/payment/success"
+                    placeholder="https://newomen.me/payment/success"
                   />
                 </div>
 
@@ -451,7 +456,7 @@ export const PayPalSettings: React.FC = () => {
                     className="glass-input"
                     value={config.cancel_url}
                     onChange={(e) => handleConfigChange('cancel_url', e.target.value)}
-                    placeholder="https://yourdomain.com/payment/cancel"
+                    placeholder="https://newomen.me/payment/cancel"
                   />
                 </div>
               </div>
@@ -583,7 +588,7 @@ export const PayPalSettings: React.FC = () => {
                     className="glass-input"
                     value={config.webhook_id}
                     onChange={(e) => handleConfigChange('webhook_id', e.target.value)}
-                    placeholder="Your PayPal Webhook ID"
+                    placeholder="WH-2WR32451HC0233532-67976317FL4543714"
                   />
                   <Button
                     variant="outline"

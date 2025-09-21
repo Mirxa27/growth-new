@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/utils/logger';
 import { 
   Users, 
   Settings, 
@@ -286,7 +288,8 @@ const AdminDashboard: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching overview data:', error);
+      const appError = errorHandler.handleError(error, 'AdminDashboard');
+      logger.error('Failed to fetch admin overview data', 'AdminDashboard', appError);
     } finally {
       setOverviewLoading(false);
     }

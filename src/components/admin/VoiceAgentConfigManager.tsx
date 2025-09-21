@@ -95,7 +95,8 @@ export const VoiceAgentConfigManager: React.FC = () => {
         setForm(validatedConfig);
       } catch (e) {
         if (e instanceof z.ZodError) {
-          console.error('Invalid config from database:', e.errors);
+          const appError = errorHandler.handleError(e, 'VoiceAgentConfigManager');
+          logger.warn('Invalid voice config from database', 'VoiceAgentConfigManager', appError);
           toast({
             title: "Warning",
             description: "The configuration from the database is invalid. Using default values.",
@@ -516,7 +517,8 @@ export const VoiceAgentConfigManager: React.FC = () => {
                         });
                         setForm(parsed);
                       } catch (e) {
-                        console.warn('Invalid config when loading selection:', e);
+                        const appError = errorHandler.handleError(e, 'VoiceAgentConfigManager');
+                        logger.warn('Invalid config when loading selection', 'VoiceAgentConfigManager', appError);
                         toast({ title: 'Invalid config', description: 'Could not load configuration', variant: 'destructive' });
                       }
                     }}
