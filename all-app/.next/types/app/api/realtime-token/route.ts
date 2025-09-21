@@ -1,4 +1,4 @@
-// File: /workspace/all-app/src/app/api/realtime-token/route.ts
+// File: /home/runner/work/growth-new/growth-new/all-app/src/app/api/realtime-token/route.ts
 import * as entry from '../../../../../src/app/api/realtime-token/route.js'
 import type { NextRequest } from 'next/server.js'
 

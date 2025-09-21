@@ -1,4 +1,4 @@
-// File: /workspace/all-app/src/app/auth/signin/page.tsx
+// File: /home/runner/work/growth-new/growth-new/all-app/src/app/auth/signin/page.tsx
 import * as entry from '../../../../../src/app/auth/signin/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
