@@ -58,6 +58,7 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAILoading] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   
   // Form state
   const [title, setTitle] = useState(assessment?.title || '');
@@ -78,6 +79,13 @@ export const AIAssessmentBuilder: React.FC<AIAssessmentBuilderProps> = ({
   // AI generation state
   const [aiPrompt, setAIPrompt] = useState('');
   const [aiGeneratedContent, setAIGeneratedContent] = useState<GeneratedAssessment | null>(null);
+  const [aiAdvancedSettings, setAIAdvancedSettings] = useState({
+    includeScoring: true,
+    includeResults: true,
+    generateImages: false,
+    tone: 'empowering' as 'professional' | 'friendly' | 'empowering' | 'casual',
+    focusAreas: [] as string[]
+  });
 
   const assessmentTypes = [
     'personality', 'career', 'mental-health', 'relationships', 'skills', 'wellness',

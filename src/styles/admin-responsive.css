@@ -1,0 +1,303 @@
+/* Admin Panel Mobile-First Responsive Design */
+@layer components {
+  /* Mobile-first approach - base styles for mobile */
+  .admin-layout {
+    @apply min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5;
+  }
+
+  .admin-sidebar {
+    @apply fixed inset-y-0 left-0 z-50 w-full transform transition-transform duration-300 ease-in-out;
+    @apply glass-strong border-r border-glass;
+  }
+
+  .admin-sidebar.closed {
+    @apply -translate-x-full;
+  }
+
+  .admin-sidebar.open {
+    @apply translate-x-0;
+  }
+
+  .admin-content {
+    @apply flex-1 overflow-y-auto;
+    @apply px-4 py-6;
+  }
+
+  .admin-nav-item {
+    @apply w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all;
+    @apply glass hover:glass-strong text-foreground hover:text-primary;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+
+  .admin-nav-item.active {
+    @apply glass-strong border border-primary/20 text-primary;
+  }
+
+  .admin-card {
+    @apply glass-strong rounded-xl p-4;
+    @apply shadow-lg backdrop-blur-xl;
+    @apply border border-glass;
+  }
+
+  .admin-form-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+
+  .admin-input {
+    @apply glass-input w-full min-h-[44px] px-4 py-2;
+    @apply text-base; /* Prevent zoom on iOS */
+    @apply border border-glass rounded-lg;
+    @apply focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
+    @apply transition-all duration-200;
+  }
+
+  .admin-button {
+    @apply glass-button min-h-[44px] px-6 py-3;
+    @apply font-medium text-sm;
+    @apply border border-glass rounded-lg;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+
+  .admin-button.primary {
+    @apply bg-gradient-primary text-white border-transparent;
+    @apply hover:opacity-90 active:scale-[0.98];
+  }
+
+  .admin-stats-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+
+  .admin-stat-card {
+    @apply admin-card flex items-center space-x-4 p-6;
+  }
+
+  /* Tablet styles */
+  @media (min-width: 640px) {
+    .admin-form-grid {
+      @apply grid-cols-2;
+    }
+
+    .admin-stats-grid {
+      @apply grid-cols-2;
+    }
+
+    .admin-content {
+      @apply px-6 py-8;
+    }
+  }
+
+  /* Desktop styles */
+  @media (min-width: 768px) {
+    .admin-sidebar {
+      @apply relative w-72 transform-none;
+    }
+
+    .admin-sidebar.closed,
+    .admin-sidebar.open {
+      @apply translate-x-0;
+    }
+
+    .admin-layout {
+      @apply flex;
+    }
+
+    .admin-form-grid {
+      @apply grid-cols-2;
+    }
+
+    .admin-stats-grid {
+      @apply grid-cols-2;
+    }
+  }
+
+  /* Large desktop styles */
+  @media (min-width: 1024px) {
+    .admin-form-grid {
+      @apply grid-cols-3;
+    }
+
+    .admin-stats-grid {
+      @apply grid-cols-4;
+    }
+
+    .admin-content {
+      @apply px-8 py-8;
+    }
+  }
+
+  /* Extra large desktop styles */
+  @media (min-width: 1280px) {
+    .admin-form-grid {
+      @apply grid-cols-4;
+    }
+  }
+
+  /* Mobile-specific enhancements */
+  @media (max-width: 767px) {
+    .admin-mobile-header {
+      @apply flex items-center justify-between p-4 glass-nav border-b border-glass;
+    }
+
+    .admin-mobile-nav-toggle {
+      @apply p-2 rounded-lg glass-button;
+    }
+
+    .admin-card-stack {
+      @apply space-y-4;
+    }
+
+    .admin-form-field {
+      @apply space-y-2;
+    }
+
+    .admin-form-field label {
+      @apply text-sm font-medium text-foreground;
+    }
+
+    .admin-button-group {
+      @apply flex flex-col space-y-2;
+    }
+
+    .admin-tab-list {
+      @apply flex overflow-x-auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .admin-tab-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .admin-tab-trigger {
+      @apply flex-shrink-0 px-4 py-2 text-sm;
+    }
+  }
+
+  /* Touch-friendly interactions */
+  @media (hover: none) and (pointer: coarse) {
+    .admin-nav-item:hover {
+      @apply glass-strong;
+    }
+
+    .admin-button:hover {
+      @apply opacity-90;
+    }
+
+    .admin-card:hover {
+      @apply shadow-lg;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .admin-card {
+      @apply border-2 border-foreground/20;
+    }
+
+    .admin-input {
+      @apply border-2 border-foreground/30;
+    }
+
+    .admin-button {
+      @apply border-2 border-foreground/30;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .admin-sidebar {
+      @apply transition-none;
+    }
+
+    .admin-nav-item {
+      @apply transition-none;
+    }
+
+    .admin-button {
+      @apply transition-none;
+    }
+  }
+
+  /* Dark mode optimizations */
+  @media (prefers-color-scheme: dark) {
+    .admin-layout {
+      @apply bg-gradient-to-br from-background via-background/95 to-background/90;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .admin-sidebar {
+      @apply hidden;
+    }
+
+    .admin-content {
+      @apply w-full p-0;
+    }
+
+    .admin-card {
+      @apply border border-gray-300 shadow-none;
+    }
+  }
+
+  /* Accessibility enhancements */
+  .admin-skip-link {
+    @apply absolute -top-40 left-6 z-50 px-4 py-2 bg-primary text-white rounded;
+    @apply focus:top-6 transition-all duration-200;
+  }
+
+  .admin-focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+  }
+
+  /* Loading states */
+  .admin-loading {
+    @apply opacity-50 pointer-events-none;
+  }
+
+  .admin-skeleton {
+    @apply animate-pulse bg-muted/50 rounded;
+  }
+
+  /* Error states */
+  .admin-error {
+    @apply border-destructive/50 bg-destructive/5;
+  }
+
+  .admin-error-text {
+    @apply text-destructive text-sm;
+  }
+
+  /* Success states */
+  .admin-success {
+    @apply border-green-500/50 bg-green-500/5;
+  }
+
+  .admin-success-text {
+    @apply text-green-600 text-sm;
+  }
+}
+
+/* Utility classes for admin components */
+@layer utilities {
+  .glass-admin {
+    background: rgba(var(--glass-bg));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(var(--glass-border));
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-admin-primary {
+    color: hsl(var(--primary));
+  }
+
+  .bg-admin-gradient {
+    background: var(--gradient-primary);
+  }
+
+  .shadow-admin {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+}

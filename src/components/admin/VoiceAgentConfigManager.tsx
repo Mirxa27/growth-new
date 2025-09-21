@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -166,10 +167,28 @@ export const VoiceAgentConfigManager: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Mic className="h-6 w-6" /> Voice Agent Configuration</CardTitle>
           <CardDescription>
-            Customize the active voice agent's personality, voice, and other settings.
+            Customize the active voice agent's personality, voice, and advanced AI settings for optimal user experience.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Configuration Status */}
+          <div className="flex items-center justify-between p-4 rounded-lg glass bg-muted/20">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${activeConfig ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <div>
+                <p className="font-medium">
+                  {activeConfig ? `Active: ${activeConfig.name}` : 'No Active Configuration'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {activeConfig ? `Model: ${activeConfig.model} | Voice: ${activeConfig.voice}` : 'Set up your first voice agent configuration'}
+                </p>
+              </div>
+            </div>
+            <Badge variant={activeConfig ? 'default' : 'secondary'}>
+              {activeConfig ? 'Connected' : 'Setup Required'}
+            </Badge>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="name">Configuration Name</Label>

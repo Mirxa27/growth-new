@@ -40,7 +40,7 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
-// import { AIContentBuilder } from '@/components/admin/AIContentBuilder'; // Temporarily disabled due to merge conflicts
+import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { AIAssessmentBuilder } from '@/components/admin/AIAssessmentBuilder';
 import { PayPalSettings } from '@/components/admin/PayPalSettings';
 import { logger } from '@/utils/logger';
@@ -584,7 +584,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-6">
             <AIAssessmentBuilder />
-            {/* <AIContentBuilder /> Temporarily disabled due to merge conflicts */}
+            <AIContentBuilder />
           </div>
         );
       case 'payments':
@@ -613,10 +613,10 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="admin-layout">
       <div className="flex">
         {/* Sidebar Navigation */}
-        <div className="w-72 glass-strong h-screen overflow-y-auto border-r border-glass">
+        <div className="admin-sidebar w-72 glass-strong h-screen overflow-y-auto border-r border-glass">
           <div className="p-6 border-b border-glass">
             <div className="flex items-center space-x-3">
               <button
@@ -640,10 +640,8 @@ const AdminDashboard: React.FC = () => {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
-                      activeSection === item.id
-                        ? 'glass-strong border border-primary/20 text-primary'
-                        : 'glass hover:glass-strong text-foreground hover:text-primary'
+                    className={`admin-nav-item ${
+                      activeSection === item.id ? 'active' : ''
                     }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
@@ -662,7 +660,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Main Content */}
         <div className="flex-1 h-screen overflow-y-auto">
-          <div className="p-8">
+          <div className="admin-content">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-foreground">
                 {navigationItems.find(item => item.id === activeSection)?.label || 'Overview'}
