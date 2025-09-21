@@ -78,9 +78,24 @@
   // Handle extension module import errors gracefully
   window.addEventListener('error', function(event) {
     const errorSource = event.filename || event.message || '';
-    if (errorSource.includes('chrome-extension://') &&
-        errorSource.includes('Cannot use import statement outside a module')) {
-      // This is a browser extension trying to use ES modules - ignore it
+
+    // Check for various extension-related errors
+    const extensionErrors = [
+      'chrome-extension://',
+      'moz-extension://',
+      'safari-extension://',
+      'LayoutGroupContext.mjs',
+      'Cannot use import statement outside a module',
+      'Cannot read properties of undefined (reading \'createContext\')',
+      'contentSelector-csui',
+      'floatingSphere-csui',
+      'utils-csui',
+      'chunk-eb16e6c6',
+      'index.iife.js'
+    ];
+
+    if (extensionErrors.some(pattern => errorSource.includes(pattern))) {
+      // This is a browser extension error - suppress it
       event.preventDefault();
       event.stopPropagation();
       return false;
@@ -144,8 +159,20 @@
   const originalConsoleLog = console.log;
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
+  const originalConsoleInfo = console.info;
   
   const suppressConsolePatterns = [
+    // Suppress extension-related console messages
+    'ContentScript Loaded',
+    'content script loaded',
+    'ctx sn',
+    'ctx Es',
+    'ctx Lt',
+    'Calling function getSettings',
+    'sendToBackground response',
+    'loginStatus',
+    '100x ContentScript Loaded',
+    'Extension protection initialized',
     // Only suppress clearly problematic messages
     'malicious-extension-loaded',
     'spyware-detected',
@@ -172,6 +199,12 @@
   console.warn = function(...args) {
     if (!shouldSuppressMessage(args[0])) {
       originalConsoleWarn.apply(console, args);
+    }
+  };
+
+  console.info = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleInfo.apply(console, args);
     }
   };
   

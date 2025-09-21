@@ -623,7 +623,7 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => window.location.href = '/'}
                 className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity"
               >
-                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8" />
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8" loading="eager" />
               </button>
               <div>
                 <h1 className="text-xl font-bold">Newomen.me</h1>

@@ -249,7 +249,7 @@ const Dashboard = () => {
                 onClick={() => navigate('/')}
                 className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/20 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity touch-target-large"
               >
-                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8 sm:w-10 sm:h-10" />
+                <img src="/symbol.svg" alt="Newomen Logo" className="w-8 h-8 sm:w-10 sm:h-10" loading="eager" />
               </button>
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-2xl font-bold">Welcome back!</h1>
