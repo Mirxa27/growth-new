@@ -1,16 +1,22 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
+import { performanceOptimizationService } from "@/services/performance/performance-optimization.service";
 
 export const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    // Ensure symbol.svg is preloaded when navigation is rendered
+    performanceOptimizationService.ensureSymbolPreloaded();
+  }, []);
 
   const navItems = [
     { name: "Home", href: "#home" },

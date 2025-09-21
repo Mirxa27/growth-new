@@ -56,16 +56,23 @@
     '@capacitor/core', // Block Capacitor import errors in web context
     'Failed to resolve module specifier',
     'Cannot use import statement outside a module',
-    'Uncaught SyntaxError'
+    'Uncaught SyntaxError',
+    'LayoutGroupContext.mjs',
+    'Cannot read properties of undefined (reading \'createContext\')',
+    'Uncaught TypeError'
   ];
   
   // Protect against extension content script errors
   window.addEventListener('error', function(event) {
     const errorSource = event.filename || event.message || '';
-    if (blockedErrorPatterns.some(pattern => errorSource.includes(pattern))) {
+    const errorMessage = event.message || '';
+    
+    if (blockedErrorPatterns.some(pattern => 
+      errorSource.includes(pattern) || errorMessage.includes(pattern)
+    )) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('Blocked extension error:', errorSource);
+      console.warn('Blocked extension error:', errorSource.substring(0, 100));
       return false;
     }
   }, true);
@@ -164,7 +171,12 @@
     'sendToBackground response',
     'loginStatus',
     'Uncaught SyntaxError: Cannot use import statement outside a module',
-    'extension-protection.js:182'
+    'extension-protection.js:182',
+    '100x ContentScript Loaded',
+    'sendToBackground response Object',
+    'loginStatus Object',
+    'LayoutGroupContext.mjs:4',
+    'Cannot read properties of undefined (reading \'createContext\')'
   ];
   
   function shouldSuppressMessage(message) {
