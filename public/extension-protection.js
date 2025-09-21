@@ -44,6 +44,9 @@
   // Enhanced error patterns for third-party extensions
   const blockedErrorPatterns = [
     'extension://',
+    'chrome-extension://',
+    'moz-extension://',
+    'safari-extension://',
     'content.js',
     'contentSelector',
     'floatingSphere',
@@ -51,7 +54,9 @@
     'chunk-eb16e6c6',
     'index.iife.js',
     '@capacitor/core', // Block Capacitor import errors in web context
-    'Failed to resolve module specifier'
+    'Failed to resolve module specifier',
+    'Cannot use import statement outside a module',
+    'Uncaught SyntaxError'
   ];
   
   // Protect against extension content script errors
@@ -157,7 +162,9 @@
     'ctx Lt',
     'Calling function getSettings',
     'sendToBackground response',
-    'loginStatus'
+    'loginStatus',
+    'Uncaught SyntaxError: Cannot use import statement outside a module',
+    'extension-protection.js:182'
   ];
   
   function shouldSuppressMessage(message) {

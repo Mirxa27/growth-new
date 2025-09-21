@@ -239,7 +239,7 @@ export const VisitorAssessmentComponent: React.FC = () => {
       case 'multiple_choice':
         return (
           <RadioGroup
-            value={currentResponse?.value.toString()}
+            value={currentResponse?.value?.toString() || ""}
             onValueChange={(value) => {
               const option = currentQuestion.options?.find(opt => opt.value.toString() === value);
               if (option) {
@@ -286,7 +286,7 @@ export const VisitorAssessmentComponent: React.FC = () => {
       case 'true_false':
         return (
           <RadioGroup
-            value={currentResponse?.value.toString()}
+            value={currentResponse?.value?.toString() || ""}
             onValueChange={(value) => handleResponseChange(parseInt(value), currentQuestion.category)}
             className="space-y-3"
           >

@@ -72,9 +72,15 @@ export class PerformanceOptimizationService {
    */
   preloadCriticalResources() {
     const criticalResources = [
-      '/loader.svg',
-      '/symbol.svg'
+      '/loader.svg'
     ];
+
+    // Only preload symbol.svg if we're on a page that uses it immediately
+    const currentPath = window.location.pathname;
+    const pagesUsingSymbol = ['/dashboard', '/admin', '/profile'];
+    if (pagesUsingSymbol.some(path => currentPath.includes(path))) {
+      criticalResources.push('/symbol.svg');
+    }
 
     criticalResources.forEach(resource => {
       const link = document.createElement('link');
@@ -82,6 +88,46 @@ export class PerformanceOptimizationService {
       link.as = 'image';
       link.href = resource;
       document.head.appendChild(link);
+    });
+
+    // Preload symbol.svg when navigating to pages that use it
+    this.setupSmartPreloading();
+  }
+
+  /**
+   * Setup smart preloading for resources
+   */
+  setupSmartPreloading() {
+    // Listen for navigation events and preload symbol.svg when needed
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    const preloadSymbolIfNeeded = (path: string) => {
+      const pagesUsingSymbol = ['/dashboard', '/admin', '/profile'];
+      if (pagesUsingSymbol.some(pagePath => path.includes(pagePath))) {
+        const existingLink = document.querySelector('link[href="/symbol.svg"][rel="preload"]');
+        if (!existingLink) {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = '/symbol.svg';
+          document.head.appendChild(link);
+        }
+      }
+    };
+
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
+    };
+
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
+    };
+
+    window.addEventListener('popstate', () => {
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
     });
   }
 
