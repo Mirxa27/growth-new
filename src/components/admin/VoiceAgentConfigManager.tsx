@@ -12,6 +12,7 @@ import { useVoiceAgentConfig } from '@/hooks/useVoiceAgentConfig';
 import { Save, AlertCircle, Mic, Settings, TestTube } from 'lucide-react';
 import { z } from 'zod';
 import { TablesInsert } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 
@@ -44,7 +45,7 @@ const voiceAgentConfigSchema = z.object({
 type VoiceAgentConfig = z.infer<typeof voiceAgentConfigSchema>;
 
 export const VoiceAgentConfigManager: React.FC = () => {
-  const { configs, loading, error: fetchError } = useVoiceAgentConfig();
+  const { configs, loading, error: fetchError, fetchConfigs } = useVoiceAgentConfig();
   const { toast } = useToast();
   
   const activeConfig = useMemo(() => configs?.find(c => c.is_active) ?? configs?.[0] ?? null, [configs]);
@@ -83,7 +84,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
         setForm(validatedConfig);
       } catch (e) {
         if (e instanceof z.ZodError) {
-          console.error('Invalid config from database:', e.errors);
+          logger.warn('Invalid config from database', 'VoiceAgentConfigManager', e.errors);
           toast({
             title: "Warning",
             description: "The configuration from the database is invalid. Using default values.",
@@ -103,11 +104,11 @@ export const VoiceAgentConfigManager: React.FC = () => {
 
   const handleSave = async () => {
     setErrors({});
-    console.log('Saving voice agent config:', form);
+    logger.info('Saving voice agent config', 'VoiceAgentConfigManager', { id: form.id });
     try {
       const validatedConfig = validate(form);
       setIsSaving(true);
-      
+
       if (validatedConfig.is_active) {
         const { error: deactivateError } = await supabase
           .from('voice_agent_configs')
@@ -115,7 +116,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
           .neq('id', validatedConfig.id || '');
 
         if (deactivateError) {
-          console.error('Error deactivating other configs:', deactivateError);
+          logger.error('Error deactivating other voice configs', 'VoiceAgentConfigManager', deactivateError);
           throw new Error('Failed to update active configuration status');
         }
       }
@@ -125,10 +126,11 @@ export const VoiceAgentConfigManager: React.FC = () => {
         .upsert([validatedConfig]);
 
       if (upsertError) {
-        console.error('Error upserting config:', upsertError);
+        logger.error('Error upserting voice agent config', 'VoiceAgentConfigManager', upsertError);
         throw new Error('Failed to save configuration');
       }
 
+      fetchConfigs();
       toast({ title: "Success", description: "Configuration saved successfully." });
     } catch (e: unknown) {
       if (e instanceof z.ZodError) {
@@ -143,11 +145,11 @@ export const VoiceAgentConfigManager: React.FC = () => {
         setErrors(errors);
       } else {
         const error = e as Error;
-        console.error('Error saving config:', error);
-        toast({ 
-          title: "Error", 
-          description: error.message || 'An unexpected error occurred', 
-          variant: "destructive" 
+        logger.error('Error saving voice agent configuration', 'VoiceAgentConfigManager', error);
+        toast({
+          title: "Error",
+          description: error.message || 'An unexpected error occurred',
+          variant: "destructive"
         });
       }
     } finally {
@@ -313,7 +315,7 @@ export const VoiceAgentConfigManager: React.FC = () => {
                         });
                         setForm(parsed);
                       } catch (e) {
-                        console.warn('Invalid config when loading selection:', e);
+                        logger.warn('Invalid config when loading selection', 'VoiceAgentConfigManager', e);
                         toast({ title: 'Invalid config', description: 'Could not load configuration', variant: 'destructive' });
                       }
                     }}

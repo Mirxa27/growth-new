@@ -2,21 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Users, 
-  Settings, 
-  BarChart3, 
-  MessageSquare, 
-  FileText, 
-  Mic, 
-  Shield, 
+import {
+  Users,
+  Settings,
+  BarChart3,
+  MessageSquare,
+  FileText,
+  Mic,
+  Shield,
   Database,
   Sparkles,
   BookOpen,
   Target,
   Activity,
   TrendingUp,
-  Stethoscope
+  Stethoscope,
+  Compass,
+  CreditCard
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -25,11 +27,11 @@ import { UserManagement } from '@/components/admin/UserManagement';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
 import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
+import { ExplorationManager } from '@/components/admin/ExplorationManager';
 import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigManager';
 import { VoicePlayground } from '@/components/admin/VoicePlayground';
 import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
 import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
-// import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
 import { GeneralSettings } from '@/components/admin/GeneralSettings';
 import { AIProviderSettings } from '@/components/admin/AIProviderSettings';
 import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
@@ -38,10 +40,14 @@ import { LibraryManager } from '@/components/admin/LibraryManager';
 import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
 import { MigrationHelper } from '@/components/admin/MigrationHelper';
 import { APIKeyManager } from '@/components/admin/APIKeyManager';
+import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
+import { AIAssessmentBuilder } from '@/components/admin/AIAssessmentBuilder';
+import { PayPalSettings } from '@/components/admin/PayPalSettings';
+import { logger } from '@/utils/logger';
 
-type AdminSection = 
+type AdminSection =
   | 'overview'
-  | 'analytics' 
+  | 'analytics'
   | 'users'
   | 'assessments'
   | 'library'
@@ -49,6 +55,7 @@ type AdminSection =
   | 'content'
   | 'voice'
   | 'ai-content'
+  | 'payments'
   | 'settings'
   | 'ai-providers'
   | 'moderation'
@@ -56,7 +63,7 @@ type AdminSection =
 
 interface RecentActivityItem {
   id: string;
-  type: 'user' | 'assessment' | 'community' | 'library';
+  type: 'user' | 'assessment' | 'community' | 'library' | 'exploration';
   message: string;
   timestamp: string;
 }
@@ -101,9 +108,9 @@ const AdminDashboard: React.FC = () => {
       icon: MessageSquare,
       description: 'Community posts and discussions'
     },
-    { 
-      id: 'content' as AdminSection, 
-      label: 'Content', 
+    {
+      id: 'content' as AdminSection,
+      label: 'Content',
       icon: FileText,
       description: 'Content challenges and exploration'
     },
@@ -113,11 +120,17 @@ const AdminDashboard: React.FC = () => {
       icon: Mic,
       description: 'Voice agent configuration'
     },
-    { 
-      id: 'ai-content' as AdminSection, 
-      label: 'Content Builder', 
+    {
+      id: 'ai-content' as AdminSection,
+      label: 'Content Builder',
       icon: Sparkles,
       description: 'Smart content generation'
+    },
+    {
+      id: 'payments' as AdminSection,
+      label: 'Payments',
+      icon: CreditCard,
+      description: 'Configure payment gateways and billing'
     },
     { 
       id: 'settings' as AdminSection, 
@@ -178,22 +191,54 @@ const AdminDashboard: React.FC = () => {
     try {
       setOverviewLoading(true);
 
-      // Fetch all data in parallel
-      // Use safe database calls with fallback data
+      // Fetch all data in parallel with graceful fallbacks to ensure dashboard remains responsive
       const [
         usersResponse,
         assessmentsResponse,
+        communityResponse,
+        libraryResponse,
+        explorationSessionsResponse,
       ] = await Promise.all([
-        supabase.from('profiles').select('created_at, last_login_at').then(r => r).catch(() => ({ data: [], error: null })),
-        supabase.from('assessments').select('id, title, created_at').then(r => r).catch(() => ({ data: [], error: null })),
+        supabase
+          .from('profiles')
+          .select('id, created_at, last_login_at, full_name')
+          .order('created_at', { ascending: false })
+          .then((r) => r)
+          .catch(() => ({ data: [], error: null })),
+        supabase
+          .from('assessments')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false })
+          .then((r) => r)
+          .catch(() => ({ data: [], error: null })),
+        supabase
+          .from('community_posts')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false })
+          .limit(50)
+          .then((r) => r)
+          .catch(() => ({ data: [], error: null })),
+        supabase
+          .from('library_items')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false })
+          .limit(50)
+          .then((r) => r)
+          .catch(() => ({ data: [], error: null })),
+        supabase
+          .from('exploration_sessions')
+          .select('id, status, created_at, completed_at')
+          .order('created_at', { ascending: false })
+          .limit(200)
+          .then((r) => r)
+          .catch(() => ({ data: [], error: null })),
       ]);
 
-      // Use fallback data for missing tables
       const users: any[] = usersResponse.data || [];
       const assessments: any[] = assessmentsResponse.data || [];
-      const communityPosts: any[] = []; // Fallback empty array
-      const libraryItems: any[] = []; // Fallback empty array
-      const explorationSessions: any[] = []; // Fallback empty array
+      const communityPosts: any[] = communityResponse.data || [];
+      const libraryItems: any[] = libraryResponse.data || [];
+      const explorationSessions: any[] = explorationSessionsResponse.data || [];
 
       // Calculate metrics
       const now = new Date();
@@ -211,9 +256,10 @@ const AdminDashboard: React.FC = () => {
         u.last_login_at && new Date(u.last_login_at).getTime() > dayAgo.getTime()
       ).length;
 
-      const completionsThisMonth = explorationSessions.filter(s => 
-        s.status === 'completed' && new Date(s.created_at).getTime() > monthAgo.getTime()
-      ).length;
+      const completionsThisMonth = explorationSessions.filter(s => {
+        const completedAt = s.completed_at || s.created_at;
+        return s.status === 'completed' && completedAt && new Date(completedAt).getTime() > monthAgo.getTime();
+      }).length;
 
       const growthPercentage = newUsersLastWeek > 0 
         ? Math.round(((newUsersThisWeek - newUsersLastWeek) / newUsersLastWeek) * 100)
@@ -261,6 +307,33 @@ const AdminDashboard: React.FC = () => {
           });
         });
 
+      // Recent library additions
+      libraryItems
+        .filter(item => item.created_at && new Date(item.created_at).getTime() > dayAgo.getTime())
+        .slice(0, 2)
+        .forEach((item, index) => {
+          recentActivity.push({
+            id: `library-${index}`,
+            type: 'library' as const,
+            message: `Library item "${item.title}" added`,
+            timestamp: item.created_at || new Date().toISOString()
+          });
+        });
+
+      // Recent exploration completions
+      explorationSessions
+        .filter(session => session.status === 'completed' && (session.completed_at || session.created_at))
+        .slice(0, 2)
+        .forEach((session, index) => {
+          const completedAt = session.completed_at || session.created_at;
+          recentActivity.push({
+            id: `exploration-${index}`,
+            type: 'exploration' as const,
+            message: 'Exploration journey completed',
+            timestamp: completedAt
+          });
+        });
+
       // Sort by timestamp and limit
       recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -277,7 +350,7 @@ const AdminDashboard: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching overview data:', error);
+      logger.error('Error fetching overview data', 'AdminDashboard', error);
     } finally {
       setOverviewLoading(false);
     }
@@ -303,6 +376,7 @@ const AdminDashboard: React.FC = () => {
       case 'assessment': return <Target className="h-4 w-4" />;
       case 'community': return <MessageSquare className="h-4 w-4" />;
       case 'library': return <BookOpen className="h-4 w-4" />;
+      case 'exploration': return <Compass className="h-4 w-4" />;
       default: return <Activity className="h-4 w-4" />;
     }
   };
@@ -487,7 +561,12 @@ const AdminDashboard: React.FC = () => {
       case 'community':
         return <CommunityPostsManager />;
       case 'content':
-        return <ContentChallengeManager />;
+        return (
+          <div className="space-y-6">
+            <ContentChallengeManager />
+            <ExplorationManager />
+          </div>
+        );
       case 'voice':
         return (
           <div className="space-y-6">
@@ -503,13 +582,13 @@ const AdminDashboard: React.FC = () => {
         );
       case 'ai-content':
         return (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <h3 className="text-lg font-semibold mb-2">AI Content Builder</h3>
-              <p className="text-muted-foreground">Content management features coming soon...</p>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <AIAssessmentBuilder />
+            <AIContentBuilder />
+          </div>
         );
+      case 'payments':
+        return <PayPalSettings />;
       case 'settings':
         return <GeneralSettings />;
       case 'ai-providers':

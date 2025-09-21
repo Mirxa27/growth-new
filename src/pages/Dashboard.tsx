@@ -5,30 +5,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Brain, 
-  MessageCircle, 
-  Compass, 
-  BookOpen, 
-  Users, 
+import {
+  Brain,
+  MessageCircle,
+  BookOpen,
+  Users,
   Trophy,
-  Target,
   Calendar,
-  TrendingUp,
   Sparkles,
   Gift,
   Flame,
   Star
 } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EnhancedErrorBoundary } from '@/components/ui/enhanced-error-boundary';
 import { DashboardSkeleton } from '@/components/ui/enhanced-loading';
-import { useDebounce, globalCache, usePerformanceMonitor } from '@/utils/performance';
-import { validateDataFlow } from '@/utils/dataValidation';
+import { globalCache, usePerformanceMonitor } from '@/utils/performance';
 import { MobileContainer, MobileGrid, MobileCard } from '@/components/responsive/MobileOptimized';
 import { supabase } from '@/integrations/supabase/client';
-import { gamification } from '@/services/gamification/fallback-gamification-service';
-import { newMeAI } from '@/services/ai/fallback-newme-ai-service';
+import { gamification } from '@/services/gamification/gamification-service';
+import type { Achievement } from '@/services/gamification/gamification-service';
+import { newMeAI } from '@/services/ai/newme-ai-service';
+import { logger } from '@/utils/logger';
 
 interface UserStats {
   currentLevel: number;
@@ -36,7 +33,7 @@ interface UserStats {
   levelProgress: number;
   dailyStreak: number;
   totalAchievements: number;
-  recentAchievements: any[];
+  recentAchievements: Achievement[];
 }
 
 const Dashboard = () => {
@@ -51,129 +48,156 @@ const Dashboard = () => {
   const startTiming = usePerformanceMonitor('dashboard-load');
 
   useEffect(() => {
+    let isMounted = true;
+
+    const buildDefaultStats = (): UserStats => ({
+      currentLevel: 1,
+      crystalBalance: 0,
+      levelProgress: 0,
+      dailyStreak: 0,
+      totalAchievements: 0,
+      recentAchievements: [],
+    });
+
     const fetchDashboardData = async () => {
       if (!user) {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
         return;
       }
 
       const endTiming = startTiming();
       const cacheKey = `dashboard_${user.id}_${new Date().toDateString()}`;
-      
+
       try {
-        // Check cache first
         const cachedData = globalCache.get(cacheKey);
         if (cachedData) {
-          setUserStats(cachedData.userStats);
-          setDailyAffirmation(cachedData.dailyAffirmation);
-          setStreakBonus(cachedData.streakBonus);
-          setIsLoading(false);
+          if (isMounted) {
+            setUserStats(cachedData.userStats);
+            setDailyAffirmation(cachedData.dailyAffirmation);
+            setStreakBonus(cachedData.streakBonus);
+            setIsLoading(false);
+          }
           endTiming();
           return;
         }
-        // Skip data validation for now to avoid errors
-        // const isDataValid = await validateDataFlow(user.id);
-        
-        // Update daily streak with error handling
+
+        let computedStats: UserStats = buildDefaultStats();
+        let computedStreakBonus = 0;
+
         try {
           const streakResult = await gamification.updateDailyStreak(user.id);
-          setStreakBonus(streakResult.bonusCrystals || 0);
+          computedStreakBonus = streakResult?.bonusCrystals ?? 0;
+          if (typeof streakResult?.streakCount === 'number') {
+            computedStats.dailyStreak = streakResult.streakCount;
+          }
         } catch (streakError) {
-          console.warn('Streak update failed:', streakError);
-          setStreakBonus(0);
+          logger.warn('Daily streak update failed', 'DashboardPage', streakError);
         }
 
-        // Get user progress with error handling
         try {
           const progress = await gamification.getUserProgress(user.id);
           if (progress) {
-            setUserStats({
-              currentLevel: progress.currentLevel || 1,
-              crystalBalance: progress.crystalBalance || 0,
-              levelProgress: progress.levelProgress || 0,
-              dailyStreak: progress.dailyStreak || 0,
-              totalAchievements: progress.achievements?.length || 0,
-              recentAchievements: []
-            });
-            
-            // Try to get achievements separately
-            try {
-              const achievements = await gamification.getUserAchievements(user.id);
-              setUserStats(prev => prev ? { ...prev, recentAchievements: achievements || [] } : null);
-            } catch (achError) {
-              console.warn('Achievements fetch failed:', achError);
-            }
-          } else {
-            // Set default user stats for new users
-            setUserStats({
-              currentLevel: 1,
-              crystalBalance: 0,
-              levelProgress: 0,
-              dailyStreak: 0,
-              totalAchievements: 0,
-              recentAchievements: []
-            });
+            computedStats = {
+              currentLevel: progress.currentLevel ?? 1,
+              crystalBalance: progress.crystalBalance ?? 0,
+              levelProgress: progress.levelProgress ?? 0,
+              dailyStreak: progress.dailyStreak ?? computedStats.dailyStreak,
+              totalAchievements: progress.achievements?.length ?? 0,
+              recentAchievements: [],
+            };
           }
         } catch (progressError) {
-          console.warn('Progress fetch failed:', progressError);
-          // Set default stats
-          setUserStats({
-            currentLevel: 1,
-            crystalBalance: 0,
-            levelProgress: 0,
-            dailyStreak: 0,
-            totalAchievements: 0,
-            recentAchievements: []
-          });
+          logger.warn('Failed to load gamification progress', 'DashboardPage', progressError);
         }
 
-        // Get daily affirmation with error handling
+        try {
+          const achievements = await gamification.getUserAchievements(user.id);
+          if (achievements) {
+            computedStats = {
+              ...computedStats,
+              recentAchievements: achievements,
+              totalAchievements: computedStats.totalAchievements || achievements.length,
+            };
+          }
+        } catch (achievementError) {
+          logger.warn('Failed to load achievements', 'DashboardPage', achievementError);
+        }
+
+        const profileCacheKey = `user_profile_${user.id}`;
+        let userProfile = globalCache.get(profileCacheKey);
+        if (!userProfile) {
+          userProfile = await newMeAI.getUserMemoryProfile(user.id);
+          if (userProfile) {
+            globalCache.set(profileCacheKey, userProfile, 5 * 60 * 1000);
+          }
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        let affirmationText = '';
+
         try {
           const { data: existingAffirmation, error: affirmationError } = await supabase
             .from('daily_affirmations')
             .select('affirmation_text')
             .eq('user_id', user.id)
-            .eq('generated_date', new Date().toISOString().split('T')[0])
-            .single();
+            .eq('generated_date', today)
+            .maybeSingle();
 
-          if (existingAffirmation && !affirmationError) {
-            setDailyAffirmation(existingAffirmation.affirmation_text);
-          } else {
-            // Set a default affirmation for now
-            const defaultAffirmations = [
-              "You are capable of incredible growth and transformation.",
-              "Your authentic self is emerging more clearly each day.",
-              "You have the power to rewrite your story in beautiful ways.",
-              "Your journey of self-discovery is unfolding perfectly.",
-              "You are worthy of love, growth, and endless possibilities."
-            ];
-            const randomAffirmation = defaultAffirmations[Math.floor(Math.random() * defaultAffirmations.length)];
-            setDailyAffirmation(randomAffirmation);
+          if (affirmationError && affirmationError.code !== 'PGRST116') {
+            throw affirmationError;
+          }
+
+          if (existingAffirmation?.affirmation_text) {
+            affirmationText = existingAffirmation.affirmation_text;
+          } else if (userProfile) {
+            affirmationText = await newMeAI.generateDailyAffirmation(userProfile);
+            await supabase
+              .from('daily_affirmations')
+              .upsert({
+                user_id: user.id,
+                generated_date: today,
+                affirmation_text: affirmationText,
+              });
           }
         } catch (affirmationError) {
-          console.warn('Affirmation fetch failed:', affirmationError);
-          setDailyAffirmation("You are on a beautiful journey of growth and self-discovery.");
+          logger.warn('Failed to load or generate daily affirmation', 'DashboardPage', affirmationError);
         }
-        
-        // Cache the data for 10 minutes
-        globalCache.set(cacheKey, {
-          userStats,
-          dailyAffirmation,
-          streakBonus
-        }, 10 * 60 * 1000);
-        
-        endTiming();
+
+        if (!affirmationText) {
+          affirmationText = 'You are on a beautiful journey of growth and self-discovery.';
+        }
+
+        const cachePayload = {
+          userStats: computedStats,
+          dailyAffirmation: affirmationText,
+          streakBonus: computedStreakBonus,
+        };
+
+        globalCache.set(cacheKey, cachePayload, 10 * 60 * 1000);
+
+        if (isMounted) {
+          setUserStats(computedStats);
+          setDailyAffirmation(affirmationText);
+          setStreakBonus(computedStreakBonus);
+          setIsLoading(false);
+        }
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error fetching dashboard data:', error);
+        logger.error('Error fetching dashboard data', 'DashboardPage', error);
+        if (isMounted) {
+          setIsLoading(false);
         }
-        endTiming();
       } finally {
-        setIsLoading(false);
+        endTiming();
       }
     };
 
     fetchDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user, startTiming]);
 
   if (isLoading) {
@@ -213,8 +237,6 @@ const Dashboard = () => {
 
   // Real achievements will be loaded from userStats
   const achievements = userStats?.recentAchievements || [];
-  const completedAchievements = userStats?.totalAchievements || 0;
-  const totalPoints = userStats?.crystalBalance || 0;
 
   return (
     <EnhancedErrorBoundary>
