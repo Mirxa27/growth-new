@@ -7,10 +7,20 @@ import { BaseApiService, type ApiResponse } from './base.service';
 import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/environment';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 export type VoiceAgentConfig = Tables<'voice_agent_configs'>;
 export type VoiceAgentConfigInsert = TablesInsert<'voice_agent_configs'>;
 export type VoiceAgentConfigUpdate = TablesUpdate<'voice_agent_configs'>;
+
+type VoiceTool = {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};
 
 export interface VoiceSession {
   id: string;
@@ -19,7 +29,7 @@ export interface VoiceSession {
   startedAt: Date;
   endedAt?: Date;
   transcript: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface VoiceToken {
@@ -35,7 +45,7 @@ export interface RealtimeConfig {
   instructions: string;
   temperature: number;
   maxTokens: number;
-  tools?: any[];
+  tools?: VoiceTool[];
 }
 
 class VoiceService extends BaseApiService {
@@ -218,8 +228,8 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         };
       } else {
         // Development mode - use API key directly (not secure for production!)
-        console.warn('Using API key directly in development mode. This is not secure for production!');
-        
+        logger.warn('Using API key directly in development mode. This is not secure for production!', 'VoiceService');
+
         return {
           data: {
             token: this.openAIApiKey!,
@@ -279,7 +289,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
   /**
    * Build tools/functions available to the voice AI
    */
-  private buildVoiceTools(): any[] {
+  private buildVoiceTools(): VoiceTool[] {
     return [
       {
         type: 'function',
@@ -361,7 +371,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
   async saveSessionTranscript(
     sessionId: string,
     transcript: string[],
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<ApiResponse<void>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -403,11 +413,30 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         .eq('user_id', userId)
         .order('started_at', { ascending: false })
         .limit(50);
-      
+
       if (error) throw error;
-      
+
+      const rawSessions = (data ?? []) as Tables<'voice_sessions'>[];
+      const sessions: VoiceSession[] = rawSessions.map((session) => {
+        const transcriptSource = (session as unknown as { transcript?: unknown }).transcript
+          ?? session.conversation_data;
+        const transcript = Array.isArray(transcriptSource)
+          ? transcriptSource.map(item => (typeof item === 'string' ? item : JSON.stringify(item)))
+          : [];
+
+        return {
+          id: session.id,
+          userId: session.user_id ?? userId,
+          configId: session.config_id ?? '',
+          startedAt: new Date(session.started_at ?? Date.now()),
+          endedAt: session.ended_at ? new Date(session.ended_at) : undefined,
+          transcript,
+          metadata: (session.metadata as Record<string, unknown> | null) ?? undefined,
+        };
+      });
+
       return {
-        data: (data || []) as any,
+        data: sessions,
         error: null,
       };
     } catch (error) {
@@ -453,7 +482,7 @@ Always be supportive, non-judgmental, and focused on the user's growth and well-
         throw new Error(error.error?.message || 'Failed to connect to OpenAI');
       }
       
-      const result = await testResponse.json();
+      await testResponse.json();
       
       return {
         data: {

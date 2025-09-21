@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -26,12 +36,13 @@ import {
   PlusCircle,
   MinusCircle
 } from 'lucide-react';
-// import { AIContentBuilder } from './AIContentBuilder';
-import { Json } from '@/integrations/supabase/types';
+import { Json, Tables } from '@/integrations/supabase/types';
 import { z } from 'zod';
+import { logger } from '@/utils/logger';
 
 // Validation schemas
 const optionSchema = z.object({
+  id: z.string().uuid().optional(),
   option_text: z.string().min(1),
   is_correct: z.boolean(),
   feedback: z.string().optional(),
@@ -39,14 +50,16 @@ const optionSchema = z.object({
 });
 
 const questionSchema = z.object({
+  id: z.string().uuid().optional(),
   question_text: z.string().min(1),
   question_type: z.enum(['multiple_choice', 'free_text', 'image']),
   position: z.number().int().positive(),
   media_url: z.string().url().optional(),
-  options: z.array(optionSchema).optional(),
+  options: z.array(optionSchema).default([]),
 });
 
 const assessmentSchema = z.object({
+  id: z.string().uuid().optional(),
   title: z.string().min(1),
   description: z.string().min(1),
   type: z.enum(['quiz', 'personality', 'test']),
@@ -59,12 +72,13 @@ const assessmentSchema = z.object({
 // Removed unused zod schemas/imports
 
 type Assessment = {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
   visibility: 'public' | 'private';
   question_count: number;
+  attempt_count: number;
   completion_count: number;
   ai_provider?: string;
   ai_model?: string;
@@ -91,6 +105,7 @@ interface Option {
 }
 
 interface AssessmentForm {
+  id?: string;
   title: string;
   description: string;
   type: 'quiz' | 'personality' | 'test';
@@ -100,6 +115,12 @@ interface AssessmentForm {
   ai_prompt: string;
   questions: Question[];
 }
+
+type ParsedAssessment = z.infer<typeof assessmentSchema>;
+
+type QuestionRow = Tables<'assessment_questions'> & {
+  options?: (Tables<'assessment_options'> & { feedback?: string | null })[];
+};
 
 export const AssessmentManager: React.FC = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
@@ -112,8 +133,15 @@ export const AssessmentManager: React.FC = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
-  
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Assessment | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const originalQuestionIdsRef = useRef<string[]>([]);
+  const originalOptionIdsRef = useRef<Record<string, string[]>>({});
+  const [editingAssessmentId, setEditingAssessmentId] = useState<string | null>(null);
+
   const [assessmentForm, setAssessmentForm] = useState<AssessmentForm>({
+    id: undefined,
     title: '',
     description: '',
     type: 'quiz',
@@ -130,58 +158,44 @@ export const AssessmentManager: React.FC = () => {
   const fetchAssessments = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching assessments with filters:', { searchTerm, typeFilter, visibilityFilter });
 
-      const { data, error } = await supabase
-        .from('assessments')
-        .select(`
-          *,
-          assessment_questions (count)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Database error fetching assessments:', error);
-        throw new Error('Failed to fetch assessments from database');
-      }
-
-      if (!data) {
-        setAssessments([]);
-        setFilteredAssessments([]);
-        return;
-      }
-
-      const assessmentsWithCounts = data.map((assessment: any) => {
-        const mapped: Assessment = {
-          id: assessment.id,
-          title: assessment.title,
-          description: assessment.description,
-          type: assessment.type,
-          visibility: assessment.visibility,
-          question_count: assessment.assessment_questions?.[0]?.count || 0,
-          completion_count: Math.floor(Math.random() * 100),
-          ai_provider: assessment.ai_provider ?? undefined,
-          ai_model: assessment.ai_model ?? undefined,
-          ai_prompt: assessment.ai_prompt ?? undefined,
-          created_at: assessment.created_at,
-          updated_at: assessment.updated_at,
-        };
-        return mapped;
+      const { data, error } = await supabase.rpc('get_assessment_admin_summary', {
+        limit_count: 200,
       });
 
-      setAssessments(assessmentsWithCounts);
-      setFilteredAssessments(assessmentsWithCounts);
+      if (error) throw error;
 
-      if (assessmentsWithCounts.length < data.length) {
-        console.warn(`Filtered out ${data.length - assessmentsWithCounts.length} invalid assessments`);
-        toast({
-          title: "Warning",
-          description: "Some assessments were filtered out due to invalid data",
-          variant: "destructive"
-        });
-      }
+      const rows = Array.isArray(data) ? data : [];
+      const assessmentsWithMetrics: Assessment[] = rows.map((row) => {
+        const rawType = typeof row.type === 'string' ? row.type : 'quiz';
+        const normalizedType: Assessment['type'] = ['quiz', 'personality', 'test'].includes(rawType)
+          ? (rawType as Assessment['type'])
+          : 'quiz';
+
+        const rawVisibility = typeof row.visibility === 'string' ? row.visibility : 'private';
+        const normalizedVisibility: Assessment['visibility'] = rawVisibility === 'public' ? 'public' : 'private';
+
+        return {
+          id: String(row.id),
+          title: row.title ?? 'Untitled Assessment',
+          description: row.description ?? '',
+          type: normalizedType,
+          visibility: normalizedVisibility,
+          question_count: Number(row.question_count ?? 0),
+          attempt_count: Number(row.attempt_count ?? 0),
+          completion_count: Number(row.completion_count ?? 0),
+          ai_provider: row.ai_provider ?? undefined,
+          ai_model: row.ai_model ?? undefined,
+          ai_prompt: row.ai_prompt ?? undefined,
+          created_at: row.created_at ?? new Date().toISOString(),
+          updated_at: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+        };
+      });
+
+      setAssessments(assessmentsWithMetrics);
+      setFilteredAssessments(assessmentsWithMetrics);
     } catch (error) {
-      console.error('Error fetching assessments:', error);
+      logger.error('Error fetching assessments', 'AssessmentManager', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to fetch assessments",
@@ -219,6 +233,7 @@ export const AssessmentManager: React.FC = () => {
 
   const resetForm = () => {
     setAssessmentForm({
+      id: undefined,
       title: '',
       description: '',
       type: 'quiz',
@@ -228,6 +243,16 @@ export const AssessmentManager: React.FC = () => {
       ai_prompt: '',
       questions: []
     });
+    setEditingAssessmentId(null);
+    originalQuestionIdsRef.current = [];
+    originalOptionIdsRef.current = {};
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsCreateDialogOpen(open);
+    if (!open) {
+      resetForm();
+    }
   };
 
   const addQuestion = () => {
@@ -252,7 +277,9 @@ export const AssessmentManager: React.FC = () => {
   const removeQuestion = (index: number) => {
     setAssessmentForm(prev => ({
       ...prev,
-      questions: prev.questions.filter((_, i) => i !== index)
+      questions: prev.questions
+        .filter((_, i) => i !== index)
+        .map((question, idx) => ({ ...question, position: idx + 1 })),
     }));
   };
 
@@ -268,62 +295,204 @@ export const AssessmentManager: React.FC = () => {
   const addOption = (questionIndex: number) => {
     setAssessmentForm(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? {
-              ...q,
-              options: [
-                ...q.options,
-                {
-                  option_text: '',
-                  is_correct: false,
-                  position: q.options.length + 1
-                }
-              ]
-            }
-          : q
-      )
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        const updatedOptions = [...q.options, {
+          option_text: '',
+          is_correct: false,
+          position: q.options.length + 1,
+        }].map((option, idx) => ({ ...option, position: idx + 1 }));
+        return { ...q, options: updatedOptions };
+      }),
     }));
   };
 
   const removeOption = (questionIndex: number, optionIndex: number) => {
     setAssessmentForm(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? {
-              ...q,
-              options: q.options.filter((_, oi) => oi !== optionIndex)
-            }
-          : q
-      )
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        const filtered = q.options.filter((_, oi) => oi !== optionIndex);
+        return {
+          ...q,
+          options: filtered.map((option, idx) => ({ ...option, position: idx + 1 })),
+        };
+      }),
     }));
   };
 
   const updateOption = <K extends keyof Option>(questionIndex: number, optionIndex: number, field: K, value: Option[K]) => {
     setAssessmentForm(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? {
-              ...q,
-              options: q.options.map((o, oi) => 
-                oi === optionIndex ? { ...o, [field]: value } : o
-              )
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        const updatedOptions = q.options.map((o, oi) => {
+          if (oi !== optionIndex) {
+            if (field === 'is_correct' && value === true) {
+              return { ...o, is_correct: false };
             }
-          : q
-      )
+            return o;
+          }
+          const nextOption = { ...o, [field]: value } as Option;
+          return field === 'is_correct' ? { ...nextOption, is_correct: Boolean(value) } : nextOption;
+        });
+        return { ...q, options: updatedOptions };
+      }),
     }));
   };
 
-  const handleCreate = async () => {
+  const syncQuestionOptions = async (questionId: string, options: Option[], originalOptionIds: string[]) => {
+    const optionIdsToDelete = new Set(originalOptionIds);
+
+    for (let index = 0; index < options.length; index++) {
+      const option = options[index];
+      const payload = {
+        option_text: option.option_text,
+        is_correct: option.is_correct,
+        feedback: option.feedback || null,
+        position: index + 1,
+      };
+
+      if (option.id) {
+        const { error: updateError } = await supabase
+          .from('assessment_options')
+          .update(payload)
+          .eq('id', option.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        optionIdsToDelete.delete(option.id);
+      } else {
+        const { data: insertedOption, error: insertError } = await supabase
+          .from('assessment_options')
+          .insert([{ ...payload, question_id: questionId }])
+          .select('id')
+          .single();
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        if (insertedOption?.id) {
+          option.id = insertedOption.id;
+        }
+      }
+    }
+
+    const idsToRemove = Array.from(optionIdsToDelete);
+    if (idsToRemove.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('assessment_options')
+        .delete()
+        .in('id', idsToRemove);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+    }
+  };
+
+  const updateExistingAssessment = async (assessmentId: string, data: ParsedAssessment) => {
+    const { error: updateError } = await supabase
+      .from('assessments')
+      .update({
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        visibility: data.visibility,
+        ai_provider: data.ai_provider,
+        ai_model: data.ai_model,
+        ai_prompt: data.ai_prompt,
+      })
+      .eq('id', assessmentId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    const retainedQuestionIds: string[] = [];
+
+    for (let index = 0; index < data.questions.length; index++) {
+      const question = data.questions[index];
+      const payload = {
+        question_text: question.question_text,
+        question_type: question.question_type,
+        position: index + 1,
+      };
+
+      let questionId = question.id;
+
+      if (questionId) {
+        const { error: questionUpdateError } = await supabase
+          .from('assessment_questions')
+          .update(payload)
+          .eq('id', questionId);
+
+        if (questionUpdateError) {
+          throw questionUpdateError;
+        }
+      } else {
+        const { data: insertedQuestion, error: insertQuestionError } = await supabase
+          .from('assessment_questions')
+          .insert([{ ...payload, assessment_id: assessmentId }])
+          .select('id')
+          .single();
+
+        if (insertQuestionError) {
+          throw insertQuestionError;
+        }
+
+        questionId = insertedQuestion?.id as string | undefined;
+      }
+
+      if (questionId) {
+        retainedQuestionIds.push(questionId);
+        const originalOptionIds = originalOptionIdsRef.current[questionId] ?? [];
+        const questionOptions = question.question_type === 'multiple_choice' ? question.options ?? [] : [];
+        await syncQuestionOptions(questionId, questionOptions, originalOptionIds);
+        originalOptionIdsRef.current[questionId] = questionOptions
+          .map(opt => opt.id)
+          .filter((value): value is string => Boolean(value));
+      }
+    }
+
+    const questionIdsToDelete = originalQuestionIdsRef.current.filter((id) => !retainedQuestionIds.includes(id));
+    if (questionIdsToDelete.length > 0) {
+      const { error: deleteQuestionsError } = await supabase
+        .from('assessment_questions')
+        .delete()
+        .in('id', questionIdsToDelete);
+
+      if (deleteQuestionsError) {
+        throw deleteQuestionsError;
+      }
+    }
+
+    originalQuestionIdsRef.current = retainedQuestionIds;
+  };
+
+  const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      console.log('Validating assessment form:', assessmentForm);
-      
-      const validatedData = assessmentSchema.parse(assessmentForm);
-      
-      // Additional validation for multiple choice questions
+
+      const normalizedQuestions = assessmentForm.questions.map((question, index) => ({
+        ...question,
+        position: index + 1,
+        options: question.question_type === 'multiple_choice'
+          ? question.options.map((option, optIndex) => ({
+              ...option,
+              position: optIndex + 1,
+            }))
+          : [],
+      }));
+
+      const validatedData = assessmentSchema.parse({
+        ...assessmentForm,
+        questions: normalizedQuestions,
+      });
+
       validatedData.questions.forEach((question, index) => {
         if (question.question_type === 'multiple_choice') {
           const options = question.options ?? [];
@@ -334,42 +503,49 @@ export const AssessmentManager: React.FC = () => {
         }
       });
 
-      const { error } = await supabase.rpc('create_assessment_with_questions', {
-        _title: validatedData.title,
-        _description: validatedData.description,
-        _type: validatedData.type,
-        _visibility: validatedData.visibility,
-        _ai_provider: validatedData.ai_provider,
-        _ai_model: validatedData.ai_model,
-        _ai_prompt: validatedData.ai_prompt,
-        _questions: validatedData.questions as unknown as Json,
-        _created_by: null
-      });
+      if (editingAssessmentId) {
+        await updateExistingAssessment(editingAssessmentId, validatedData);
+        toast({ title: 'Assessment updated', description: 'Changes saved successfully.' });
+        logger.info('Assessment updated', { assessmentId: editingAssessmentId });
+      } else {
+        const { error } = await supabase.rpc('create_assessment_with_questions', {
+          _title: validatedData.title,
+          _description: validatedData.description,
+          _type: validatedData.type,
+          _visibility: validatedData.visibility,
+          _ai_provider: validatedData.ai_provider,
+          _ai_model: validatedData.ai_model,
+          _ai_prompt: validatedData.ai_prompt,
+          _questions: validatedData.questions as unknown as Json,
+          _created_by: null,
+        });
 
-      if (error) {
-        console.error('Database error creating assessment:', error);
-        throw new Error('Failed to save assessment to database');
+        if (error) {
+          logger.error('Database error creating assessment', 'AssessmentManager', error);
+          throw new Error('Failed to save assessment to database');
+        }
+
+        toast({ title: 'Assessment created', description: 'New assessment created successfully.' });
+        logger.info('Assessment created', { title: validatedData.title });
       }
 
-      toast({ title: "Success", description: "Assessment created successfully" });
-      setIsCreateDialogOpen(false);
-      resetForm();
+      handleDialogOpenChange(false);
       fetchAssessments();
     } catch (error) {
-      console.error('Error creating assessment:', error);
-      
+      logger.error('Error saving assessment', 'AssessmentManager', error);
+
       if (error instanceof z.ZodError) {
         const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
         toast({
-          title: "Validation Error",
+          title: 'Validation Error',
           description: errors,
-          variant: "destructive"
+          variant: 'destructive',
         });
       } else {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to create assessment",
-          variant: "destructive"
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to save assessment',
+          variant: 'destructive',
         });
       }
     } finally {
@@ -381,43 +557,94 @@ export const AssessmentManager: React.FC = () => {
     try {
       setIsSubmitting(true);
       setSelectedAssessment(assessment);
-      
-      const validatedData = assessmentSchema.parse({
-        title: assessment.title,
-        description: assessment.description,
-        type: assessment.type,
-        visibility: assessment.visibility,
-        ai_provider: assessment.ai_provider || 'openai',
-        ai_model: assessment.ai_model || 'gpt-4o-mini',
-        ai_prompt: assessment.ai_prompt || '',
-        questions: []
+      setEditingAssessmentId(assessment.id);
+
+      const { data: detail, error: detailError } = await supabase
+        .from('assessments')
+        .select('title, description, type, visibility, ai_provider, ai_model, ai_prompt')
+        .eq('id', assessment.id)
+        .single();
+
+      if (detailError || !detail) {
+        throw detailError || new Error('Assessment not found');
+      }
+
+      const { data: rawQuestionsData, error: questionsError } = await supabase
+        .from('assessment_questions')
+        .select('id, question_text, question_type, position, options:assessment_options(id, option_text, is_correct, position, feedback)')
+        .eq('assessment_id', assessment.id)
+        .order('position', { ascending: true });
+
+      if (questionsError) {
+        throw questionsError;
+      }
+
+      const questionsData = (rawQuestionsData ?? []) as QuestionRow[];
+
+      const normalizedQuestions: Question[] = questionsData.map((question, index) => {
+        const rawType = typeof question.question_type === 'string' ? question.question_type : 'multiple_choice';
+        const questionType: Question['question_type'] = ['multiple_choice', 'free_text', 'image'].includes(rawType)
+          ? (rawType as Question['question_type'])
+          : 'multiple_choice';
+
+        const optionRows = Array.isArray(question.options) ? question.options : [];
+        const normalizedOptions = optionRows
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((option, optIndex) => ({
+            id: option.id,
+            option_text: option.option_text ?? '',
+            is_correct: Boolean(option.is_correct),
+            feedback: option.feedback ?? '',
+            position: optIndex + 1,
+          }));
+
+        return {
+          id: question.id,
+          question_text: question.question_text ?? '',
+          question_type: questionType,
+          position: index + 1,
+          options: questionType === 'multiple_choice' ? normalizedOptions : [],
+        };
       });
 
+      originalQuestionIdsRef.current = normalizedQuestions
+        .map((question) => question.id)
+        .filter((value): value is string => Boolean(value));
+
+      originalOptionIdsRef.current = normalizedQuestions.reduce((acc, question) => {
+        if (question.id) {
+          acc[question.id] = question.options
+            .map((option) => option.id)
+            .filter((value): value is string => Boolean(value));
+        }
+        return acc;
+      }, {} as Record<string, string[]>);
+
+      const normalizedType = ['quiz', 'personality', 'test'].includes((detail.type ?? '').toString())
+        ? (detail.type as AssessmentForm['type'])
+        : 'quiz';
+
       setAssessmentForm({
-        title: validatedData.title,
-        description: validatedData.description,
-        type: validatedData.type,
-        visibility: validatedData.visibility,
-        ai_provider: validatedData.ai_provider || 'openai',
-        ai_model: validatedData.ai_model || 'gpt-4o-mini',
-        ai_prompt: validatedData.ai_prompt || '',
-        questions: (validatedData.questions || []).map((q) => ({
-          ...q,
-          options: q.options ?? []
-        })) as unknown as Question[]
+        id: assessment.id,
+        title: detail.title ?? '',
+        description: detail.description ?? '',
+        type: normalizedType,
+        visibility: detail.visibility === 'public' ? 'public' : 'private',
+        ai_provider: detail.ai_provider || 'openai',
+        ai_model: detail.ai_model || 'gpt-4o-mini',
+        ai_prompt: detail.ai_prompt || '',
+        questions: normalizedQuestions,
       });
-      // Reuse create dialog for editing flow
+
       setIsCreateDialogOpen(true);
     } catch (error) {
-      console.error('Error validating assessment:', error);
-      if (error instanceof z.ZodError) {
-        const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
-        toast({
-          title: "Validation Error",
-          description: errors,
-          variant: "destructive"
-        });
-      }
+      logger.error('Error loading assessment for editing', 'AssessmentManager', error);
+      toast({
+        title: 'Unable to load assessment',
+        description: error instanceof Error ? error.message : 'Failed to load assessment details.',
+        variant: 'destructive',
+      });
+      resetForm();
     } finally {
       setIsSubmitting(false);
     }
@@ -428,80 +655,120 @@ export const AssessmentManager: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!id || typeof id !== 'number') {
+  const handleDelete = async (assessment: Assessment) => {
+    setPendingDelete(assessment);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) {
       toast({
         title: "Error",
-        description: "Invalid assessment ID provided",
-        variant: "destructive"
+        description: "No assessment selected for deletion",
+        variant: "destructive",
       });
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this assessment?')) return;
-    
     try {
+      setDeleteLoading(true);
       const { error } = await supabase
         .from('assessments')
         .delete()
-        .eq('id', id);
+        .eq('id', pendingDelete.id);
 
       if (error) {
-        console.error('Database error deleting assessment:', error);
+        logger.error('Database error deleting assessment', 'AssessmentManager', error);
         throw new Error('Failed to delete assessment from database');
       }
 
-      setAssessments(assessments.filter(a => a.id !== id));
+      setAssessments(prev => prev.filter(a => a.id !== pendingDelete.id));
       toast({ title: "Success", description: "Assessment deleted successfully" });
     } catch (error) {
-      console.error('Error deleting assessment:', error);
+      logger.error('Error deleting assessment', 'AssessmentManager', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete assessment",
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+      setPendingDelete(null);
     }
   };
 
   const handleDuplicate = async (assessment: Assessment) => {
     try {
-      if (!assessment || !assessment.id) {
+      if (!assessment?.id) {
         throw new Error('Invalid assessment data for duplication');
       }
 
-      const validatedData = assessmentSchema.parse({
-        title: `${assessment.title} (Copy)`,
-        description: assessment.description,
-        type: assessment.type,
-        visibility: 'private',
-        ai_provider: assessment.ai_provider || 'openai',
-        ai_model: assessment.ai_model || 'gpt-4o-mini',
-        ai_prompt: assessment.ai_prompt || '',
-        questions: []
+      setIsSubmitting(true);
+
+      const { data: rawQuestionsData, error: questionsError } = await supabase
+        .from('assessment_questions')
+        .select('id, question_text, question_type, position, options:assessment_options(id, option_text, is_correct, position, feedback)')
+        .eq('assessment_id', assessment.id)
+        .order('position', { ascending: true });
+
+      if (questionsError) {
+        throw questionsError;
+      }
+
+      const questionsData = (rawQuestionsData ?? []) as QuestionRow[];
+
+      const formattedQuestions = questionsData.map((question, index) => {
+        const rawType = typeof question.question_type === 'string' ? question.question_type : 'multiple_choice';
+        const questionType = ['multiple_choice', 'free_text', 'image'].includes(rawType)
+          ? rawType
+          : 'multiple_choice';
+
+        const optionRows = Array.isArray(question.options) ? question.options : [];
+
+        const options = questionType === 'multiple_choice'
+          ? optionRows
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((option, optIndex) => ({
+                option_text: option.option_text ?? '',
+                is_correct: Boolean(option.is_correct),
+                feedback: option.feedback ?? undefined,
+                position: optIndex + 1,
+              }))
+          : [];
+
+        return {
+          question_text: question.question_text ?? '',
+          question_type: questionType,
+          position: index + 1,
+          options,
+        };
       });
 
-      const { error } = await supabase
-        .from('assessments')
-        .insert([{
-          title: validatedData.title,
-          description: validatedData.description,
-          type: validatedData.type,
-          visibility: validatedData.visibility,
-          ai_provider: validatedData.ai_provider,
-          ai_model: validatedData.ai_model,
-          ai_prompt: validatedData.ai_prompt
-        }]);
+      const duplicateTitle = `${assessment.title} (Copy)`;
+
+      const { error } = await supabase.rpc('create_assessment_with_questions', {
+        _title: duplicateTitle,
+        _description: assessment.description,
+        _type: assessment.type,
+        _visibility: 'private',
+        _ai_provider: assessment.ai_provider || 'openai',
+        _ai_model: assessment.ai_model || 'gpt-4o-mini',
+        _ai_prompt: assessment.ai_prompt || '',
+        _questions: formattedQuestions as unknown as Json,
+        _created_by: null,
+      });
 
       if (error) {
-        console.error('Database error duplicating assessment:', error);
+        logger.error('Database error duplicating assessment', 'AssessmentManager', error);
         throw new Error('Failed to duplicate assessment in database');
       }
 
-      toast({ title: "Success", description: "Assessment duplicated successfully" });
+      toast({ title: 'Success', description: 'Assessment duplicated successfully' });
       fetchAssessments();
     } catch (error) {
-      console.error('Error duplicating assessment:', error);
-      
+      logger.error('Error duplicating assessment', 'AssessmentManager', error);
+
       if (error instanceof z.ZodError) {
         const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
         toast({
@@ -516,6 +783,8 @@ export const AssessmentManager: React.FC = () => {
           variant: "destructive"
         });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -536,6 +805,8 @@ export const AssessmentManager: React.FC = () => {
     );
   }
 
+  const isEditing = Boolean(editingAssessmentId);
+
   return (
     <div className="space-y-6">
       <Card className="glass-strong">
@@ -555,7 +826,13 @@ export const AssessmentManager: React.FC = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-gradient-primary">
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setIsCreateDialogOpen(true);
+                }}
+                className="bg-gradient-primary"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Assessment
               </Button>
@@ -621,6 +898,10 @@ export const AssessmentManager: React.FC = () => {
                   <span className="font-medium">{assessment.question_count}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Attempts:</span>
+                  <span className="font-medium">{assessment.attempt_count}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Completions:</span>
                   <span className="font-medium">{assessment.completion_count}</span>
                 </div>
@@ -663,10 +944,10 @@ export const AssessmentManager: React.FC = () => {
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={() => handleDelete(assessment.id)}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(assessment)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -698,12 +979,14 @@ export const AssessmentManager: React.FC = () => {
         </Card>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto glass-strong">
           <DialogHeader>
-            <DialogTitle>Create New Assessment</DialogTitle>
+            <DialogTitle>{isEditing ? 'Edit Assessment' : 'Create New Assessment'}</DialogTitle>
             <DialogDescription>
-              Build a comprehensive assessment with custom questions and options.
+              {isEditing
+                ? 'Update the assessment details, questions, and AI configuration.'
+                : 'Build a comprehensive assessment with custom questions and options.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -913,19 +1196,19 @@ export const AssessmentManager: React.FC = () => {
           </Tabs>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={isSubmitting} className="bg-gradient-primary">
+            <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-gradient-primary">
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
+                  {isEditing ? 'Saving...' : 'Creating...'}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
-                  Create Assessment
+                  {isEditing ? 'Save Changes' : 'Create Assessment'}
                 </>
               )}
             </Button>
@@ -958,6 +1241,10 @@ export const AssessmentManager: React.FC = () => {
                   <p className="text-sm">{selectedAssessment.question_count}</p>
                 </div>
                 <div>
+                  <Label>Attempts</Label>
+                  <p className="text-sm">{selectedAssessment.attempt_count}</p>
+                </div>
+                <div>
                   <Label>Completions</Label>
                   <p className="text-sm">{selectedAssessment.completion_count}</p>
                 </div>
@@ -988,7 +1275,25 @@ export const AssessmentManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <AIContentBuilder onAssessmentCreated={fetchAssessments} />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="glass-strong">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete assessment</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete
+                ? `Are you sure you want to delete "${pendingDelete.title}"? This action cannot be undone.`
+                : 'Are you sure you want to delete this assessment?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleteLoading} className="bg-destructive hover:bg-destructive/90">
+              {deleteLoading ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

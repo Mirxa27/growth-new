@@ -7,6 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, ShieldCheck } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 export const ContentModerationSettings: React.FC = () => {
   const [enabled, setEnabled] = useState(true);
@@ -21,15 +22,29 @@ export const ContentModerationSettings: React.FC = () => {
         setLoading(true);
         const { data, error } = await supabase
           .from('platform_settings')
-          .select('key, value')
-          .in('key', ['content_moderation_enabled', 'auto_flag_threshold']);
-        
+          .select('setting_key, setting_value')
+          .in('setting_key', ['content_moderation_enabled', 'auto_flag_threshold']);
+
         if (error) throw error;
-        
-        const map = new Map<string, any>((data || []).map(r => [r.key, r.value]));
-        setEnabled(Boolean(JSON.parse(map.get('content_moderation_enabled') ?? 'true')));
-        setThreshold(Number(JSON.parse(map.get('auto_flag_threshold') ?? '0.8')));
+
+        const map = new Map<string, any>((data || []).map(record => {
+          const key = record.setting_key;
+          const rawValue = record.setting_value;
+          if (!key) {
+            return ['__invalid__', null];
+          }
+
+          try {
+            return [key, typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue];
+          } catch {
+            return [key, rawValue];
+          }
+        }));
+
+        setEnabled(Boolean(map.get('content_moderation_enabled') ?? true));
+        setThreshold(Number(map.get('auto_flag_threshold') ?? 0.8));
       } catch (e: any) {
+        logger.error('Failed to load moderation settings', 'ContentModerationSettings', e);
         toast({ title: "Error", description: `Failed to load settings: ${e.message}`, variant: "destructive" });
       } finally {
         setLoading(false);
@@ -42,15 +57,16 @@ export const ContentModerationSettings: React.FC = () => {
     try {
       setIsSaving(true);
       const updates = [
-        supabase.rpc('update_platform_setting', { setting_key: 'content_moderation_enabled', setting_value: JSON.stringify(enabled) }),
-        supabase.rpc('update_platform_setting', { setting_key: 'auto_flag_threshold', setting_value: JSON.stringify(threshold) })
+        supabase.rpc('update_platform_setting', { key_name: 'content_moderation_enabled', new_value: enabled }),
+        supabase.rpc('update_platform_setting', { key_name: 'auto_flag_threshold', new_value: threshold }),
       ];
-      
+
       const results = await Promise.all(updates);
       results.forEach(res => { if (res.error) throw res.error; });
 
       toast({ title: "Success", description: "Moderation settings saved." });
     } catch (e: any) {
+      logger.error('Failed to save moderation settings', 'ContentModerationSettings', e);
       toast({ title: "Error", description: `Failed to save settings: ${e.message}`, variant: "destructive" });
     } finally {
       setIsSaving(false);

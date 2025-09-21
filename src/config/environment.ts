@@ -64,7 +64,26 @@ class EnvironmentService {
     this.config = this.loadConfiguration();
     this.validateConfiguration();
   }
-  
+
+  private log(level: 'warn' | 'error', message: string, data?: unknown): void {
+    void import('@/utils/logger')
+      .then(({ logger }) => {
+        if (level === 'warn') {
+          logger.warn(message, 'EnvironmentService', data);
+        } else {
+          logger.error(message, 'EnvironmentService', data);
+        }
+      })
+      .catch(() => {
+        const fallbackConsole = globalThis.console;
+        if (level === 'warn') {
+          fallbackConsole?.warn?.(message, data);
+        } else {
+          fallbackConsole?.error?.(message, data);
+        }
+      });
+  }
+
   private loadConfiguration(): EnvironmentConfig {
     const isDevelopment = import.meta.env.MODE === 'development';
     const isProduction = import.meta.env.MODE === 'production';
@@ -111,7 +130,7 @@ class EnvironmentService {
       },
       
       logging: {
-        level: (import.meta.env.VITE_LOG_LEVEL as any) || 'info',
+        level: (import.meta.env.VITE_LOG_LEVEL as string | undefined) || 'info',
         enabled: import.meta.env.VITE_DEBUG_MODE === 'true' || isDevelopment,
       },
     };
@@ -131,7 +150,7 @@ class EnvironmentService {
     
     // Validate OpenAI configuration if voice chat is enabled
     if (this.config.features.voiceChat && !this.config.openai.apiKey) {
-      console.warn('Voice chat is enabled but OpenAI API key is not configured. Voice features will be limited.');
+      this.log('warn', 'Voice chat is enabled but OpenAI API key is not configured. Voice features will be limited.');
     }
     
     // Validate security configuration for production
@@ -146,7 +165,7 @@ class EnvironmentService {
     }
     
     if (errors.length > 0) {
-      console.error('Environment configuration errors:', errors);
+      this.log('error', 'Environment configuration errors', errors);
       if (this.config.app.environment === 'production') {
         throw new Error('Invalid environment configuration: ' + errors.join(', '));
       }

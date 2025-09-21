@@ -3,15 +3,18 @@
  * Tracks and optimizes application performance metrics
  */
 
-import { apiClient } from '@/services/api/client.service';
 import { supabase } from '@/integrations/supabase/client';
+import { dbWrapper } from '@/services/database/database-wrapper.service';
+import { logger } from '@/utils/logger';
 
 interface PerformanceMetric {
   name: string;
   value: number;
   unit: string;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+  type?: string;
+  tags?: Record<string, string | number | boolean>;
 }
 
 interface PerformanceThresholds {
@@ -27,6 +30,7 @@ class PerformanceMonitoringService {
   private static instance: PerformanceMonitoringService;
   private metrics: PerformanceMetric[] = [];
   private observers: Map<string, PerformanceObserver> = new Map();
+  private readonly sessionId: string;
   
   private readonly THRESHOLDS: PerformanceThresholds = {
     FCP: 1800, // 1.8s
@@ -41,6 +45,14 @@ class PerformanceMonitoringService {
   private readonly SEND_INTERVAL = 30000; // 30 seconds
 
   private constructor() {
+    const cryptoApi = typeof globalThis !== 'undefined' && 'crypto' in globalThis
+      ? (globalThis.crypto as { randomUUID?: () => string })
+      : undefined;
+
+    this.sessionId = cryptoApi?.randomUUID
+      ? `session_${cryptoApi.randomUUID()}`
+      : `session_${Date.now()}`;
+
     if (typeof window !== 'undefined' && 'performance' in window) {
       this.initializeObservers();
       this.startBatchSending();
@@ -98,7 +110,7 @@ class PerformanceMonitoringService {
       observer.observe({ entryTypes: ['paint'] });
       this.observers.set('paint', observer);
     } catch (e) {
-      console.warn('Paint timing observer not supported');
+      logger.warn('Paint timing observer not supported', 'PerformanceMonitoringService', e);
     }
   }
 
@@ -126,7 +138,7 @@ class PerformanceMonitoringService {
       observer.observe({ entryTypes: ['largest-contentful-paint'] });
       this.observers.set('lcp', observer);
     } catch (e) {
-      console.warn('LCP observer not supported');
+      logger.warn('LCP observer not supported', 'PerformanceMonitoringService', e);
     }
   }
 
@@ -136,17 +148,16 @@ class PerformanceMonitoringService {
   private observeFID() {
     try {
       const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          const fidEntry = entry as any;
-          const delay = fidEntry.processingStart - fidEntry.startTime;
-          
+        for (const entry of list.getEntries() as PerformanceEventTiming[]) {
+          const delay = entry.processingStart - entry.startTime;
+
           this.recordMetric({
             name: 'FID',
             value: delay,
             unit: 'ms',
             timestamp: Date.now(),
             metadata: {
-              eventType: fidEntry.name,
+              eventType: entry.name,
             },
           });
         }
@@ -155,7 +166,7 @@ class PerformanceMonitoringService {
       observer.observe({ entryTypes: ['first-input'] });
       this.observers.set('fid', observer);
     } catch (e) {
-      console.warn('FID observer not supported');
+      logger.warn('FID observer not supported', 'PerformanceMonitoringService', e);
     }
   }
 
@@ -164,17 +175,19 @@ class PerformanceMonitoringService {
    */
   private observeCLS() {
     let clsValue = 0;
-    let clsEntries: any[] = [];
-    
+    const clsEntries: LayoutShift[] = [];
+
     try {
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value;
-            clsEntries.push(entry);
+          const layoutEntry = entry as LayoutShift;
+
+          if (!layoutEntry.hadRecentInput) {
+            clsValue += layoutEntry.value;
+            clsEntries.push(layoutEntry);
           }
         }
-        
+
         this.recordMetric({
           name: 'CLS',
           value: clsValue,
@@ -189,7 +202,7 @@ class PerformanceMonitoringService {
       observer.observe({ entryTypes: ['layout-shift'] });
       this.observers.set('cls', observer);
     } catch (e) {
-      console.warn('CLS observer not supported');
+      logger.warn('CLS observer not supported', 'PerformanceMonitoringService', e);
     }
   }
 
@@ -258,7 +271,7 @@ class PerformanceMonitoringService {
       observer.observe({ entryTypes: ['resource'] });
       this.observers.set('resource', observer);
     } catch (e) {
-      console.warn('Resource timing observer not supported');
+      logger.warn('Resource timing observer not supported', 'PerformanceMonitoringService', e);
     }
   }
 
@@ -284,7 +297,11 @@ class PerformanceMonitoringService {
     const threshold = this.THRESHOLDS[metric.name as keyof PerformanceThresholds];
     
     if (threshold && metric.value > threshold) {
-      console.warn(`Performance warning: ${metric.name} (${metric.value}${metric.unit}) exceeds threshold (${threshold}${metric.unit})`);
+      logger.warn(
+        `Performance warning: ${metric.name} (${metric.value}${metric.unit}) exceeds threshold (${threshold}${metric.unit})`,
+        'PerformanceMonitoringService',
+        metric,
+      );
       
       // You could trigger alerts or notifications here
       this.handlePerformanceIssue(metric, threshold);
@@ -319,39 +336,48 @@ class PerformanceMonitoringService {
    */
   private async sendMetrics() {
     if (this.metrics.length === 0) return;
-    
-    // Temporarily disable performance metrics to prevent 404 errors
-    // Silently queue metrics - table will be available after migration
-    this.metrics = []; // Clear metrics to prevent memory buildup
-    return;
-    
+
     const metricsToSend = [...this.metrics];
     this.metrics = [];
-    
+
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+
     try {
-      // Send to Supabase edge function or store in database
-      const { error } = await supabase.from('performance_metrics').insert(
-        metricsToSend.map(metric => ({
-          metric_type: metric.type || 'unknown',
+      const payload = metricsToSend
+        .filter((metric) => Number.isFinite(metric.value))
+        .map((metric) => ({
+          metric_type: metric.type ?? 'custom',
           name: metric.name,
           value: metric.value,
           unit: metric.unit,
-          tags: metric.tags || {},
-          metadata: metric.metadata || {},
-          timestamp: new Date(metric.timestamp).toISOString(), // Convert to ISO string
-          user_agent: navigator.userAgent,
-          url: window.location.href,
+          tags: metric.tags ?? {},
+          metadata: metric.metadata ?? {},
+          timestamp: new Date(metric.timestamp).toISOString(),
+          user_agent: userAgent,
+          url: currentUrl,
           session_id: this.sessionId,
-        }))
-      );
-      
+        }));
+
+      if (payload.length === 0) {
+        return;
+      }
+
+      const { error } = await supabase.from('performance_metrics').insert(payload);
+
       if (error) throw error;
     } catch (error) {
-      // Re-queue metrics on failure (but limit queue size)
-      if (this.metrics.length < 1000) {
+      const fallbackResults = await Promise.all(
+        metricsToSend.map((metric) =>
+          dbWrapper.recordPerformanceMetric(metric.type ?? 'custom', metric.name, metric.value),
+        ),
+      );
+
+      if (!fallbackResults.every(Boolean) && this.metrics.length < 1000) {
         this.metrics.unshift(...metricsToSend.slice(0, 100));
       }
-      console.error('Failed to send performance metrics:', error);
+
+      logger.error('Failed to send performance metrics', 'PerformanceMonitoringService', error);
     }
   }
 
@@ -394,7 +420,7 @@ class PerformanceMonitoringService {
         return measure.duration;
       }
     } catch (e) {
-      console.error('Failed to measure timing:', e);
+      logger.error('Failed to measure timing', 'PerformanceMonitoringService', e);
     }
     
     return null;
@@ -407,7 +433,7 @@ class PerformanceMonitoringService {
     try {
       performance.mark(name);
     } catch (e) {
-      console.error('Failed to create mark:', e);
+      logger.error('Failed to create mark', 'PerformanceMonitoringService', e);
     }
   }
 

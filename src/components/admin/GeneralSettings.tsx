@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Save, Settings, AlertCircle } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
+import { logger } from '@/utils/logger';
 
 interface SettingsMap {
   [key: string]: any;
@@ -24,21 +25,29 @@ export const GeneralSettings: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('platform_settings')
-        .select('key, value');
-      
+        .select('setting_key, setting_value');
+
       if (error) throw error;
 
-      const settingsMap = data.reduce((acc, { key, value }) => {
+      const settingsMap = (data || []).reduce((acc, record) => {
+        const key = record.setting_key;
+        const rawValue = record.setting_value;
+
+        if (!key) {
+          return acc;
+        }
+
         try {
-          acc[key] = JSON.parse(value);
+          acc[key] = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
         } catch {
-          acc[key] = value;
+          acc[key] = rawValue;
         }
         return acc;
       }, {} as SettingsMap);
-      
+
       setSettings(settingsMap);
     } catch (error: any) {
+      logger.error('Failed to load platform settings', 'GeneralSettings', error);
       toast({
         title: "Error",
         description: `Failed to load settings: ${error.message}`,
@@ -61,21 +70,22 @@ export const GeneralSettings: React.FC = () => {
     try {
       setIsSaving(true);
       
-      const updates = Object.entries(settings).map(([key, value]) => 
+      const updates = Object.entries(settings).map(([key, value]) =>
         supabase.rpc('update_platform_setting', {
-          setting_key: key,
-          setting_value: JSON.stringify(value)
+          key_name: key,
+          new_value: value,
         })
       );
 
       const results = await Promise.all(updates);
-      
+
       results.forEach(result => {
         if (result.error) throw result.error;
       });
 
       toast({ title: "Success", description: "Settings saved successfully." });
     } catch (error: any) {
+      logger.error('Failed to save general settings', 'GeneralSettings', error);
       toast({
         title: "Error",
         description: `Failed to save settings: ${error.message}`,

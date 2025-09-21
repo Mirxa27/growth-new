@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { fallbackDb } from './fallback-service';
 
 /**
@@ -34,14 +35,14 @@ export class DatabaseWrapperService {
 
       const exists = !error || (error.code !== 'PGRST116' && error.code !== '42P01');
       this.tableExists.set(tableName, exists);
-      
+
       if (!exists) {
-        console.warn(`Table '${tableName}' does not exist, using fallback data`);
+        logger.warn(`Table '${tableName}' does not exist, using fallback data`, 'DatabaseWrapperService');
       }
-      
+
       return exists;
     } catch (error) {
-      console.warn(`Error checking table '${tableName}':`, error);
+      logger.warn(`Error checking table '${tableName}'`, 'DatabaseWrapperService', error);
       this.tableExists.set(tableName, false);
       return false;
     } finally {
@@ -66,13 +67,13 @@ export class DatabaseWrapperService {
         .single();
 
       if (error) {
-        console.warn('Database error, using fallback:', error);
+        logger.warn('Database error, using fallback profile lookup', 'DatabaseWrapperService', error);
         return await fallbackDb.getUserProfile(userId);
       }
 
       return data;
     } catch (error) {
-      console.warn('getUserProfile failed, using fallback:', error);
+      logger.warn('getUserProfile failed, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.getUserProfile(userId);
     }
   }
@@ -94,13 +95,13 @@ export class DatabaseWrapperService {
         .limit(limit);
 
       if (error) {
-        console.warn('Database error, using fallback:', error);
+        logger.warn('Database error, using fallback community posts', 'DatabaseWrapperService', error);
         return await fallbackDb.getCommunityPosts(limit);
       }
 
       return data || [];
     } catch (error) {
-      console.warn('getCommunityPosts failed, using fallback:', error);
+      logger.warn('getCommunityPosts failed, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.getCommunityPosts(limit);
     }
   }
@@ -123,13 +124,13 @@ export class DatabaseWrapperService {
         .limit(limit);
 
       if (error) {
-        console.warn('Database error, using fallback:', error);
+        logger.warn('Database error, using fallback library items', 'DatabaseWrapperService', error);
         return await fallbackDb.getLibraryItems(limit);
       }
 
       return data || [];
     } catch (error) {
-      console.warn('getLibraryItems failed, using fallback:', error);
+      logger.warn('getLibraryItems failed, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.getLibraryItems(limit);
     }
   }
@@ -151,13 +152,13 @@ export class DatabaseWrapperService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Database error, using fallback:', error);
+        logger.warn('Database error, using fallback exploration sessions', 'DatabaseWrapperService', error);
         return await fallbackDb.getExplorationSessions(userId);
       }
 
       return data || [];
     } catch (error) {
-      console.warn('getExplorationSessions failed, using fallback:', error);
+      logger.warn('getExplorationSessions failed, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.getExplorationSessions(userId);
     }
   }
@@ -172,6 +173,12 @@ export class DatabaseWrapperService {
         return await fallbackDb.recordPerformanceMetric(metricType, name, value);
       }
 
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+      const sessionId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? `session_${crypto.randomUUID()}`
+        : `session_${Date.now()}`;
+
       const { error } = await supabase.rpc('record_performance_metric', {
         metric_type_param: metricType,
         name_param: name,
@@ -179,9 +186,9 @@ export class DatabaseWrapperService {
         unit_param: 'ms',
         tags_param: {},
         metadata_param: {},
-        user_agent_param: navigator.userAgent,
-        url_param: window.location.href,
-        session_id_param: `session_${Date.now()}`
+        user_agent_param: userAgent,
+        url_param: currentUrl,
+        session_id_param: sessionId,
       });
 
       if (error) {
@@ -190,6 +197,7 @@ export class DatabaseWrapperService {
 
       return true;
     } catch (error) {
+      logger.warn('Failed to persist performance metric via RPC, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.recordPerformanceMetric(metricType, name, value);
     }
   }
@@ -219,6 +227,7 @@ export class DatabaseWrapperService {
 
       return true;
     } catch (error) {
+      logger.warn('Failed to persist error log via RPC, using fallback', 'DatabaseWrapperService', error);
       return await fallbackDb.logError(message, code, severity);
     }
   }
@@ -229,7 +238,7 @@ export class DatabaseWrapperService {
   static clearTableCache() {
     this.tableExists.clear();
     this.checkInProgress.clear();
-    console.log('Database table cache cleared');
+    logger.info('Database table cache cleared', 'DatabaseWrapperService');
   }
 }
 
