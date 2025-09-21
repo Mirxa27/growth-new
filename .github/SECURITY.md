@@ -20,7 +20,7 @@ We appreciate your efforts to responsibly disclose security vulnerabilities. To 
 
 ### Alternative Method: Email
 
-Send an email to the project maintainers with the following information:
+Send an email to **security@growthecho.com** (or your dedicated security contact address) with the following information:
 - **Subject:** `[SECURITY] Vulnerability Report - Growth Echo Nexus`
 - **Description:** A clear description of the vulnerability
 - **Steps to Reproduce:** Detailed steps to reproduce the issue
