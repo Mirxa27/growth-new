@@ -1,28 +1,35 @@
-# Vercel deployment ignore file
-
 # Development files
+node_modules
+.git
+.env
 .env.local
 .env.development
-.env.test
 
 # Build artifacts
-node_modules/
-.next/
-.nuxt/
-.vuepress/dist
-.temp
-.cache
+dist
+.next
+out
 
-# IDE files
-.vscode/
-.idea/
+# IDE and editor files
+.vscode
+.idea
 *.swp
 *.swo
 *~
 
-# OS files
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# Testing and coverage
+coverage
+.nyc_output
+test-results
 
 # Logs
 logs
@@ -31,70 +38,52 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
+# Documentation that shouldn't be deployed
+*.md
+docs/
+.github/
+*.txt
 
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
+# Deployment and configuration scripts
+deploy-*.mjs
+deploy-*.js
+deploy-*.sh
+setup-*.mjs
+setup-*.js
+apply-*.sql
+apply-*.mjs
+create-*.mjs
+fix-*.sh
+test-*.mjs
+*.backup
 
-# nyc test coverage
-.nyc_output
+# Supabase local development files
+supabase/.branches
+supabase/.temp
+supabase/tests
 
-# Dependency directories
-jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
+# Cache directories
+.cache
 .parcel-cache
+.vite
 
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# Temporary folders
+# Temporary files
 tmp/
 temp/
+*.tmp
 
-# Mobile build artifacts
+# Package lock files (Vercel will generate its own)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript build info
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
+
+# Capacitor (mobile) files that don't need to be deployed to web
 ios/
 android/
 capacitor.config.ts
-
-# Documentation that doesn't need deployment
-*.md
-!README.md
-
-# Scripts that don't need deployment
-scripts/
-!scripts/seed-assessments.js
-
-# Test files
-**/*.test.*
-**/*.spec.*
-__tests__/
-test/
-tests/
-
-# Supabase local development
-supabase/.temp/
-supabase/functions/.temp/

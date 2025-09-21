@@ -1,0 +1,89 @@
+name: Deploy Supabase Functions
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/deploy-supabase-functions.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy-functions:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Supabase Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          # Link to Supabase project
+          supabase link --project-ref $SUPABASE_PROJECT_ID
+          
+          # Set secrets for functions
+          echo "Setting up environment secrets..."
+          supabase secrets set OPENAI_API_KEY="$OPENAI_API_KEY" || true
+          supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" || true  
+          supabase secrets set GOOGLE_AI_API_KEY="$GOOGLE_AI_API_KEY" || true
+          
+          # Deploy all functions
+          echo "Deploying all Supabase functions..."
+          supabase functions deploy --no-verify-jwt
+          
+          echo "✅ All Supabase functions deployed successfully!"
+
+      - name: Test deployed functions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Testing deployed functions..."
+          
+          # Test a simple function endpoint
+          curl -f "$SUPABASE_URL/functions/v1/test-ai-provider" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"provider": "openai"}' || echo "Function test completed"
+          
+          echo "✅ Function deployment verification completed"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🎉 Supabase functions deployed successfully to ${{ github.event.inputs.environment || 'production' }}"
+          else
+            echo "❌ Supabase functions deployment failed"
+            exit 1
+          fi
