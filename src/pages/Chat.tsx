@@ -314,7 +314,7 @@ const Chat = () => {
 
   return (
     <EnhancedErrorBoundary>
-      <div className="h-screen-safe flex flex-col bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 overflow-hidden">
+      <div className="h-screen-safe flex flex-col bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 overflow-hidden">
         {/* Mobile Header */}
         <div className="flex-shrink-0 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 py-3 safe-area-padding">
           <div className="flex items-center justify-between">

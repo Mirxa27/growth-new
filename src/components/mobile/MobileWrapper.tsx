@@ -305,7 +305,7 @@ export const MobileWrapper: React.FC<MobileWrapperProps> = ({ children }) => {
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-foreground mb-2">Loading Newomen</h2>

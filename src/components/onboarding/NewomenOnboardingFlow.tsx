@@ -221,7 +221,7 @@ export const NewomenOnboardingFlow = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
         <MobileContainer className="py-8">
           {/* Header */}
           <Card className="glass-strong mb-6">

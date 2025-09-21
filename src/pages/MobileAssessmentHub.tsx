@@ -289,7 +289,7 @@ const MobileAssessmentHub: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center">
         <div className="text-center space-y-4">
           <LoadingSpinner size="lg" />
           <h2 className="text-xl font-semibold">Loading Assessments</h2>
@@ -301,7 +301,7 @@ const MobileAssessmentHub: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center p-4">
         <Card className="glass-strong max-w-md w-full">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -323,7 +323,7 @@ const MobileAssessmentHub: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
       <div className="max-w-7xl mx-auto p-4 space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -438,7 +438,7 @@ const MobileAssessmentHub: React.FC = () => {
         </Card>
 
         {/* Call to Action */}
-        <Card className="glass border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
+        <Card className="glass border-primary/20 bg-gradient-to-r from-primary-100 to-secondary/5">
           <CardContent className="p-6 text-center">
             <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
             <h3 className="text-xl font-bold mb-2">Ready to Start Your Growth Journey?</h3>
