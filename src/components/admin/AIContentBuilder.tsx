@@ -1984,8 +1984,8 @@ Format the response as a structured JSON object with:
 
       {/* Preview Modal */}
       {previewState && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="glass-strong w-full max-w-4xl max-h-[80vh] overflow-y-auto border border-white/10 shadow-2xl">
             <CardHeader>
               <CardTitle>
                 {previewState.mode === 'prompt' ? 'Generation Preview' : 'Generated Content Preview'}
@@ -2001,7 +2001,7 @@ Format the response as a structured JSON object with:
                 <>
                   <div className="space-y-2">
                     <h4 className="font-semibold">Prompt</h4>
-                    <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap">
+                    <pre className="glass p-4 rounded-xl text-sm whitespace-pre-wrap border border-white/10">
                       {previewState.prompt}
                     </pre>
                   </div>
@@ -2059,7 +2059,7 @@ Format the response as a structured JSON object with:
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm font-semibold text-muted-foreground">Payload</p>
-                        <pre className="bg-muted p-4 rounded text-xs whitespace-pre-wrap overflow-x-auto">
+                        <pre className="glass p-4 rounded-xl text-xs whitespace-pre-wrap overflow-x-auto border border-white/10">
                           {previewJson}
                         </pre>
                       </div>
