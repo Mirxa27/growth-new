@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
-    "@dyad-sh/react-vite-component-tagger": "latest",
     "@eslint/js": "latest",
     "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/typography": "latest",
