@@ -210,20 +210,74 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({
   /**
    * Toggle microphone mute
    */
-  const toggleMicrophone = useCallback(() => {
-    setIsMuted(!isMuted);
-    // TODO: Implement actual microphone muting in the session
-    logger.debug(`Microphone ${isMuted ? 'unmuted' : 'muted'}`);
-  }, [isMuted]);
+  const toggleMicrophone = useCallback(async () => {
+    if (!sessionIdRef.current || sessionState?.status !== 'connected') {
+      toast({
+        title: 'Not Connected',
+        description: 'Please start a voice session first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const newMutedState = !isMuted;
+      setIsMuted(newMutedState);
+      
+      // Mute/unmute microphone in the actual session
+      await realtimeService.setMicrophoneMuted(sessionIdRef.current, newMutedState);
+      
+      logger.debug(`Microphone ${newMutedState ? 'muted' : 'unmuted'}`);
+      
+      toast({
+        title: `Microphone ${newMutedState ? 'Muted' : 'Unmuted'}`,
+        description: `Your microphone has been ${newMutedState ? 'muted' : 'unmuted'}`,
+      });
+    } catch (error) {
+      logger.error('Failed to toggle microphone', 'VoiceAgent', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to toggle microphone',
+        variant: 'destructive',
+      });
+    }
+  }, [isMuted, sessionState, toast]);
 
   /**
    * Toggle speaker mute
    */
-  const toggleSpeaker = useCallback(() => {
-    setIsSpeakerMuted(!isSpeakerMuted);
-    // TODO: Implement actual speaker muting in the session
-    logger.debug(`Speaker ${isSpeakerMuted ? 'unmuted' : 'muted'}`);
-  }, [isSpeakerMuted]);
+  const toggleSpeaker = useCallback(async () => {
+    if (!sessionIdRef.current || sessionState?.status !== 'connected') {
+      toast({
+        title: 'Not Connected',
+        description: 'Please start a voice session first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const newMutedState = !isSpeakerMuted;
+      setIsSpeakerMuted(newMutedState);
+      
+      // Mute/unmute speaker in the actual session
+      await realtimeService.setSpeakerMuted(sessionIdRef.current, newMutedState);
+      
+      logger.debug(`Speaker ${newMutedState ? 'muted' : 'unmuted'}`);
+      
+      toast({
+        title: `Speaker ${newMutedState ? 'Muted' : 'Unmuted'}`,
+        description: `The speaker has been ${newMutedState ? 'muted' : 'unmuted'}`,
+      });
+    } catch (error) {
+      logger.error('Failed to toggle speaker', 'VoiceAgent', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to toggle speaker',
+        variant: 'destructive',
+      });
+    }
+  }, [isSpeakerMuted, sessionState, toast]);
 
   /**
    * Start connection timer

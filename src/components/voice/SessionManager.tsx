@@ -263,10 +263,33 @@ export const SessionManager: React.FC = () => {
               size="sm"
               variant="outline"
               onClick={() => {
-                // TODO: Implement session details view
+                // Show detailed session information in toast
+                const sessionInfo = {
+                  id: session.id,
+                  type,
+                  status: session.status,
+                  startTime: session.startTime,
+                  endTime: session.endTime,
+                  messageCount,
+                  duration: formatDuration(duration),
+                  errorMessage: session.errorMessage
+                };
+
                 toast({
                   title: 'Session Details',
-                  description: `Viewing details for ${type} session ${session.id}`,
+                  description: (
+                    <div className="space-y-2 text-sm">
+                      <div><strong>ID:</strong> {session.id}</div>
+                      <div><strong>Type:</strong> {type}</div>
+                      <div><strong>Status:</strong> {session.status}</div>
+                      <div><strong>Duration:</strong> {formatDuration(duration)}</div>
+                      <div><strong>Messages:</strong> {messageCount}</div>
+                      <div><strong>Started:</strong> {formatDistanceToNow(session.startTime)} ago</div>
+                      {session.errorMessage && (
+                        <div className="text-red-600"><strong>Error:</strong> {session.errorMessage}</div>
+                      )}
+                    </div>
+                  ),
                 });
               }}
               className="text-xs"

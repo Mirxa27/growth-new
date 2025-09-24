@@ -450,8 +450,7 @@ export const RealtimeVoiceInterface = ({
           </div>
         </div>
 
-        {/* Feature Highlights */
-        }
+        {/* Feature Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
