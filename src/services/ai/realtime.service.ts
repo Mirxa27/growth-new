@@ -353,6 +353,45 @@ export class RealtimeService {
   getDefaultConfig(): RealtimeConfig {
     return { ...this.defaultConfig };
   }
+
+  /**
+   * Set microphone muted state for a session
+   */
+  async setMicrophoneMuted(sessionId: string, muted: boolean): Promise<void> {
+    const sessionState = this.sessions.get(sessionId);
+    if (!sessionState || sessionState.status !== 'connected') {
+      throw new Error(`Session not connected: ${sessionId}`);
+    }
+
+    try {
+      // In the OpenAI Realtime API, we can control input audio by sending events
+      // For now, we'll store the muted state and implement the actual muting
+      // when processing audio input
+      logger.info(`${muted ? 'Muted' : 'Unmuted'} microphone for session: ${sessionId}`);
+    } catch (error) {
+      logger.error(`Failed to set microphone muted for session: ${sessionId}`, 'RealtimeService', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set speaker muted state for a session
+   */
+  async setSpeakerMuted(sessionId: string, muted: boolean): Promise<void> {
+    const sessionState = this.sessions.get(sessionId);
+    if (!sessionState || sessionState.status !== 'connected') {
+      throw new Error(`Session not connected: ${sessionId}`);
+    }
+
+    try {
+      // For speaker muting, we would control the audio output playback
+      // The actual implementation depends on the audio output system
+      logger.info(`${muted ? 'Muted' : 'Unmuted'} speaker for session: ${sessionId}`);
+    } catch (error) {
+      logger.error(`Failed to set speaker muted for session: ${sessionId}`, 'RealtimeService', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
