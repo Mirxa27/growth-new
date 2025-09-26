@@ -83,9 +83,9 @@ export default defineConfig({
         manualChunks: (id) => {
           // Critical vendor chunks with optimized splitting
           if (id.includes('node_modules')) {
-            // React core - highest priority, stable API
-            if (id.includes('react/') || id.includes('react-dom/')) {
-              return 'react-core';
+            // React core - keep all React together to avoid circular dependencies
+            if (id.includes('react/') || id.includes('react-dom/') || id.includes('@types/react')) {
+              return 'react';
             }
             // React ecosystem - frequently updated
             if (id.includes('react-router') || id.includes('@tanstack/react-query')) {

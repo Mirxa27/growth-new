@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useAppStore } from '../index';
 import { useAssessmentStore } from '../assessmentStore';
 import { act } from '@testing-library/react';
-import * as React from 'react';
+import React from 'react';
 
 // Mock localStorage
 const mockLocalStorage = {

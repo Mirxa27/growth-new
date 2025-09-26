@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useAppStore, userSelectors, assessmentSelectors, uiSelectors } from '../index';
-import * as React from 'react';
+import React from 'react';
 import { act } from '@testing-library/react';
 
 // Mock localStorage

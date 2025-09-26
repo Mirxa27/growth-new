@@ -44,7 +44,9 @@
       "Bash(npm run deploy:*)",
       "WebFetch(domain:growth-825pkoama-mirxa27s-projects.vercel.app)",
       "Bash(npm run supabase:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:growth-6phe6ew4s-mirxa27s-projects.vercel.app)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
