@@ -13,6 +13,7 @@ const API_CACHE = `${CACHE_NAME}-api`;
 // Critical resources to cache immediately
 const STATIC_ASSETS = [
   '/',
+  '/admin',
   '/static/js/bundle.js',
   '/static/css/main.css',
   '/static/media/logo.svg',

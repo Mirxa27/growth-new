@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,6 +83,7 @@ interface RecentActivityItem {
 
 const AdminDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
+  const initialRenderRef = useRef(true);
 
   // If an explicit section is provided via query param (e.g. ?section=ai-providers),
   // use it to initialize the active section. This makes e2e tests and direct links reliable.
@@ -91,6 +92,7 @@ const AdminDashboard: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const section = params.get('section') as AdminSection | null;
       if (section) {
+        // Use the query param to set initial state, but only after initial render
         setActiveSection(section);
       }
     } catch (e) {
@@ -539,7 +541,7 @@ const AdminDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':
-        return renderOverview();
+        return renderOverview;
       case 'analytics':
         return (
           <Suspense fallback={<ComponentLoader />}>
@@ -701,7 +703,7 @@ const AdminDashboard: React.FC = () => {
           </Suspense>
         );
       default:
-        return renderOverview();
+        return renderOverview;
     }
   };
 
