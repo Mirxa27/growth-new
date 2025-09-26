@@ -3,7 +3,8 @@
  * Tools for testing error boundaries in development and CI environments
  */
 
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React from 'react';
+const { useEffect, useState, createContext, useContext } = React;
 import { Bug, AlertCircle, Shield, TestTube } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

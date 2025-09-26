@@ -39,7 +39,8 @@
       "WebFetch(domain:growth-jxtl58x4e-mirxa27s-projects.vercel.app)",
       "Bash(npm run)",
       "Bash(export:*)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "WebFetch(domain:growth-caj99o226-mirxa27s-projects.vercel.app)"
     ],
     "deny": [],
     "ask": []
