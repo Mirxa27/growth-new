@@ -21,7 +21,9 @@
       "Bash(npx supabase:*)",
       "mcp__MCP_DOCKER__list_projects",
       "mcp__filesystem__create_directory",
-      "WebFetch(domain:platform.openai.com)"
+      "WebFetch(domain:platform.openai.com)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
