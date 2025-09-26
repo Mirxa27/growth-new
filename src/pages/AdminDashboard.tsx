@@ -239,14 +239,14 @@ const AdminDashboard: React.FC = () => {
     try {
       setOverviewLoading(true);
 
-      // Fetch all data in parallel
+      // Fetch all data in parallel with fallback for missing tables
       const [
         usersResponse,
         assessmentsResponse,
         communityResponse,
         libraryResponse,
         explorationSessionsResponse,
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         supabase.from('profiles').select('created_at, last_login_at'),
         supabase.from('assessments').select('id, title, created_at'),
         supabase.from('community_posts').select('id, created_at').limit(1000),
@@ -254,11 +254,12 @@ const AdminDashboard: React.FC = () => {
         supabase.from('exploration_sessions').select('created_at, status').limit(1000),
       ]);
 
-      const users: Tables<'profiles'>[] = usersResponse.data || [];
-      const assessments: Tables<'assessments'>[] = assessmentsResponse.data || [];
-      const communityPosts: Tables<'community_posts'>[] = communityResponse.data || [];
-      const libraryItems: Tables<'library_items'>[] = libraryResponse.data || [];
-      const explorationSessions: Tables<'exploration_sessions'>[] = explorationSessionsResponse.data || [];
+      // Extract data with fallbacks for missing tables
+      const users: Tables<'profiles'>[] = (usersResponse.status === 'fulfilled' && usersResponse.value.data) || [];
+      const assessments: Tables<'assessments'>[] = (assessmentsResponse.status === 'fulfilled' && assessmentsResponse.value.data) || [];
+      const communityPosts: Tables<'community_posts'>[] = (communityResponse.status === 'fulfilled' && communityResponse.value.data) || [];
+      const libraryItems: Tables<'library_items'>[] = (libraryResponse.status === 'fulfilled' && libraryResponse.value.data) || [];
+      const explorationSessions: Tables<'exploration_sessions'>[] = (explorationSessionsResponse.status === 'fulfilled' && explorationSessionsResponse.value.data) || [];
 
       // Calculate metrics
       const now = new Date();
@@ -541,7 +542,11 @@ const AdminDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':
-        return renderOverview;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            {renderOverview}
+          </Suspense>
+        );
       case 'analytics':
         return (
           <Suspense fallback={<ComponentLoader />}>

@@ -353,10 +353,25 @@ class ErrorHandlerService {
             user_id: error.context.userId || null
           }));
 
-          // Insert errors into database
-          const { error } = await supabase
+          // Try to insert with category field first
+          let { error } = await supabase
             .from('error_logs')
             .insert(errorLogs);
+
+          // If category column doesn't exist, fallback to inserting without it
+          if (error && error.code === 'PGRST204' && error.message?.includes('category')) {
+            const errorLogsWithoutCategory = errors.map(error => ({
+              message: error.message,
+              code: error.code,
+              severity: error.severity,
+              context: error.context as any,
+              user_id: error.context.userId || null
+            }));
+            const { error: fallbackError } = await supabase
+              .from('error_logs')
+              .insert(errorLogsWithoutCategory);
+            error = fallbackError;
+          }
 
           if (error) {
             lastError = error;
