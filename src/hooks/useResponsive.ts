@@ -30,7 +30,7 @@ export const useResponsive = (): ResponsiveState => {
     // Initial state (SSR safe)
     const width = typeof window !== 'undefined' ? window.innerWidth : 0;
     const height = typeof window !== 'undefined' ? window.innerHeight : 0;
-    
+
     return {
       isMobile: width < BREAKPOINTS.mobile,
       isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
@@ -38,7 +38,7 @@ export const useResponsive = (): ResponsiveState => {
       isLandscape: width > height,
       isTouch: typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
       viewport: { width, height },
-      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' : 
+      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' :
                   width < BREAKPOINTS.tablet ? 'tablet' : 'desktop',
     };
   });
@@ -46,7 +46,7 @@ export const useResponsive = (): ResponsiveState => {
   const updateState = useCallback(() => {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    
+
     setState({
       isMobile: width < BREAKPOINTS.mobile,
       isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
@@ -54,7 +54,7 @@ export const useResponsive = (): ResponsiveState => {
       isLandscape: width > height,
       isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       viewport: { width, height },
-      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' : 
+      breakpoint: width < BREAKPOINTS.mobile ? 'mobile' :
                   width < BREAKPOINTS.tablet ? 'tablet' : 'desktop',
     });
   }, []);
@@ -90,14 +90,19 @@ export const useResponsive = (): ResponsiveState => {
  */
 export const useViewportHeight = () => {
   useEffect(() => {
+    // Skip execution if not in browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
     const setViewportHeight = () => {
       // Calculate real viewport height
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
-      
+
       // Set additional viewport variables for better compatibility
       document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`);
-      
+
       // Support for visual viewport API (better mobile support)
       if (window.visualViewport) {
         const visualVh = window.visualViewport.height * 0.01;
@@ -116,28 +121,36 @@ export const useViewportHeight = () => {
       timeoutId = setTimeout(setViewportHeight, 100);
     };
 
-    // Listen to multiple events for better mobile support
-    window.addEventListener('resize', debouncedSetViewportHeight);
-    window.addEventListener('orientationchange', setViewportHeight);
-    
-    // Visual viewport events for mobile browsers
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', debouncedSetViewportHeight);
-      window.visualViewport.addEventListener('scroll', debouncedSetViewportHeight);
+    try {
+      // Listen to multiple events for better mobile support
+      window.addEventListener('resize', debouncedSetViewportHeight);
+      window.addEventListener('orientationchange', setViewportHeight);
+
+      // Visual viewport events for mobile browsers
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', debouncedSetViewportHeight);
+        window.visualViewport.addEventListener('scroll', debouncedSetViewportHeight);
+      }
+
+      // Handle page visibility changes (helps with mobile browser behavior)
+      document.addEventListener('visibilitychange', setViewportHeight);
+    } catch (error) {
+      console.error('Error setting up viewport height listeners:', error);
     }
 
-    // Handle page visibility changes (helps with mobile browser behavior)
-    document.addEventListener('visibilitychange', setViewportHeight);
-
     return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', debouncedSetViewportHeight);
-      window.removeEventListener('orientationchange', setViewportHeight);
-      document.removeEventListener('visibilitychange', setViewportHeight);
-      
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', debouncedSetViewportHeight);
-        window.visualViewport.removeEventListener('scroll', debouncedSetViewportHeight);
+      try {
+        clearTimeout(timeoutId);
+        window.removeEventListener('resize', debouncedSetViewportHeight);
+        window.removeEventListener('orientationchange', setViewportHeight);
+        document.removeEventListener('visibilitychange', setViewportHeight);
+
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', debouncedSetViewportHeight);
+          window.visualViewport.removeEventListener('scroll', debouncedSetViewportHeight);
+        }
+      } catch (error) {
+        console.error('Error cleaning up viewport height listeners:', error);
       }
     };
   }, []);
@@ -151,7 +164,7 @@ export const useIsIOS = (): boolean => {
 
   useEffect(() => {
     const checkIOS = () => {
-      const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
       const isIPadOS = navigator.userAgent.includes('Mac') && 'ontouchend' in document;
       return isIOSDevice || isIPadOS;
     };
@@ -207,17 +220,23 @@ export const useKeyboardVisible = () => {
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.clientHeight;
       const isVisible = windowHeight < documentHeight * 0.75; // Keyboard is likely visible if viewport is less than 75% of original
-      
+
       setIsKeyboardVisible(isVisible);
       setKeyboardHeight(isVisible ? documentHeight - windowHeight : 0);
     };
+
+    // Safety check for SSR
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
 
     // Visual viewport API (better support for mobile keyboards)
     if ('visualViewport' in window) {
       window.visualViewport?.addEventListener('resize', handleViewportChange);
       window.visualViewport?.addEventListener('scroll', handleViewportChange);
     } else {
-      window.addEventListener('resize', handleViewportChange);
+      // We're now in a browser context where window is definitely defined
+      (window as Window).addEventListener('resize', handleViewportChange);
     }
 
     return () => {
@@ -225,7 +244,8 @@ export const useKeyboardVisible = () => {
         window.visualViewport?.removeEventListener('resize', handleViewportChange);
         window.visualViewport?.removeEventListener('scroll', handleViewportChange);
       } else {
-        window.removeEventListener('resize', handleViewportChange);
+        // We're now in a browser context where window is definitely defined
+        (window as Window).removeEventListener('resize', handleViewportChange);
       }
     };
   }, []);

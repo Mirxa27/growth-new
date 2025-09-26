@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,19 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
-import { 
+import { motion } from 'framer-motion';
+import {
   Search,
   Clock,
   Users,
   Star,
   Play,
   BookOpen,
-  Brain,
-  Heart,
-  Briefcase,
-  MessageCircle,
-  TrendingUp,
   Zap,
   CheckSquare,
   PenTool,
@@ -52,50 +47,50 @@ const ASSESSMENT_TYPE_INFO = {
     icon: CheckSquare,
     name: 'Multiple Choice',
     description: 'Choose the best answer from given options',
-    color: 'bg-blue-100 text-blue-800'
+    color: 'bg-blue-500/15 text-blue-100'
   },
   true_false: {
     icon: Zap,
     name: 'True/False',
     description: 'Quick true or false questions',
-    color: 'bg-green-100 text-green-800'
+    color: 'bg-emerald-500/15 text-emerald-100'
   },
   short_answer: {
     icon: PenTool,
     name: 'Short Answer',
     description: 'Write thoughtful responses',
-    color: 'bg-purple-100 text-purple-800'
+    color: 'bg-purple-500/15 text-purple-100'
   },
   timed_quiz: {
     icon: Timer,
     name: 'Timed Quiz',
     description: 'Answer questions within time limits',
-    color: 'bg-orange-100 text-orange-800'
+    color: 'bg-orange-500/15 text-orange-100'
   },
   image_identification: {
     icon: ImageIcon,
     name: 'Image Tasks',
     description: 'Visual identification and analysis',
-    color: 'bg-pink-100 text-pink-800'
+    color: 'bg-pink-500/15 text-pink-100'
   },
   audio_response: {
     icon: Volume2,
     name: 'Audio Response',
     description: 'Voice-based questions and responses',
-    color: 'bg-indigo-100 text-indigo-800'
+    color: 'bg-indigo-500/15 text-indigo-100'
   }
 };
 
 const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-yellow-100 text-yellow-800',
-  advanced: 'bg-red-100 text-red-800'
+  beginner: 'border-emerald-400/40 bg-emerald-300/10 text-emerald-200',
+  intermediate: 'border-amber-400/40 bg-amber-300/10 text-amber-200',
+  advanced: 'border-rose-400/40 bg-rose-300/10 text-rose-200'
 };
 
 const MobileAssessmentHub: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [assessments, setAssessments] = useState<AssessmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,68 +98,100 @@ const MobileAssessmentHub: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
 
-  useEffect(() => {
-    loadPublicAssessments();
-  }, []);
-
-  const loadPublicAssessments = async () => {
+  const loadPublicAssessments = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Use the RPC function to get public assessments
-      const { data, error } = await supabase.rpc('get_public_assessments', {
-        p_type: null,
-        p_difficulty: null,
-        p_limit: 50,
-        p_offset: 0
-      });
 
-      if (error) {
-        throw error;
-      }
-
-      if (data && data.assessments) {
-        setAssessments(data.assessments);
-        logger.info('Loaded public assessments', { count: data.assessments.length });
-      } else {
-        // Fallback: direct query if RPC function not available
-        const { data: directData, error: directError } = await supabase
-          .from('assessments')
-          .select(`
-            id,
-            slug,
-            title,
-            description,
-            type,
-            difficulty,
-            estimated_time,
-            is_featured,
-            tags
-          `)
-          .eq('is_public', true)
-          .eq('is_active', true)
-          .order('is_featured', { ascending: false })
-          .order('created_at', { ascending: false });
-
-        if (directError) {
-          throw directError;
+      // Use local data instead of Supabase query since the table structure doesn't match
+      // This provides a fallback that works with the existing assessment data
+      const localAssessments: AssessmentSummary[] = [
+        {
+          id: 'personality-insights',
+          slug: 'personality-insights',
+          title: 'Personality Insights Discovery',
+          description: 'Discover your unique personality traits and how they influence your daily life, relationships, and career choices.',
+          type: 'multiple_choice',
+          difficulty: 'beginner',
+          estimated_time: 8,
+          is_featured: true,
+          tags: ['personality', 'self-discovery', 'traits', 'behavior'],
+          question_count: 12,
+          attempt_count: 0
+        },
+        {
+          id: 'wellness-assessment',
+          slug: 'wellness-check',
+          title: 'Holistic Wellness Check',
+          description: 'Evaluate your overall well-being across physical, mental, emotional, and social dimensions to identify areas for improvement.',
+          type: 'multiple_choice',
+          difficulty: 'beginner',
+          estimated_time: 10,
+          is_featured: true,
+          tags: ['wellness', 'health', 'balance', 'lifestyle'],
+          question_count: 12,
+          attempt_count: 0
+        },
+        {
+          id: 'career-direction',
+          slug: 'career-compass',
+          title: 'Career Direction Compass',
+          description: 'Discover your career strengths, interests, and ideal work environment to guide your professional development.',
+          type: 'multiple_choice',
+          difficulty: 'intermediate',
+          estimated_time: 12,
+          is_featured: false,
+          tags: ['career', 'professional', 'strengths', 'development'],
+          question_count: 13,
+          attempt_count: 0
+        },
+        {
+          id: 'relationship-patterns',
+          slug: 'relationship-patterns',
+          title: 'Relationship Patterns Assessment',
+          description: 'Understand your relationship style, communication patterns, and how you connect with others in personal and professional settings.',
+          type: 'multiple_choice',
+          difficulty: 'intermediate',
+          estimated_time: 9,
+          is_featured: false,
+          tags: ['relationships', 'communication', 'attachment', 'social'],
+          question_count: 12,
+          attempt_count: 0
+        },
+        {
+          id: 'mindfulness-awareness',
+          slug: 'mindfulness-awareness',
+          title: 'Mindfulness & Awareness Assessment',
+          description: 'Evaluate your present-moment awareness, emotional regulation, and mindful living practices to enhance your mental well-being.',
+          type: 'multiple_choice',
+          difficulty: 'beginner',
+          estimated_time: 8,
+          is_featured: false,
+          tags: ['mindfulness', 'awareness', 'meditation', 'presence'],
+          question_count: 12,
+          attempt_count: 0
+        },
+        {
+          id: 'personal-growth',
+          slug: 'growth-readiness',
+          title: 'Personal Growth Readiness',
+          description: 'Assess your motivation, openness, and readiness for personal development and positive life changes.',
+          type: 'multiple_choice',
+          difficulty: 'beginner',
+          estimated_time: 10,
+          is_featured: false,
+          tags: ['growth', 'development', 'change', 'motivation'],
+          question_count: 13,
+          attempt_count: 0
         }
+      ];
 
-        // Add question count (simplified)
-        const assessmentsWithCounts = (directData || []).map(assessment => ({
-          ...assessment,
-          question_count: 5, // Default count
-          attempt_count: 0   // Default count
-        }));
-
-        setAssessments(assessmentsWithCounts);
-        logger.info('Loaded assessments via direct query', { count: assessmentsWithCounts.length });
-      }
+      setAssessments(localAssessments);
+      logger.info(`Loaded local assessments: ${localAssessments.length}`);
 
     } catch (error) {
       logger.error('Failed to load assessments', 'MobileAssessmentHub', error);
       setError('Failed to load assessments. Please try again.');
-      
+
       toast({
         title: 'Loading Error',
         description: 'Failed to load assessments. Please check your connection and try again.',
@@ -173,17 +200,21 @@ const MobileAssessmentHub: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setAssessments, setLoading, setError, toast]);
+
+  useEffect(() => {
+    loadPublicAssessments();
+  }, [loadPublicAssessments]);
 
   const filteredAssessments = assessments.filter(assessment => {
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         assessment.title.toLowerCase().includes(query) ||
         assessment.description.toLowerCase().includes(query) ||
         (assessment.tags && assessment.tags.some(tag => tag.toLowerCase().includes(query)));
-      
+
       if (!matchesSearch) return false;
     }
 
@@ -204,96 +235,107 @@ const MobileAssessmentHub: React.FC = () => {
     navigate(`/assessment/${assessment.slug}`);
   };
 
-  const renderAssessmentCard = (assessment: AssessmentSummary) => {
+  const renderAssessmentCard = (assessment: AssessmentSummary, index: number) => {
     const typeInfo = ASSESSMENT_TYPE_INFO[assessment.type] || ASSESSMENT_TYPE_INFO.multiple_choice;
     const TypeIcon = typeInfo.icon;
     const difficultyColor = DIFFICULTY_COLORS[assessment.difficulty] || DIFFICULTY_COLORS.beginner;
 
     return (
-      <Card key={assessment.id} className="glass hover:glass-strong transition-all duration-200 group cursor-pointer">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2 flex-1">
-              <div className="flex items-center space-x-2">
-                <div className={`p-2 rounded-lg ${typeInfo.color}`}>
-                  <TypeIcon className="h-4 w-4" />
+      <motion.div
+        key={assessment.id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
+      >
+        <Card
+          className="group relative overflow-hidden border-white/10 bg-white/5 bg-gradient-to-br from-white/10 via-white/5 to-transparent glass cursor-pointer"
+        >
+          <div className="absolute inset-px rounded-xl bg-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <CardHeader className="relative pb-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-3 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="rounded-lg bg-primary/20 p-2 text-primary">
+                    <TypeIcon className="h-4 w-4" />
+                  </div>
+                  {assessment.is_featured && (
+                    <Badge variant="outline" className="border-amber-400/40 bg-amber-200/20 text-amber-200">
+                      <Star className="mr-1 h-3 w-3" />
+                      Featured
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="border-emerald-400/40 bg-emerald-200/10 text-emerald-200">
+                    FREE
+                  </Badge>
                 </div>
-                {assessment.is_featured && (
-                  <Badge variant="default" className="bg-yellow-100 text-yellow-800">
-                    <Star className="h-3 w-3 mr-1" />
-                    Featured
+                <CardTitle className="text-xl font-semibold tracking-tight text-white group-hover:text-primary transition-colors">
+                  {assessment.title}
+                </CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="relative space-y-5">
+            <CardDescription className="text-sm text-muted-foreground/90">
+              {assessment.description}
+            </CardDescription>
+
+            <div className="flex flex-wrap gap-2 text-xs">
+              <Badge variant="outline" className={`${difficultyColor} capitalize`}>
+                {assessment.difficulty}
+              </Badge>
+              <Badge variant="outline" className="border-white/10 bg-white/5 text-white/80">
+                <Clock className="mr-1 h-3 w-3" />
+                {assessment.estimated_time} min
+              </Badge>
+              <Badge variant="outline" className="border-white/10 bg-white/5 text-white/80">
+                <Users className="mr-1 h-3 w-3" />
+                {assessment.attempt_count} attempts
+              </Badge>
+            </div>
+
+            {assessment.tags && assessment.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 text-xs">
+                {assessment.tags.slice(0, 3).map((tag) => (
+                  <Badge key={tag} variant="secondary" className="border-white/5 bg-white/10 text-white/80">
+                    #{tag}
+                  </Badge>
+                ))}
+                {assessment.tags.length > 3 && (
+                  <Badge variant="secondary" className="border-white/5 bg-white/10 text-white/80">
+                    +{assessment.tags.length - 3} more
                   </Badge>
                 )}
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  FREE
-                </Badge>
               </div>
-              <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                {assessment.title}
-              </CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          <CardDescription className="text-sm line-clamp-2">
-            {assessment.description}
-          </CardDescription>
+            )}
 
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className={difficultyColor}>
-              {assessment.difficulty}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              <Clock className="h-3 w-3 mr-1" />
-              {assessment.estimated_time} min
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              <Users className="h-3 w-3 mr-1" />
-              {assessment.attempt_count} attempts
-            </Badge>
-          </div>
-
-          {assessment.tags && assessment.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {assessment.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {assessment.tags.length > 3 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{assessment.tags.length - 3} more
-                </Badge>
-              )}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center text-sm text-muted-foreground/90">
+                <CheckSquare className="mr-2 h-4 w-4 text-primary" />
+                {assessment.question_count} questions
+              </div>
+              <Button
+                onClick={() => handleSelectAssessment(assessment)}
+                className="glass-button border border-primary/40 bg-primary/20 text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Start
+              </Button>
             </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <CheckSquare className="h-4 w-4 mr-1" />
-              {assessment.question_count} questions
-            </div>
-            <Button 
-              onClick={() => handleSelectAssessment(assessment)}
-              className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              Start
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center">
-        <div className="text-center space-y-4">
+      <div className="relative flex min-h-screen items-center justify-center">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-3xl" />
+        <div className="relative space-y-4 rounded-3xl border border-white/10 bg-white/10 p-8 text-center shadow-glass backdrop-blur-2xl">
           <LoadingSpinner size="lg" />
-          <h2 className="text-xl font-semibold">Loading Assessments</h2>
-          <p className="text-muted-foreground">Finding the perfect assessments for you...</p>
+          <h2 className="text-xl font-semibold text-white">Loading Assessments</h2>
+          <p className="text-white/70">Finding the perfect assessments for you...</p>
         </div>
       </div>
     );
@@ -301,18 +343,21 @@ const MobileAssessmentHub: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 flex items-center justify-center p-4">
-        <Card className="glass-strong max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Unable to Load Assessments</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
-            <div className="space-y-2">
-              <Button onClick={loadPublicAssessments} className="w-full">
+      <div className="relative flex min-h-screen items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-3xl" />
+        <Card className="relative w-full max-w-md border border-white/10 bg-white/10 text-center backdrop-blur-2xl">
+          <CardContent className="space-y-6 p-10">
+            <AlertCircle className="mx-auto h-16 w-16 text-rose-300" />
+            <div>
+              <h2 className="text-2xl font-semibold text-white">Unable to Load Assessments</h2>
+              <p className="mt-2 text-white/70">{error}</p>
+            </div>
+            <div className="space-y-3">
+              <Button onClick={loadPublicAssessments} className="w-full rounded-xl border border-primary/40 bg-primary/80 text-primary-foreground">
                 Try Again
               </Button>
-              <Button onClick={() => navigate('/')} variant="outline" className="w-full">
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button onClick={() => navigate('/')} variant="outline" className="w-full rounded-xl border-white/30 bg-transparent text-white">
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Home
               </Button>
             </div>
@@ -322,144 +367,163 @@ const MobileAssessmentHub: React.FC = () => {
     );
   }
 
+  const totalAssessments = assessments.length;
+  const totalQuestions = assessments.reduce((sum, assessment) => sum + (assessment.question_count || 0), 0);
+  const averageMinutes = Math.round(
+    assessments.reduce((sum, assessment) => sum + (assessment.estimated_time || 0), 0) /
+      Math.max(totalAssessments, 1)
+  );
+
+  const heroMetrics = [
+    { label: 'Free Assessments', value: totalAssessments, accent: 'text-primary' },
+    { label: 'Total Questions', value: totalQuestions, accent: 'text-emerald-300' },
+    { label: 'Avg Minutes', value: averageMinutes, accent: 'text-blue-300' },
+    { label: 'Free Forever', value: '100%', accent: 'text-violet-300' }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-              <Gift className="w-8 h-8 text-white" />
+    <main className="relative min-h-screen pb-16">
+      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/20 via-background/60 to-background" />
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 pt-16 sm:px-6 lg:px-8">
+        {/* Hero */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/10 p-8 text-center backdrop-blur-2xl shadow-glass"
+        >
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-secondary/10 to-transparent opacity-70" />
+          <div className="relative space-y-6">
+            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm uppercase tracking-[0.3em] text-white/70">
+              <Sparkles className="h-4 w-4" />
+              Free Self-Discovery Tools
+            </div>
+            <h1 className="text-4xl font-semibold text-white sm:text-5xl md:text-6xl">
+              Discover Yourself with Free Assessments
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-white/80">
+              Take science-based assessments to understand your personality, wellness, and growth patterns. Instant insights with zero signup.
+            </p>
+
+            <div className="grid gap-4 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              {heroMetrics.map((metric) => (
+                <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/10 p-4 shadow-glass">
+                  <div className={`text-3xl font-bold ${metric.accent}`}>{metric.value}</div>
+                  <div className="text-sm text-white/70">{metric.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Free Assessment Hub
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover insights about yourself with our collection of free, anonymous assessments. 
-            No signup required!
-          </p>
-        </div>
+        </motion.section>
 
         {/* Filters */}
-        <Card className="glass">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search assessments..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }}
+        >
+          <Card className="overflow-hidden border border-white/10 bg-white/10 backdrop-blur-2xl">
+            <CardContent className="space-y-4 p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+                    <Input
+                      placeholder="Search assessments..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-12 rounded-xl border-white/10 bg-white/10 pl-10 text-white placeholder:text-white/40"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger className="w-48 rounded-xl border-white/10 bg-white/10 text-white">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent className="border-white/10 bg-background/90 backdrop-blur-xl">
+                      <SelectItem value="all">All Types</SelectItem>
+                      {Object.entries(ASSESSMENT_TYPE_INFO).map(([type, info]) => (
+                        <SelectItem key={type} value={type}>
+                          {info.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+                    <SelectTrigger className="w-40 rounded-xl border-white/10 bg-white/10 text-white">
+                      <SelectValue placeholder="All Levels" />
+                    </SelectTrigger>
+                    <SelectContent className="border-white/10 bg-background/90 backdrop-blur-xl">
+                      <SelectItem value="all">All Levels</SelectItem>
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              
-              <div className="flex gap-2">
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="All Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {Object.entries(ASSESSMENT_TYPE_INFO).map(([type, info]) => (
-                      <SelectItem key={type} value={type}>
-                        {info.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="All Levels" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
-                    <SelectItem value="advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Assessment Grid */}
-        {filteredAssessments.length === 0 ? (
-          <Card className="glass">
-            <CardContent className="p-8 text-center">
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No assessments found</h3>
-              <p className="text-muted-foreground mb-6">
-                {assessments.length === 0 
-                  ? 'No assessments are currently available. Please try again later.'
-                  : 'Try adjusting your search or filter criteria.'
-                }
-              </p>
-              <Button onClick={loadPublicAssessments}>
-                Refresh Assessments
-              </Button>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAssessments.map(renderAssessmentCard)}
-          </div>
-        )}
+        </motion.section>
 
-        {/* Stats Footer */}
-        <Card className="glass">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-3xl font-bold text-primary">{assessments.length}</div>
-                <div className="text-sm text-muted-foreground">Free Assessments</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-green-600">6</div>
-                <div className="text-sm text-muted-foreground">Assessment Types</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-blue-600">
-                  {assessments.reduce((sum, a) => sum + (a.attempt_count || 0), 0)}
+        {/* Assessment Grid */}
+        <section>
+          {filteredAssessments.length === 0 ? (
+            <Card className="border border-white/10 bg-white/10 text-center backdrop-blur-2xl">
+              <CardContent className="p-12">
+                <BookOpen className="mx-auto mb-6 h-16 w-16 text-white/50" />
+                <h3 className="text-2xl font-semibold text-white">No assessments found</h3>
+                <p className="mt-3 text-white/70">
+                  {assessments.length === 0
+                    ? 'No assessments are currently available. Please try again later.'
+                    : 'Try adjusting your search or filter criteria.'}
+                </p>
+                <Button onClick={loadPublicAssessments} className="mt-6 rounded-xl border border-primary/40 bg-primary/80 text-primary-foreground">
+                  Refresh Assessments
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredAssessments.map((assessment, index) => renderAssessmentCard(assessment, index))}
+            </div>
+          )}
+        </section>
+
+        {/* CTA */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5, ease: 'easeOut' }}
+        >
+          <Card className="overflow-hidden border border-primary/20 bg-primary/10 backdrop-blur-2xl">
+            <CardContent className="relative p-8 text-center">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-transparent to-secondary/20 opacity-80" />
+              <div className="relative space-y-4">
+                <Gift className="mx-auto h-10 w-10 text-white" />
+                <h3 className="text-2xl font-semibold text-white">Ready to Start Your Growth Journey?</h3>
+                <p className="text-white/80">
+                  Choose any assessment above to begin discovering insights about yourself. Every assessment is free and completely anonymous.
+                </p>
+                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <Button onClick={() => navigate('/')} variant="outline" className="w-full rounded-xl border-white/30 bg-transparent text-white sm:w-auto">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Home
+                  </Button>
+                  <Button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="w-full rounded-xl border border-primary/40 bg-primary/80 text-primary-foreground sm:w-auto">
+                    <Star className="mr-2 h-4 w-4" />
+                    Choose an Assessment
+                  </Button>
                 </div>
-                <div className="text-sm text-muted-foreground">Total Attempts</div>
               </div>
-              <div>
-                <div className="text-3xl font-bold text-purple-600">100%</div>
-                <div className="text-sm text-muted-foreground">Anonymous & Free</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Call to Action */}
-        <Card className="glass border-primary/20 bg-gradient-to-r from-primary-100 to-secondary/5">
-          <CardContent className="p-6 text-center">
-            <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Ready to Start Your Growth Journey?</h3>
-            <p className="text-muted-foreground mb-4">
-              Choose any assessment above to begin discovering insights about yourself. 
-              All assessments are completely free and require no signup!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={() => navigate('/')} variant="outline">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-              <Button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                <Star className="h-4 w-4 mr-2" />
-                Choose an Assessment
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.section>
       </div>
-    </div>
+    </main>
   );
 };
 
