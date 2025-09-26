@@ -4,15 +4,7 @@
   "framework": "vite",
   "installCommand": "npm install --legacy-peer-deps",
   "devCommand": "npm run dev",
-  "functions": {
-    "app/**/*.ts": {
-      "runtime": "nodejs20.x"
-    },
-    "supabase/functions/**/*.ts": {
-      "runtime": "nodejs20.x"
-    }
-  },
-  "rewrites": [
+    "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
