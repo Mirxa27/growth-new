@@ -250,7 +250,7 @@ export default function AIRealtimeVoiceAgentAdminPanel() {
       if (!user) throw new Error('User not authenticated');
 
       const clientConfig: VoiceClientConfig = {
-        serverUrl: 'http://localhost:8000', // Voice agent server
+        serverUrl: import.meta.env.VITE_VOICE_AGENT_SERVER_URL || 'https://voice-agent.your-domain.com',
         userId: user.id,
         agentConfigId: config.id,
         fallbackToWebSocket: true

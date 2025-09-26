@@ -247,7 +247,7 @@ const AssessmentTestSuite: React.FC = () => {
 
     for (const route of testRoutes) {
       try {
-        const response = await fetch(`http://localhost:5173${route}`);
+        const response = await fetch(`${window.location.origin}${route}`);
         
         if (response.ok) {
           addResult({
