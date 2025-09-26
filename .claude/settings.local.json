@@ -40,7 +40,11 @@
       "Bash(npm run)",
       "Bash(export:*)",
       "Bash(npm run test:*)",
-      "WebFetch(domain:growth-caj99o226-mirxa27s-projects.vercel.app)"
+      "WebFetch(domain:growth-caj99o226-mirxa27s-projects.vercel.app)",
+      "Bash(npm run deploy:*)",
+      "WebFetch(domain:growth-825pkoama-mirxa27s-projects.vercel.app)",
+      "Bash(npm run supabase:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": []
