@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Brain, 
-  MessageCircle, 
-  Compass, 
-  BookOpen, 
-  Users, 
+import { logger } from '@/utils/logger';
+import {
+  Brain,
+  MessageCircle,
+  Compass,
+  BookOpen,
+  Users,
   Trophy,
   Target,
   Calendar,
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [profileState, setProfileState] = useState<{ created_at?: string; last_login_at?: string } | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -36,16 +38,18 @@ const Dashboard = () => {
 
       try {
         // Fetch user data
-        const { error: profilesError } = await supabase
+        const { data: profile, error: profilesError } = await supabase
           .from('profiles')
           .select('created_at, last_login_at')
-          .eq('user_id', user.id);
-        if (profilesError) throw profilesError;
+          .eq('user_id', user.id)
+          .single();
+  if (profilesError) throw profilesError;
+  setProfileState(profile as { created_at?: string; last_login_at?: string } | null);
 
         // Simulate loading user data
         setTimeout(() => setIsLoading(false), 1000);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        logger.error('Error fetching dashboard data', { error: String(error) });
         setIsLoading(false);
       }
     };
@@ -57,7 +61,7 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen relative overflow-hidden">
         {/* Hero Background */}
-        <div 
+        <div
           className="fixed inset-0 -z-10"
           style={{
             backgroundImage: 'url(/hero-meditation.jpg)',
@@ -66,7 +70,7 @@ const Dashboard = () => {
             backgroundRepeat: 'no-repeat',
           }}
         />
-        
+
         {/* Deep Purple Glassmorphism Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-violet-900/90 to-indigo-900/95" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-purple-900/30 to-transparent" />
@@ -126,7 +130,7 @@ const Dashboard = () => {
     <ErrorBoundary>
       <div className="min-h-screen relative overflow-hidden">
         {/* Hero Background */}
-        <div 
+        <div
           className="fixed inset-0 -z-10"
           style={{
             backgroundImage: 'url(/hero-meditation.jpg)',
@@ -135,7 +139,7 @@ const Dashboard = () => {
             backgroundRepeat: 'no-repeat',
           }}
         />
-        
+
         {/* Deep Purple Glassmorphism Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-violet-900/90 to-indigo-900/95" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-purple-900/30 to-transparent" />
@@ -164,6 +168,9 @@ const Dashboard = () => {
                 <h1 className="text-2xl font-bold text-white">Welcome back!</h1>
                 <p className="text-white/70">
                   {user?.email || 'Ready to continue your growth journey?'}
+                  {profileState?.last_login_at && (
+                    <span className="block text-xs text-white/50">Last login: {new Date(profileState.last_login_at).toLocaleString()}</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -246,17 +253,17 @@ const Dashboard = () => {
                     <span>65%</span>
                   </div>
                   <div className="bg-white/20 rounded-full h-2 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out" style={{ width: '65%' }} />
+                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out w-[65%]" />
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between text-sm mb-2 text-white">
                     <span>Weekly Goal</span>
                     <span>4/7 days</span>
                   </div>
                   <div className="bg-white/20 rounded-full h-2 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out" style={{ width: '57%' }} />
+                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-500 ease-out w-[57%]" />
                   </div>
                 </div>
               </CardContent>
@@ -315,7 +322,7 @@ const Dashboard = () => {
                     <div className="text-xs text-white/70">2 hours ago</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
                   <Brain className="w-5 h-5 text-blue-300" />
                   <div>
@@ -323,7 +330,7 @@ const Dashboard = () => {
                     <div className="text-xs text-white/70">1 day ago</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10">
                   <Users className="w-5 h-5 text-pink-300" />
                   <div>

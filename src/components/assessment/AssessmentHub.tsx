@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,23 +29,38 @@ import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/err
 interface AssessmentCategory {
   id: string;
   name: string;
-  description: string;
-  icon: string;
-  color: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  is_active: boolean | null;
+  sort_order: number | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface Assessment {
   id: string;
   title: string;
-  description: string;
-  category_id: string;
-  type: string;
-  difficulty: string;
-  estimated_duration: number;
-  instructions: string;
-  is_featured: boolean;
+  description: string | null;
+  category_id: string | null;
+  type: string | null;
+  difficulty: string | null;
+  estimated_duration: number | null;
+  instructions: string | null;
+  is_featured: boolean | null;
   assessment_questions: AssessmentQuestion[];
   category?: AssessmentCategory;
+  assessment_categories?: {
+    color: string | null;
+    created_at: string | null;
+    description: string | null;
+    icon: string | null;
+    id: string;
+    is_active: boolean | null;
+    name: string;
+    sort_order: number | null;
+    updated_at: string | null;
+  } | null;
 }
 
 interface AssessmentQuestion {
@@ -53,9 +68,9 @@ interface AssessmentQuestion {
   question_text: string;
   question_type: string;
   position: number;
-  required: boolean;
-  points: number;
-  explanation?: string;
+  required: boolean | null;
+  points: number | null;
+  explanation?: string | null;
   assessment_options: AssessmentOption[];
 }
 
@@ -70,20 +85,20 @@ interface AssessmentOption {
 
 interface AssessmentResult {
   id: string;
-  score: number;
-  max_score: number;
-  percentage: number;
-  personality_type?: string;
-  ai_feedback?: string;
-  growth_recommendations: string[];
-  next_steps: string[];
+  score: number | null;
+  max_score: number | null;
+  percentage: number | null;
+  personality_type?: string | null;
+  ai_feedback?: string | null;
+  growth_recommendations: string[] | null;
+  next_steps: string[] | null;
   category_scores: Record<string, number>;
 }
 
 interface AssessmentAttempt {
   id: string;
-  status: string;
-  responses: Record<string, any>;
+  status: string | null;
+  responses: Record<string, string | number | boolean>;
   ai_analysis: {
     insights: string[];
     recommendations: string[];
@@ -377,7 +392,7 @@ const AssessmentTaker: React.FC<AssessmentTakerProps> = ({ assessment, onBack })
   const { user } = useAuth();
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [responses, setResponses] = useState<Record<string, any>>({});
+  const [responses, setResponses] = useState<Record<string, string | number | boolean>>({});
   const [attemptId, setAttemptId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -438,7 +453,7 @@ const AssessmentTaker: React.FC<AssessmentTakerProps> = ({ assessment, onBack })
     }
   };
 
-  const handleResponse = (questionId: string, value: any) => {
+  const handleResponse = (questionId: string, value: string | number | boolean) => {
     setResponses(prev => ({ ...prev, [questionId]: value }));
   };
 
@@ -641,8 +656,8 @@ const AssessmentTaker: React.FC<AssessmentTakerProps> = ({ assessment, onBack })
 
 interface QuestionRendererProps {
   question: AssessmentQuestion;
-  value: any;
-  onChange: (value: any) => void;
+  value: string | number | boolean;
+  onChange: (value: string | number | boolean) => void;
 }
 
 const QuestionRenderer: React.FC<QuestionRendererProps> = ({ question, value, onChange }) => {

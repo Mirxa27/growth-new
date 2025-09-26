@@ -18,15 +18,29 @@ interface LocalAssessmentTakerProps {
   onBack?: () => void;
 }
 
-interface AssessmentResults {
-  answers: Record<string, string | number | string[]>;
-  score?: number;
-  category?: string;
+import React, { useState, memo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Label } from '../ui/label';
+import { Checkbox } from '../ui/checkbox';
+import { Slider } from '../ui/slider';
+import { Textarea } from '../ui/textarea';
+import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Assessment, AssessmentQuestion, AssessmentOption } from '@/types/assessment';
+import { cn } from '@/lib/utils';
+
+interface LocalAssessmentTakerProps {
+  assessment: Assessment;
+  onComplete?: (responses: Record<string, string | number | boolean | string[]>) => void;
+  onBack?: () => void;
 }
 
 const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmentTakerProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | number | string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, string | number | boolean | string[]>>({});
   const [showResults, setShowResults] = useState(false);
 
   const currentQuestion = assessment.questions[currentQuestionIndex];
@@ -34,7 +48,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   const isLastQuestion = currentQuestionIndex === assessment.questions.length - 1;
   const canProceed = answers[currentQuestion?.id] !== undefined;
 
-  const handleAnswer = useCallback((questionId: string, answer: string | number | string[]) => {
+  const handleAnswer = useCallback((questionId: string, answer: string | number | boolean | string[]) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
   }, []);
 
@@ -51,26 +65,16 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
   }, [currentQuestionIndex]);
 
   const completeAssessment = () => {
-    const results: AssessmentResults = {
-      answers,
-    };
-
     setShowResults(true);
-    onComplete?.(results);
+    onComplete?.(answers); // Pass raw answers to onComplete
   };
 
   const getOptionText = (option: AssessmentOption): string => {
-    if (typeof option === 'string') {
-      return option;
-    }
     return option.text;
   };
 
   const getOptionValue = (option: AssessmentOption): string => {
-    if (typeof option === 'string') {
-      return option;
-    }
-    return String(option.value || option.text);
+    return String(option.value);
   };
 
   const renderQuestionInput = (question: AssessmentQuestion) => {
@@ -85,10 +89,10 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
             className="space-y-3"
           >
             {question.options?.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={getOptionValue(option)} id={`${question.id}-${index}`} />
+              <div key={option.id} className="flex items-center space-x-2">
+                <RadioGroupItem value={getOptionValue(option)} id={`${question.id}-${option.id}`} />
                 <Label
-                  htmlFor={`${question.id}-${index}`}
+                  htmlFor={`${question.id}-${option.id}`}
                   className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                 >
                   {getOptionText(option)}
@@ -107,9 +111,9 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
               const isChecked = selectedOptions.includes(optionValue);
 
               return (
-                <div key={index} className="flex items-center space-x-2">
+                <div key={option.id} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`${question.id}-${index}`}
+                    id={`${question.id}-${option.id}`}
                     checked={isChecked}
                     onCheckedChange={(checked) => {
                       const newSelection = checked
@@ -119,7 +123,7 @@ const LocalAssessmentTaker = ({ assessment, onComplete, onBack }: LocalAssessmen
                     }}
                   />
                   <Label
-                    htmlFor={`${question.id}-${index}`}
+                    htmlFor={`${question.id}-${option.id}`}
                     className="flex-1 cursor-pointer p-3 rounded-lg border border-white/20 hover:bg-white/5 transition-colors"
                   >
                     {getOptionText(option)}

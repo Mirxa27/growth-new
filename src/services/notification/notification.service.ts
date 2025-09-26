@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { errorHandler, ErrorCategory, ErrorSeverity } from '@/services/error/error-handler.service';
 import { cache } from '@/services/cache/cache.service';
+import { logger } from '@/utils/logger';
 import { z } from 'zod';
 
 export enum NotificationType {
@@ -187,8 +188,8 @@ class NotificationService {
     }
 
     // Dispatch custom event for UI components
-    window.dispatchEvent(new CustomEvent('notification', { 
-      detail: notification 
+    window.dispatchEvent(new CustomEvent('notification', {
+      detail: notification
     }));
   }
 
@@ -242,7 +243,7 @@ class NotificationService {
       }
 
       await Promise.allSettled(promises);
- 
+
       return { success: true, notificationId: (data as any).id };
     } catch (error) {
       errorHandler.handleError(error, {
@@ -254,9 +255,9 @@ class NotificationService {
         },
       });
 
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to send notification' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to send notification'
       };
     }
   }
@@ -732,27 +733,27 @@ export const notificationService = NotificationService.getInstance();
 
 // Export convenience functions
 export const notifications = {
-  send: (userId: string, notification: any) => 
+  send: (userId: string, notification: any) =>
     notificationService.sendNotification(userId, notification),
-  
-  get: (options?: any) => 
+
+  get: (options?: any) =>
     notificationService.getNotifications(options),
-  
-  markAsRead: (id: string) => 
+
+  markAsRead: (id: string) =>
     notificationService.markAsRead(id),
-  
-  markAllAsRead: () => 
+
+  markAllAsRead: () =>
     notificationService.markAllAsRead(),
-  
-  getUnreadCount: () => 
+
+  getUnreadCount: () =>
     notificationService.getUnreadCount(),
-  
-  updatePreferences: (prefs: any) => 
+
+  updatePreferences: (prefs: any) =>
     notificationService.updatePreferences(prefs),
-  
-  on: (type: NotificationType, handler: (n: Notification) => void) => 
+
+  on: (type: NotificationType, handler: (n: Notification) => void) =>
     notificationService.on(type, handler),
-  
-  enablePush: () => 
+
+  enablePush: () =>
     notificationService.registerPushNotifications(),
 };

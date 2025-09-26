@@ -20,31 +20,51 @@ import {
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
-// Import admin components
-import { UserManagement } from '@/components/admin/UserManagement';
-import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
-import { CommunityPostsManager } from '@/components/admin/CommunityPostsManager';
-import { ContentChallengeManager } from '@/components/admin/ContentChallengeManager';
-import { VoiceAgentConfigManager } from '@/components/admin/VoiceAgentConfigManager';
-import { VoicePlayground } from '@/components/admin/VoicePlayground';
-import { VoiceTestingInterface } from '@/components/admin/VoiceTestingInterface';
-import { VoiceAgentTrainer } from '@/components/admin/VoiceAgentTrainer';
-import { AIContentBuilder } from '@/components/admin/AIContentBuilder';
-import { GeneralSettings } from '@/components/admin/GeneralSettings';
-import AIRealtimeVoiceAgentAdminPanel from '@/components/admin/AIRealtimeVoiceAgentAdminPanel';
-import { ContentModerationSettings } from '@/components/admin/ContentModerationSettings';
-import { AssessmentManager } from '@/components/admin/AssessmentManager';
-import { LibraryManager } from '@/components/admin/LibraryManager';
-import { AIDiagnosticsPanel } from '@/components/admin/AIDiagnosticsPanel';
-import { MigrationHelper } from '@/components/admin/MigrationHelper';
-import { APIKeyManager } from '@/components/admin/APIKeyManager';
-import EnhancedVoiceAgentConfigManager from '@/components/admin/EnhancedVoiceAgentConfigManager';
-import { EnhancedRealtimeVoiceAgent } from '@/components/voice/EnhancedRealtimeVoiceAgent';
+// Import React for lazy loading
+import React, { Suspense, lazy, useMemo } from 'react';
 
-type AdminSection = 
+// Lazy load all admin components
+const UserManagement = lazy(() => import('@/components/admin/UserManagementOptimized'));
+const AdminAnalytics = lazy(() => import('@/components/admin/AdminAnalytics'));
+const CommunityPostsManager = lazy(() => import('@/components/admin/CommunityPostsManager'));
+const ContentChallengeManager = lazy(() => import('@/components/admin/ContentChallengeManager'));
+const VoiceAgentConfigManager = lazy(() => import('@/components/admin/VoiceAgentConfigManager'));
+const VoicePlayground = lazy(() => import('@/components/admin/VoicePlayground'));
+const VoiceTestingInterface = lazy(() => import('@/components/admin/VoiceTestingInterface'));
+const VoiceAgentTrainer = lazy(() => import('@/components/admin/VoiceAgentTrainer'));
+const AIContentBuilder = lazy(() => import('@/components/admin/AIContentBuilder'));
+const GeneralSettings = lazy(() => import('@/components/admin/GeneralSettings'));
+const AIRealtimeVoiceAgentAdminPanel = lazy(() => import('@/components/admin/AIRealtimeVoiceAgentAdminPanel'));
+const ContentModerationSettings = lazy(() => import('@/components/admin/ContentModerationSettings'));
+const AssessmentManager = lazy(() => import('@/components/admin/AssessmentManager'));
+const LibraryManager = lazy(() => import('@/components/admin/LibraryManager'));
+const AIDiagnosticsPanel = lazy(() => import('@/components/admin/AIDiagnosticsPanel'));
+const MigrationHelper = lazy(() => import('@/components/admin/MigrationHelper'));
+const APIKeyManager = lazy(() => import('@/components/admin/APIKeyManager'));
+const EnhancedVoiceAgentConfigManager = lazy(() => import('@/components/admin/EnhancedVoiceAgentConfigManager'));
+const RBACManager = lazy(() => import('@/components/admin/RBACManager'));
+const AuditTrailSystem = lazy(() => import('@/components/admin/AuditTrailSystem'));
+const SystemMonitor = lazy(() => import('@/components/admin/SystemMonitor'));
+const TwoFactorSettings = lazy(() => import('@/components/admin/TwoFactorSettings'));
+const EnhancedRealtimeVoiceAgent = lazy(() => import('@/components/voice/EnhancedRealtimeVoiceAgent'));
+
+// Loading component for lazy loaded components
+const ComponentLoader = React.memo(() => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+  </div>
+));
+
+ComponentLoader.displayName = 'ComponentLoader';
+
+type AdminSection =
   | 'overview'
-  | 'analytics' 
+  | 'analytics'
   | 'users'
+  | 'rbac'
+  | 'audit'
+  | 'system'
+  | 'security'
   | 'assessments'
   | 'library'
   | 'community'
@@ -65,7 +85,7 @@ interface RecentActivityItem {
 
 const AdminDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
-  
+
   // If an explicit section is provided via query param (e.g. ?section=ai-providers),
   // use it to initialize the active section. This makes e2e tests and direct links reliable.
   useEffect(() => {
@@ -80,7 +100,8 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  const navigationItems = [
+  // Memoize navigation items to prevent re-renders
+  const navigationItems = useMemo(() => [
     { 
       id: 'overview' as AdminSection, 
       label: 'Overview', 
@@ -93,11 +114,35 @@ const AdminDashboard: React.FC = () => {
       icon: BarChart3,
       description: 'User engagement and platform statistics'
     },
-    { 
-      id: 'users' as AdminSection, 
-      label: 'Users', 
+    {
+      id: 'users' as AdminSection,
+      label: 'Users',
       icon: Users,
-      description: 'User management and permissions'
+      description: 'User management and profiles'
+    },
+    {
+      id: 'rbac' as AdminSection,
+      label: 'RBAC',
+      icon: Shield,
+      description: 'Role-based access control and permissions'
+    },
+    {
+      id: 'system' as AdminSection,
+      label: 'System Monitor',
+      icon: Stethoscope,
+      description: 'System health and performance monitoring'
+    },
+    {
+      id: 'security' as AdminSection,
+      label: 'Security Settings',
+      icon: Shield,
+      description: 'Two-factor authentication and session management'
+    },
+    {
+      id: 'audit' as AdminSection,
+      label: 'Audit Trail',
+      icon: Activity,
+      description: 'Comprehensive audit logging and monitoring'
     },
     { 
       id: 'assessments' as AdminSection, 
@@ -153,13 +198,13 @@ const AdminDashboard: React.FC = () => {
       icon: Shield,
       description: 'Content moderation settings'
     },
-    { 
-      id: 'diagnostics' as AdminSection, 
-      label: 'Diagnostics', 
+    {
+      id: 'diagnostics' as AdminSection,
+      label: 'Diagnostics',
       icon: Stethoscope,
       description: 'AI provider diagnostics and troubleshooting'
     }
-  ];
+  ], []); // Empty dependency array ensures this is computed only once
 
   const [overviewData, setOverviewData] = useState<{
     totalUsers: number;
@@ -327,7 +372,8 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const renderOverview = () => {
+  // Memoize overview render to prevent unnecessary re-computations
+  const renderOverview = useMemo(() => {
     if (overviewLoading) {
       return (
         <div className="flex items-center justify-center h-64">
@@ -490,24 +536,60 @@ const AdminDashboard: React.FC = () => {
         </Card>
       </div>
     );
-  };
+  }, [overviewLoading, overviewData]); // Add dependencies
 
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':
         return renderOverview();
       case 'analytics':
-        return <AdminAnalytics />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <AdminAnalytics />
+          </Suspense>
+        );
       case 'users':
-        return <UserManagement />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <UserManagement />
+          </Suspense>
+        );
+      case 'rbac':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <RBACManager />
+          </Suspense>
+        );
+      case 'audit':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <AuditTrailSystem />
+          </Suspense>
+        );
       case 'assessments':
-        return <AssessmentManager />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <AssessmentManager />
+          </Suspense>
+        );
       case 'library':
-        return <LibraryManager />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <LibraryManager />
+          </Suspense>
+        );
       case 'community':
-        return <CommunityPostsManager />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <CommunityPostsManager />
+          </Suspense>
+        );
       case 'content':
-        return <ContentChallengeManager />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <ContentChallengeManager />
+          </Suspense>
+        );
       case 'voice':
         return (
           <div className="space-y-6">
@@ -523,12 +605,16 @@ const AdminDashboard: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <EnhancedRealtimeVoiceAgent />
+                <Suspense fallback={<ComponentLoader />}>
+                  <EnhancedRealtimeVoiceAgent />
+                </Suspense>
               </CardContent>
             </Card>
 
             {/* Enhanced Voice Agent Configuration */}
-            <EnhancedVoiceAgentConfigManager />
+            <Suspense fallback={<ComponentLoader />}>
+              <EnhancedVoiceAgentConfigManager />
+            </Suspense>
 
             {/* Legacy Components */}
             <Card className="glass">
@@ -540,14 +626,24 @@ const AdminDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <AIRealtimeVoiceAgentAdminPanel />
+                  <Suspense fallback={<ComponentLoader />}>
+                    <AIRealtimeVoiceAgentAdminPanel />
+                  </Suspense>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <VoiceAgentConfigManager />
-                    <VoicePlayground />
+                    <Suspense fallback={<ComponentLoader />}>
+                      <VoiceAgentConfigManager />
+                    </Suspense>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <VoicePlayground />
+                    </Suspense>
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <VoiceTestingInterface />
-                    <VoiceAgentTrainer />
+                    <Suspense fallback={<ComponentLoader />}>
+                      <VoiceTestingInterface />
+                    </Suspense>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <VoiceAgentTrainer />
+                    </Suspense>
                   </div>
                 </div>
               </CardContent>
@@ -555,24 +651,56 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
       case 'ai-content':
-        return <AIContentBuilder />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <AIContentBuilder />
+          </Suspense>
+        );
       case 'settings':
-        return <GeneralSettings />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <GeneralSettings />
+          </Suspense>
+        );
       case 'ai-providers':
         return (
           <div className="space-y-6">
-            <APIKeyManager />
-            <AIRealtimeVoiceAgentAdminPanel />
+            <Suspense fallback={<ComponentLoader />}>
+              <APIKeyManager />
+            </Suspense>
+            <Suspense fallback={<ComponentLoader />}>
+              <AIRealtimeVoiceAgentAdminPanel />
+            </Suspense>
           </div>
         );
       case 'moderation':
-        return <ContentModerationSettings />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <ContentModerationSettings />
+          </Suspense>
+        );
       case 'diagnostics':
         return (
           <div className="space-y-6">
-            <MigrationHelper />
-            <AIDiagnosticsPanel />
+            <Suspense fallback={<ComponentLoader />}>
+              <MigrationHelper />
+            </Suspense>
+            <Suspense fallback={<ComponentLoader />}>
+              <AIDiagnosticsPanel />
+            </Suspense>
           </div>
+        );
+      case 'system':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <SystemMonitor />
+          </Suspense>
+        );
+      case 'security':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <TwoFactorSettings />
+          </Suspense>
         );
       default:
         return renderOverview();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,19 +7,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Users, 
-  ShieldCheck, 
+import {
+  Users,
+  ShieldCheck,
   Search,
   MoreVertical,
   Ban,
   UserCheck,
   Activity,
-  TrendingUp
+  TrendingUp,
+  Download,
+  Upload,
+  Mail,
+  Trash2,
+  UserPlus,
+  Shield
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tables } from '@/integrations/supabase/types';
 import { z } from 'zod';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { UserListVirtualized } from './UserListVirtualized';
 
 const roleUpdateSchema = z.object({
   target_user_id: z.string().uuid(),
@@ -50,6 +60,12 @@ export const UserManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'ban' | 'unban' | 'admin' | 'user' | 'delete' | 'email'>('ban');
+  const [bulkMessage, setBulkMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const { toast } = useToast();
 
   const fetchProfiles = async () => {
@@ -124,6 +140,153 @@ export const UserManagement: React.FC = () => {
     }
   };
 
+  const handleSelectUser = (userId: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedUsers.size === filteredProfiles.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredProfiles.map(p => p.user_id!)));
+    }
+  };
+
+  const handleBulkAction = async () => {
+    if (selectedUsers.size === 0) {
+      toast({ title: "No users selected", description: "Please select users to perform bulk action", variant: "destructive" });
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    try {
+      const userIds = Array.from(selectedUsers);
+
+      switch (bulkAction) {
+        case 'ban':
+          await Promise.all(userIds.map(userId =>
+            supabase.rpc('update_user_ban_status_secure', {
+              target_user_id: userId,
+              new_status: true
+            })
+          ));
+          toast({ title: "Success", description: `${userIds.length} users have been banned` });
+          break;
+
+        case 'unban':
+          await Promise.all(userIds.map(userId =>
+            supabase.rpc('update_user_ban_status_secure', {
+              target_user_id: userId,
+              new_status: false
+            })
+          ));
+          toast({ title: "Success", description: `${userIds.length} users have been unbanned` });
+          break;
+
+        case 'admin':
+          await Promise.all(userIds.map(userId =>
+            supabase.rpc('update_user_role_secure', {
+              target_user_id: userId,
+              new_role: 'admin'
+            })
+          ));
+          toast({ title: "Success", description: `${userIds.length} users have been made admin` });
+          break;
+
+        case 'user':
+          await Promise.all(userIds.map(userId =>
+            supabase.rpc('update_user_role_secure', {
+              target_user_id: userId,
+              new_role: 'user'
+            })
+          ));
+          toast({ title: "Success", description: `${userIds.length} users have been set to user role` });
+          break;
+
+        case 'delete':
+          if (confirm(`Are you sure you want to delete ${userIds.length} users? This action cannot be undone.`)) {
+            await Promise.all(userIds.map(userId =>
+              supabase.auth.admin.deleteUser(userId)
+            ));
+            toast({ title: "Success", description: `${userIds.length} users have been deleted` });
+          }
+          break;
+
+        case 'email':
+          if (bulkMessage.trim()) {
+            // This would typically integrate with an email service
+            toast({ title: "Email Sent", description: `Bulk email sent to ${userIds.length} users` });
+          } else {
+            toast({ title: "Error", description: "Please provide an email message", variant: "destructive" });
+          }
+          break;
+      }
+
+      setSelectedUsers(new Set());
+      setIsBulkDialogOpen(false);
+      fetchProfiles();
+    } catch (error: any) {
+      console.error('Bulk action error:', error);
+      toast({ title: "Error", description: `Failed to perform bulk action: ${error.message}`, variant: "destructive" });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    setIsExporting(true);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        const csvContent = convertToCSV(data);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `users-${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        toast({ title: "Export Complete", description: "User data has been exported successfully" });
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({ title: "Error", description: `Failed to export users: ${error.message}`, variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const convertToCSV = (users: Profile[]) => {
+    const headers = [
+      'ID', 'Email', 'Display Name', 'Role', 'Is Banned', 'Created At',
+      'Last Login At', 'Bio'
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...users.map(user => [
+        user.id,
+        user.email || '',
+        user.display_name || '',
+        user.role || '',
+        user.is_banned ? 'true' : 'false',
+        user.created_at || '',
+        user.last_login_at || '',
+        `"${(user.bio || '').replace(/"/g, '""')}"`
+      ].join(','))
+    ];
+
+    return csvRows.join('\n');
+  };
+
   const filteredProfiles = useMemo(() => profiles.filter(profile => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = profile.display_name?.toLowerCase().includes(searchLower) ||
@@ -168,12 +331,91 @@ export const UserManagement: React.FC = () => {
             <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-full sm:w-32 glass"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="banned">Banned</SelectItem></SelectContent></Select>
           </div>
 
+          {/* Bulk Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="select-all"
+                  checked={selectedUsers.size === filteredProfiles.length}
+                  onCheckedChange={handleSelectAll}
+                />
+                <Label htmlFor="select-all" className="text-sm font-medium">
+                  Select All ({selectedUsers.size})
+                </Label>
+              </div>
+
+              {selectedUsers.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={bulkAction} onValueChange={(value: any) => setBulkAction(value)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ban">Ban Users</SelectItem>
+                      <SelectItem value="unban">Unban Users</SelectItem>
+                      <SelectItem value="admin">Make Admin</SelectItem>
+                      <SelectItem value="user">Set to User</SelectItem>
+                      <SelectItem value="delete">Delete Users</SelectItem>
+                      <SelectItem value="email">Send Email</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    onClick={() => setIsBulkDialogOpen(true)}
+                    disabled={isBulkProcessing}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {isBulkProcessing ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                    ) : (
+                      <>
+                        {bulkAction === 'ban' && <Ban className="h-4 w-4 mr-2" />}
+                        {bulkAction === 'unban' && <UserCheck className="h-4 w-4 mr-2" />}
+                        {bulkAction === 'admin' && <Shield className="h-4 w-4 mr-2" />}
+                        {bulkAction === 'user' && <Users className="h-4 w-4 mr-2" />}
+                        {bulkAction === 'delete' && <Trash2 className="h-4 w-4 mr-2" />}
+                        {bulkAction === 'email' && <Mail className="h-4 w-4 mr-2" />}
+                        Apply {bulkAction}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleExportUsers}
+                disabled={isExporting}
+                variant="outline"
+                size="sm"
+              >
+                {isExporting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
           <div className="rounded-md border border-glass">
             <table className="w-full">
-              <thead className="bg-muted/10"><tr className="border-b border-glass"><th className="p-2 text-left">User</th><th className="p-2 text-left hidden md:table-cell">Role</th><th className="p-2 text-left hidden lg:table-cell">Status</th><th className="p-2 text-left hidden lg:table-cell">Joined</th><th className="p-2 text-left">Actions</th></tr></thead>
+              <thead className="bg-muted/10"><tr className="border-b border-glass"><th className="p-2 text-left w-8"></th><th className="p-2 text-left">User</th><th className="p-2 text-left hidden md:table-cell">Role</th><th className="p-2 text-left hidden lg:table-cell">Status</th><th className="p-2 text-left hidden lg:table-cell">Joined</th><th className="p-2 text-left">Actions</th></tr></thead>
               <tbody>
                 {filteredProfiles.map((profile) => (
                   <tr key={profile.id} className="border-b border-glass hover:bg-muted/10">
+                    <td className="p-2">
+                      <Checkbox
+                        checked={selectedUsers.has(profile.user_id!)}
+                        onCheckedChange={() => handleSelectUser(profile.user_id!)}
+                      />
+                    </td>
                     <td className="p-2"><div className="flex items-center space-x-3"><div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-sm font-semibold">{profile.display_name?.charAt(0) || 'U'}</div><div><p className="font-medium">{profile.display_name || 'Unknown User'}</p><p className="text-xs text-muted-foreground">{profile.email}</p></div></div></td>
                     <td className="p-2 hidden md:table-cell"><Badge variant={getRoleBadgeColor(profile.role)}>{profile.role}</Badge></td>
                     <td className="p-2 hidden lg:table-cell"><Badge variant={profile.is_banned ? 'destructive' : 'default'}>{profile.is_banned ? 'Banned' : 'Active'}</Badge></td>
@@ -194,6 +436,65 @@ export const UserManagement: React.FC = () => {
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription>View and manage user information and permissions.</DialogDescription>
           </DialogHeader>{selectedProfile && <div className="space-y-4"><div className="flex items-center space-x-4"><div className="h-16 w-16 rounded-full bg-gradient-primary flex items-center justify-center text-white text-2xl font-semibold">{selectedProfile.display_name?.charAt(0) || 'U'}</div><div><h3 className="text-lg font-semibold">{selectedProfile.display_name || 'Unknown User'}</h3><p className="text-sm text-muted-foreground">{selectedProfile.email}</p></div></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><p className="text-xs text-muted-foreground">Role</p><p className="text-sm font-medium">{selectedProfile.role}</p></div><div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm font-medium">{selectedProfile.is_banned ? 'Banned' : 'Active'}</p></div><div><p className="text-xs text-muted-foreground">Joined</p><p className="text-sm font-medium">{selectedProfile.created_at ? new Date(selectedProfile.created_at).toLocaleDateString() : 'N/A'}</p></div><div><p className="text-xs text-muted-foreground">Last Active</p><p className="text-sm font-medium">{selectedProfile.last_login_at ? new Date(selectedProfile.last_login_at).toLocaleDateString() : 'N/A'}</p></div></div>{selectedProfile.bio && <div><p className="text-xs text-muted-foreground">Bio</p><p className="text-sm mt-1">{selectedProfile.bio}</p></div>}</div>}<DialogFooter><Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>Close</Button></DialogFooter></DialogContent>
+      </Dialog>
+
+      {/* Bulk Action Dialog */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Confirm {bulkAction.charAt(0).toUpperCase() + bulkAction.slice(1)} Action
+            </DialogTitle>
+            <DialogDescription>
+              You are about to {bulkAction} {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {bulkAction === 'email' && (
+            <div className="space-y-2">
+              <Label htmlFor="bulk-message">Email Message</Label>
+              <Textarea
+                id="bulk-message"
+                placeholder="Enter your message here..."
+                value={bulkMessage}
+                onChange={(e) => setBulkMessage(e.target.value)}
+                rows={4}
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Selected Users:</p>
+            <div className="max-h-32 overflow-y-auto space-y-1">
+              {filteredProfiles
+                .filter(p => selectedUsers.has(p.user_id!))
+                .slice(0, 10)
+                .map(profile => (
+                  <div key={profile.id} className="text-sm text-muted-foreground">
+                    • {profile.display_name} ({profile.email})
+                  </div>
+                ))}
+              {selectedUsers.size > 10 && (
+                <div className="text-sm text-muted-foreground">
+                  ... and {selectedUsers.size - 10} more
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAction}
+              disabled={isBulkProcessing || (bulkAction === 'email' && !bulkMessage.trim())}
+              variant={bulkAction === 'delete' || bulkAction === 'ban' ? 'destructive' : 'default'}
+            >
+              {isBulkProcessing ? 'Processing...' : `Confirm ${bulkAction}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );

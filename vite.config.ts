@@ -13,7 +13,25 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^\/(?!api).*/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 365 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       },
       devOptions: {
         enabled: true
@@ -137,9 +155,31 @@ export default defineConfig({
           if (id.includes('/src/services/assessment') || id.includes('/src/components/assessment/')) {
             return 'assessment-core';
           }
-          // Admin functionality - role-restricted
-          if (id.includes('/src/pages/Admin') || id.includes('/src/components/admin/')) {
+          // Admin functionality - role-restricted, split further
+          if (id.includes('/src/pages/Admin')) {
             return 'admin-dashboard';
+          }
+          if (id.includes('/src/components/admin/')) {
+            // Split admin components by category for better code splitting
+            if (id.includes('UserManagement') || id.includes('RBAC') || id.includes('Audit')) {
+              return 'admin-users';
+            }
+            if (id.includes('Analytics') || id.includes('SystemMonitor')) {
+              return 'admin-analytics';
+            }
+            if (id.includes('VoiceAgent') || id.includes('Voice')) {
+              return 'admin-voice';
+            }
+            if (id.includes('Assessment') || id.includes('Library') || id.includes('Community')) {
+              return 'admin-content';
+            }
+            if (id.includes('AI') || id.includes('Diagnostics') || id.includes('Migration')) {
+              return 'admin-ai';
+            }
+            if (id.includes('Settings') || id.includes('General') || id.includes('TwoFactor')) {
+              return 'admin-settings';
+            }
+            return 'admin-other';
           }
           // Services layer - business logic
           if (id.includes('/src/services/')) {
@@ -176,8 +216,11 @@ export default defineConfig({
           return `js/[name]-${facadeModuleId}-[hash].js`;
         },
         assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
+          // assetInfo.name can be undefined in some Rollup versions or for virtual assets.
+          // Fall back to fileName or a safe default to avoid runtime/compile errors.
+          const safeName = (assetInfo && (assetInfo.name ?? assetInfo.fileName)) || 'asset';
+          const info = safeName.split('.');
+          const ext = info[info.length - 1] || '';
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
             return `images/[name]-[hash][extname]`;
           }

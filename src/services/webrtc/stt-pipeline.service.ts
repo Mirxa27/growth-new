@@ -249,40 +249,34 @@ export class STTPipeline extends EventEmitter {
     const wavBlob = this.float32ArrayToWAV(audioData);
     const audioFile = new File([wavBlob], 'audio.wav', { type: 'audio/wav' });
 
-    try {
-      const transcriptionText = await openaiService.transcribeAudio({
-        file: audioFile,
-        model: this.config.model || 'whisper-1',
-        language: this.config.language?.split('-')[0] || 'en',
-        prompt: this.finalTranscript.slice(-500), // Use last 500 chars as context
-        response_format: this.config.wordTimestamps ? 'verbose_json' : 'json',
-        temperature: 0.2
-      });
+    const transcriptionText = await openaiService.transcribeAudio({
+      file: audioFile,
+      model: this.config.model || 'whisper-1',
+      language: this.config.language?.split('-')[0] || 'en',
+      prompt: this.finalTranscript.slice(-500), // Use last 500 chars as context
+      response_format: this.config.wordTimestamps ? 'verbose_json' : 'json',
+      temperature: 0.2
+    });
 
-      const transcriptionResult: TranscriptionResult = {
-        text: transcriptionText,
-        confidence: 1.0, // OpenAI doesn't provide confidence
-        isFinal: true,
-        timestamp
-      };
+    const transcriptionResult: TranscriptionResult = {
+      text: transcriptionText,
+      confidence: 1.0, // OpenAI doesn't provide confidence
+      isFinal: true,
+      timestamp
+    };
 
-      this.finalTranscript += transcriptionText + ' ';
-      this.emit('transcription', transcriptionResult);
-
-    } catch (error) {
-      throw error;
-    }
+    this.finalTranscript += transcriptionText + ' ';
+    this.emit('transcription', transcriptionResult);
   }
 
   /**
    * Process with custom STT provider (production implementation)
    */
   private async processWithCustomProvider(audioData: Float32Array, timestamp: number): Promise<void> {
-    try {
-      // Get custom provider configuration from environment
-      const customEndpoint = import.meta.env.VITE_CUSTOM_STT_ENDPOINT;
-      const customApiKey = import.meta.env.VITE_CUSTOM_STT_API_KEY;
-      const customHeaders = import.meta.env.VITE_CUSTOM_STT_HEADERS;
+    // Get custom provider configuration from environment
+    const customEndpoint = import.meta.env.VITE_CUSTOM_STT_ENDPOINT;
+    const customApiKey = import.meta.env.VITE_CUSTOM_STT_API_KEY;
+    const customHeaders = import.meta.env.VITE_CUSTOM_STT_HEADERS;
 
       if (!customEndpoint) {
         throw new Error('Custom STT endpoint not configured');
@@ -310,7 +304,7 @@ export class STTPipeline extends EventEmitter {
         try {
           const customHeaderObj = JSON.parse(customHeaders);
           Object.assign(headers, customHeaderObj);
-        } catch (error) {
+        } catch {
           // Log invalid headers format but continue
           errorHandler.handleError(new Error('Invalid custom STT headers format'), {
             severity: ErrorSeverity.LOW,
@@ -361,15 +355,11 @@ export class STTPipeline extends EventEmitter {
 
       this.finalTranscript += transcriptionText + ' ';
       this.emit('transcription', transcriptionResult);
-
-    } catch (error) {
-      throw error;
     }
-  }
 
-  /**
-   * Convert Float32Array to WAV blob
-   */
+    /**
+     * Convert Float32Array to WAV blob
+     */
   private float32ArrayToWAV(audioData: Float32Array, sampleRate: number = 48000): Blob {
     const length = audioData.length;
     const arrayBuffer = new ArrayBuffer(44 + length * 2);
@@ -434,7 +424,7 @@ export class STTPipeline extends EventEmitter {
     if (this.config.provider === 'browser' && this.recognition) {
       try {
         this.recognition.start();
-      } catch (error) {
+      } catch {
         // Already started, ignore
       }
     }

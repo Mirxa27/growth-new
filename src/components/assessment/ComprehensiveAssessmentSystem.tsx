@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 import { toast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -35,24 +36,8 @@ interface ComprehensiveAssessmentSystemProps {
   className?: string;
 }
 
-interface Assessment {
-  id: string;
-  title: string;
-  description: string;
-  category_id: string;
-  type: string;
-  difficulty: string;
-  estimated_duration: number;
-  is_featured: boolean;
-  is_active: boolean;
-  visibility: string;
-  created_at: string;
-  assessment_categories?: {
-    name: string;
-    icon: string;
-    color: string;
-  };
-}
+// Use proper database types
+type Assessment = Tables<'assessments'>;
 
 interface AssessmentStats {
   totalAssessments: number;
@@ -74,10 +59,6 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
   const [selectedTab, setSelectedTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -101,6 +82,10 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadAssessments = async () => {
     const { data, error } = await supabase
@@ -166,21 +151,15 @@ const ComprehensiveAssessmentSystem: React.FC<ComprehensiveAssessmentSystemProps
     try {
       setIsLoading(true);
 
-      // Apply the database migration
-      const { error: migrationError } = await supabase.rpc('exec_sql', {
-        sql: `
-          -- Apply the comprehensive assessment system migration
-          -- This will create all necessary tables if they don't exist
-        `
-      });
+      // Note: Database migrations should be applied through Supabase migrations
+      // This function is a placeholder for development purposes
+      console.log('Database migrations should be applied through Supabase CLI or Dashboard');
 
-      if (migrationError) {
-        errorHandler.handleError(migrationError, {
-          severity: ErrorSeverity.HIGH,
-          category: ErrorCategory.DATABASE,
-          context: { action: 'apply_migration' }
-        });
-      }
+      toast({
+        title: "Info",
+        description: "Database migrations should be applied through Supabase migrations system",
+        variant: "default"
+      });
 
       // Apply sample data
       await applySampleData();
@@ -588,7 +567,7 @@ const AssessmentsList: React.FC<AssessmentsListProps> = ({ assessments }) => {
 
   const filteredAssessments = assessments.filter(assessment => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assessment.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (assessment.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || assessment.type === filterType;
     return matchesSearch && matchesType;
   });
@@ -675,7 +654,7 @@ const AssessmentsList: React.FC<AssessmentsListProps> = ({ assessments }) => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Switch
-                        checked={assessment.is_active}
+                        checked={assessment.is_active ?? false}
                         onCheckedChange={() => {
                           // Handle status toggle
                         }}

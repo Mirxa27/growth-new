@@ -1,7 +1,8 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import RealAssessmentService from '@/services/realAssessmentService';
-import { Assessment } from '@/types/assessment';
+import { Assessment, AssessmentSubmissionParams } from '@/types/assessment';
 import LocalAssessmentTaker from '@/components/assessment/LocalAssessmentTaker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,13 +41,43 @@ const MobileAssessment: React.FC = () => {
     fetchAssessment();
   }, [id]);
 
-  const handleComplete = async () => {
-    // Assessment completed - could implement results saving or navigation here
-    errorHandler.handleError(new Error('Assessment completion handler not implemented'), {
-      severity: ErrorSeverity.LOW,
-      category: ErrorCategory.BUSINESS_LOGIC,
-      context: { action: 'assessment_complete', assessmentId: id }
-    });
+  const handleComplete = async (responses: Record<string, string | number | boolean | string[]>) => {
+    try {
+      if (!assessment || !id) return;
+
+      const { data: user } = await supabase.auth.getUser();
+
+      const submissionParams: AssessmentSubmissionParams = {
+        assessmentId: id,
+        responses: responses,
+        userId: user.user?.id,
+      };
+
+      const result = await RealAssessmentService.submitAssessment(submissionParams);
+
+      if (user.user) {
+        window.location.href = `/results/${result.id}`;
+      } else {
+        sessionStorage.setItem('tempAssessmentResults', JSON.stringify({
+          assessmentId: id,
+          results: result,
+          completedAt: new Date().toISOString()
+        }));
+        window.location.href = `/results/temp`;
+      }
+
+    } catch (error) {
+      console.error('Error saving assessment completion:', error);
+      errorHandler.handleError(error, {
+        severity: ErrorSeverity.HIGH,
+        category: ErrorCategory.DATABASE,
+        context: {
+          action: 'assessment_complete',
+          assessmentId: id,
+          hasUser: !!(await supabase.auth.getUser()).data.user
+        }
+      });
+    }
   };
 
   const handleBack = () => {

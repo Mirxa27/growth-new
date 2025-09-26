@@ -33,7 +33,12 @@
       "Bash(npm run test:unit:*)",
       "Bash(npx vitest:*)",
       "Bash(chmod:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:growth-g9fazf3hp-mirxa27s-projects.vercel.app)",
+      "WebFetch(domain:growth-jxtl58x4e-mirxa27s-projects.vercel.app)",
+      "Bash(npm run)",
+      "Bash(export:*)"
     ],
     "deny": [],
     "ask": []

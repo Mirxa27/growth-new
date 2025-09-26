@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,15 +19,30 @@ import { Assessment } from '@/types/assessment';
 import { useToast } from '@/hooks/use-toast';
 import { errorHandler, ErrorSeverity, ErrorCategory } from '@/services/error/error-handler.service';
 
+type AnswerValue = string | number | boolean | string[];
+
 interface FreeAssessmentTakerProps {
   assessment: Assessment;
-  onComplete: (results: any) => void;
+  onComplete: (results: AssessmentResults) => void;
   onBack: () => void;
+}
+
+interface AssessmentResults {
+  responses: Record<string, AnswerValue>;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  personalityType?: string;
+  insights?: string[];
+  recommendations?: string[];
+  nextSteps?: string[];
+  analysis?: Record<string, unknown>;
+  feedback?: string;
 }
 
 interface QuestionAnswer {
   questionId: string;
-  answer: any;
+  answer: AnswerValue;
   questionText: string;
   questionType: string;
 }
@@ -47,7 +62,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
-  const handleAnswer = (questionId: string, answer: any) => {
+  const handleAnswer = (questionId: string, answer: AnswerValue) => {
     const existingAnswerIndex = answers.findIndex(a => a.questionId === questionId);
     const answerData: QuestionAnswer = {
       questionId,
@@ -142,8 +157,35 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
       const totalQuestions = questions.length;
       const answeredQuestions = answers.length;
       const completionTime = payload.time_taken_seconds;
+      const score = answeredQuestions;
+      const maxScore = totalQuestions;
+      const percentage = Math.round((score / maxScore) * 100);
 
-      onComplete({ ...data, totalQuestions, answeredQuestions, completionTime });
+      // Convert answers to responses format
+      const responses: Record<string, AnswerValue> = {};
+      answers.forEach(answer => {
+        responses[answer.questionId] = answer.answer;
+      });
+
+      const results: AssessmentResults = {
+        responses,
+        score,
+        maxScore,
+        percentage,
+        personalityType: data?.personality_type || 'Unknown',
+        insights: data?.insights || [`You completed ${percentage}% of the assessment.`],
+        recommendations: data?.recommendations || ['Continue your personal growth journey.'],
+        nextSteps: data?.next_steps || ['Review your results and plan next actions.'],
+        analysis: {
+          totalQuestions,
+          answeredQuestions,
+          completionTime,
+          ...data?.analysis
+        },
+        feedback: data?.feedback || `Assessment completed with ${answeredQuestions} out of ${totalQuestions} questions answered.`
+      };
+
+      onComplete(results);
       toast({ title: 'Assessment Complete', description: 'Your results are ready.', duration: 2500 });
     } catch (error) {
       errorHandler.handleError(error, {
@@ -179,7 +221,7 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
         <CardContent>
           {currentQuestion.type === 'single' && (
             <RadioGroup
-              value={currentAnswer || ''}
+              value={typeof currentAnswer === 'string' ? currentAnswer : ''}
               onValueChange={(value) => handleAnswer(currentQuestion.id, value)}
             >
               {currentQuestion.options?.map((option, index) => (
@@ -195,31 +237,33 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
 
           {currentQuestion.type === 'multiple' && (
             <div className="space-y-3">
-              {currentQuestion.options?.map((option, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
-                  <Checkbox
-                    id={`multi-${index}`}
-                    checked={currentAnswer?.includes(option.id) || false}
-                    onCheckedChange={(checked) => {
-                      const currentAnswers = currentAnswer || [];
-                      const newAnswers = checked
-                        ? [...currentAnswers, option.id]
-                        : currentAnswers.filter((a: string) => a !== option.id);
-                      handleAnswer(currentQuestion.id, newAnswers);
-                    }}
-                  />
-                  <Label htmlFor={`multi-${index}`} className="cursor-pointer text-sm text-foreground">
-                    {option.text}
-                  </Label>
-                </div>
-              ))}
+              {currentQuestion.options?.map((option, index) => {
+                const currentAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
+                return (
+                  <div key={index} className="flex items-center space-x-3 p-3 rounded-lg transition-colors glass-subtle hover:glass-strong border border-card-border">
+                    <Checkbox
+                      id={`multi-${index}`}
+                      checked={currentAnswers.includes(option.id)}
+                      onCheckedChange={(checked) => {
+                        const newAnswers = checked
+                          ? [...currentAnswers, option.id]
+                          : currentAnswers.filter((a: string) => a !== option.id);
+                        handleAnswer(currentQuestion.id, newAnswers);
+                      }}
+                    />
+                    <Label htmlFor={`multi-${index}`} className="cursor-pointer text-sm text-foreground">
+                      {option.text}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {currentQuestion.type === 'scale' && (
             <div className="space-y-4">
               <Slider
-                value={[currentAnswer || (currentQuestion.scale?.min ?? 1)]}
+                value={[typeof currentAnswer === 'number' ? currentAnswer : (currentQuestion.scale?.min ?? 1)]}
                 onValueChange={(value) => handleAnswer(currentQuestion.id, value[0])}
                 min={currentQuestion.scale?.min ?? 1}
                 max={currentQuestion.scale?.max ?? 5}
@@ -240,14 +284,14 @@ export const FreeAssessmentTaker: React.FC<FreeAssessmentTakerProps> = ({
                 </div>
               )}
               <div className="text-center">
-                <span className="text-lg font-semibold">{currentAnswer || (currentQuestion.scale?.min ?? 1)}</span>
+                <span className="text-lg font-semibold">{typeof currentAnswer === 'number' ? currentAnswer : (currentQuestion.scale?.min ?? 1)}</span>
               </div>
             </div>
           )}
 
           {currentQuestion.type === 'text' && (
             <Textarea
-              value={currentAnswer || ''}
+              value={typeof currentAnswer === 'string' ? currentAnswer : ''}
               onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
               placeholder="Share your thoughts..."
               rows={4}
