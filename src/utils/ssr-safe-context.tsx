@@ -9,18 +9,18 @@ import React from 'react';
  * Creates a React context that's safe for SSR environments
  */
 export function createSSRSafeContext<T>(defaultValue: T): React.Context<T> {
-  // Only create context on client side to prevent SSR issues
-  if (typeof window !== 'undefined') {
+  // Always create the context, but handle SSR safely
+  try {
     return React.createContext<T>(defaultValue);
+  } catch (error) {
+    // Fallback for SSR or other environments where createContext might fail
+    return {
+      Provider: ({ children }: { children: React.ReactNode }) => children,
+      Consumer: () => null,
+      displayName: 'SSRSafeContext',
+      $$typeof: Symbol.for('react.context'),
+    } as React.Context<T>;
   }
-  
-  // Return a mock context for server-side rendering
-  return {
-    Provider: ({ children }: { children: React.ReactNode }) => children,
-    Consumer: () => null,
-    displayName: 'SSRSafeContext',
-    $$typeof: Symbol.for('react.context'),
-  } as React.Context<T>;
 }
 
 /**

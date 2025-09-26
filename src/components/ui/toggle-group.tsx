@@ -11,9 +11,7 @@ const defaultContextValue = {
   variant: "default" as const,
 };
 
-const ToggleGroupContext = typeof window !== 'undefined' 
-  ? React.createContext<VariantProps<typeof toggleVariants>>(defaultContextValue)
-  : ({} as React.Context<VariantProps<typeof toggleVariants>>)
+const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariants>>(defaultContextValue)
 
 const ToggleGroup = React.forwardRef<
   React.ElementRef<typeof ToggleGroupPrimitive.Root>,
