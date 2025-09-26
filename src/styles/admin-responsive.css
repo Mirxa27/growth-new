@@ -7,7 +7,8 @@
 
   .admin-sidebar {
     @apply fixed inset-y-0 left-0 z-50 w-full transform transition-transform duration-300 ease-in-out;
-    @apply glass-strong border-r border-glass;
+    @apply glass-strong border-r;
+    border-right-color: rgba(var(--glass-border));
   }
 
   .admin-sidebar.closed {
@@ -24,19 +25,30 @@
   }
 
   .admin-nav-item {
-    @apply w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all;
-    @apply glass hover:glass-strong text-foreground hover:text-primary;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
+      @apply w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all;
+      @apply glass hover:glass-strong;
+      @apply focus:outline-none focus:ring-2 focus:ring-primary-200;
+      box-shadow: 0 0 0 2px hsla(var(--primary) / 0.2);
+      color: hsl(var(--foreground));
+  }  .admin-nav-item:hover {
+    color: hsl(var(--primary));
+  }
+
+  .admin-nav-item:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
   }
 
   .admin-nav-item.active {
-    @apply glass-strong border border-primary/20 text-primary;
+    @apply glass-strong border;
+    border-color: hsla(var(--primary) / 0.2);
+    color: hsl(var(--primary));
   }
 
   .admin-card {
     @apply glass-strong rounded-xl p-4;
     @apply shadow-lg backdrop-blur-xl;
-    @apply border border-glass;
+    border: 1px solid rgba(var(--glass-border));
   }
 
   .admin-form-grid {
@@ -46,22 +58,34 @@
   .admin-input {
     @apply glass-input w-full min-h-[44px] px-4 py-2;
     @apply text-base; /* Prevent zoom on iOS */
-    @apply border border-glass rounded-lg;
-    @apply focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
+    @apply rounded-lg;
     @apply transition-all duration-200;
+    border: 1px solid rgba(var(--glass-border));
+  }
+
+  .admin-input:focus {
+    border-color: hsla(var(--primary) / 0.5);
+    box-shadow: 0 0 0 2px hsla(var(--primary) / 0.2);
+    outline: none;
   }
 
   .admin-button {
     @apply glass-button min-h-[44px] px-6 py-3;
     @apply font-medium text-sm;
-    @apply border border-glass rounded-lg;
+    @apply rounded-lg;
     @apply transition-all duration-200;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
+    border: 1px solid rgba(var(--glass-border));
+  }
+
+  .admin-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px hsla(var(--primary) / 0.2);
   }
 
   .admin-button.primary {
-    @apply bg-gradient-primary text-white border-transparent;
+    @apply text-white border-transparent;
     @apply hover:opacity-90 active:scale-[0.98];
+    background: var(--gradient-primary);
   }
 
   .admin-stats-grid {
@@ -222,7 +246,7 @@
   /* Dark mode optimizations */
   @media (prefers-color-scheme: dark) {
     .admin-layout {
-      @apply bg-gradient-to-br from-background via-background/95 to-background/90;
+      @apply bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(var(--background)/0.95)] to-[hsl(var(--background)/0.9)];
     }
   }
 
@@ -248,7 +272,11 @@
   }
 
   .admin-focus-visible {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+    @apply focus-visible:outline-none;
+  }
+
+  .admin-focus-visible:focus-visible {
+    box-shadow: 0 0 0 2px hsla(var(--primary) / 0.5);
   }
 
   /* Loading states */

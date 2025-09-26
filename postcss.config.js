@@ -1,7 +1,8 @@
 export default {
   plugins: {
     "postcss-import": {},
-    "@tailwindcss/postcss": {},
+    "tailwindcss": "./tailwind.config.ts",
+    "autoprefixer": {},
     "postcss-preset-env": { stage: 3, preserve: true },
   },
 };
