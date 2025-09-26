@@ -91,6 +91,9 @@ module.exports = {
         '.responsive-padding': {
           'padding': 'clamp(1rem, 2vw, 2rem)',
         },
+        '.border-glass': {
+          'border-color': 'rgba(var(--glass-border))',
+        },
       }
       addUtilities(newUtilities)
     }
