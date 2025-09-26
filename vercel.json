@@ -6,10 +6,10 @@
   "devCommand": "npm run dev",
   "functions": {
     "app/**/*.ts": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs20.x"
     },
     "supabase/functions/**/*.ts": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
