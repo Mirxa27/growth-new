@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "build:extension": "node scripts/build-extension.js",
     "vercel-build": "npm install --legacy-peer-deps && npm run build",
-    "postbuild": "node scripts/optimize-build.js || true",
+    "postbuild": "if [ -f \"scripts/optimize-build.js\" ]; then node scripts/optimize-build.js || true; else echo \"Skipping build optimization - scripts not available\"; fi",
     "test": "npm run test:unit",
     "test:unit": "vitest src/**/*.test.ts",
     "test:ci": "npm run test:unit --run && npm run test:integration --run && npm run test:e2e",
