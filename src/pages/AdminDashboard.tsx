@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
-// Import React for lazy loading
-import React, { Suspense, lazy, useMemo } from 'react';
 
 // Lazy load all admin components
 const UserManagement = lazy(() => import('@/components/admin/UserManagementOptimized'));
