@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { performanceOptimizationService } from '@/services/performance/performance-optimization.service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,11 @@ const Dashboard = () => {
   
   // Performance monitoring
   const startTiming = usePerformanceMonitor('dashboard-load');
+
+  useEffect(() => {
+    // Ensure symbol.svg is preloaded when dashboard loads
+    performanceOptimizationService.ensureSymbolPreloaded();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

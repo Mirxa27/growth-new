@@ -72,9 +72,23 @@ export class PerformanceOptimizationService {
    */
   preloadCriticalResources() {
     const criticalResources = [
-      '/loader.svg',
-      '/symbol.svg'
+      '/loader.svg'
     ];
+
+    // Only preload symbol.svg if we're on a page that uses it immediately
+    const currentPath = window.location.pathname;
+    const pagesUsingSymbol = ['/dashboard', '/admin', '/profile'];
+    
+    // Check if symbol is actually visible on the current page
+    const symbolElements = document.querySelectorAll('img[src*="symbol.svg"], img[src="/symbol.svg"]');
+    const hasVisibleSymbol = Array.from(symbolElements).some(img => {
+      const rect = img.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+
+    if (pagesUsingSymbol.some(path => currentPath.includes(path)) || hasVisibleSymbol) {
+      criticalResources.push('/symbol.svg');
+    }
 
     criticalResources.forEach(resource => {
       const link = document.createElement('link');
@@ -83,6 +97,108 @@ export class PerformanceOptimizationService {
       link.href = resource;
       document.head.appendChild(link);
     });
+
+    // Preload symbol.svg when navigating to pages that use it
+    this.setupSmartPreloading();
+  }
+
+  /**
+   * Setup smart preloading for resources
+   */
+  setupSmartPreloading() {
+    // Listen for navigation events and preload symbol.svg when needed
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    const preloadSymbolIfNeeded = (path: string) => {
+      const pagesUsingSymbol = ['/dashboard', '/admin', '/profile'];
+      
+      // Check if we're on a page that uses symbol or if symbol elements are present
+      const symbolElements = document.querySelectorAll('img[src*="symbol.svg"], img[src="/symbol.svg"]');
+      const hasSymbolElements = symbolElements.length > 0;
+      
+      if (pagesUsingSymbol.some(pagePath => path.includes(pagePath)) || hasSymbolElements) {
+        const existingLink = document.querySelector('link[href="/symbol.svg"][rel="preload"]');
+        if (!existingLink) {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = '/symbol.svg';
+          document.head.appendChild(link);
+        }
+      }
+    };
+
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
+    };
+
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
+    };
+
+    window.addEventListener('popstate', () => {
+      setTimeout(() => preloadSymbolIfNeeded(window.location.pathname), 0);
+    });
+
+    // Watch for symbol elements being added to the DOM
+    const symbolObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as Element;
+            // Check if the added element or its children contain symbol images
+            const hasSymbol = element.matches && (
+              element.matches('img[src*="symbol.svg"]') ||
+              element.querySelector('img[src*="symbol.svg"]')
+            );
+            
+            if (hasSymbol) {
+              const existingLink = document.querySelector('link[href="/symbol.svg"][rel="preload"]');
+              if (!existingLink) {
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'image';
+                link.href = '/symbol.svg';
+                document.head.appendChild(link);
+              }
+            }
+          }
+        });
+      });
+    });
+
+    symbolObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // Clean up unused preload links after a delay to prevent warnings
+    setTimeout(() => {
+      const preloadLink = document.querySelector('link[href="/symbol.svg"][rel="preload"]');
+      const symbolImages = document.querySelectorAll('img[src*="symbol.svg"]');
+      
+      if (preloadLink && symbolImages.length === 0) {
+        // No symbol images found, remove the preload link
+        preloadLink.remove();
+      }
+    }, 3000); // Wait 3 seconds before cleanup
+  }
+
+  /**
+   * Ensure symbol.svg is preloaded when needed
+   */
+  ensureSymbolPreloaded() {
+    const existingLink = document.querySelector('link[href="/symbol.svg"][rel="preload"]');
+    if (!existingLink) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = '/symbol.svg';
+      document.head.appendChild(link);
+    }
   }
 
   /**

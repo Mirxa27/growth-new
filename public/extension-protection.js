@@ -44,6 +44,9 @@
   // Enhanced error patterns for third-party extensions
   const blockedErrorPatterns = [
     'extension://',
+    'chrome-extension://',
+    'moz-extension://',
+    'safari-extension://',
     'content.js',
     'contentSelector',
     'floatingSphere',
@@ -51,16 +54,25 @@
     'chunk-eb16e6c6',
     'index.iife.js',
     '@capacitor/core', // Block Capacitor import errors in web context
-    'Failed to resolve module specifier'
+    'Failed to resolve module specifier',
+    'Cannot use import statement outside a module',
+    'Uncaught SyntaxError',
+    'LayoutGroupContext.mjs',
+    'Cannot read properties of undefined (reading \'createContext\')',
+    'Uncaught TypeError'
   ];
   
   // Protect against extension content script errors
   window.addEventListener('error', function(event) {
     const errorSource = event.filename || event.message || '';
-    if (blockedErrorPatterns.some(pattern => errorSource.includes(pattern))) {
+    const errorMessage = event.message || '';
+    
+    if (blockedErrorPatterns.some(pattern => 
+      errorSource.includes(pattern) || errorMessage.includes(pattern)
+    )) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('Blocked extension error:', errorSource);
+      console.warn('Blocked extension error:', errorSource.substring(0, 100));
       return false;
     }
   }, true);
@@ -157,7 +169,14 @@
     'ctx Lt',
     'Calling function getSettings',
     'sendToBackground response',
-    'loginStatus'
+    'loginStatus',
+    'Uncaught SyntaxError: Cannot use import statement outside a module',
+    'extension-protection.js:182',
+    '100x ContentScript Loaded',
+    'sendToBackground response Object',
+    'loginStatus Object',
+    'LayoutGroupContext.mjs:4',
+    'Cannot read properties of undefined (reading \'createContext\')'
   ];
   
   function shouldSuppressMessage(message) {

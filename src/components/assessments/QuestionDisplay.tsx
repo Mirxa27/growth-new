@@ -73,7 +73,7 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <CardContent>
           {question.question_type === 'multiple_choice' && question.options ? (
             <RadioGroup
-              value={currentAnswer}
+              value={currentAnswer || ""}
               onValueChange={onAnswerChange}
               className="space-y-3"
             >
