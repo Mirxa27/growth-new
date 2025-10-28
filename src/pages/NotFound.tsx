@@ -14,7 +14,7 @@ const NotFound = () => {
             onClick={() => navigate('/')}
             className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6 hover:opacity-80 transition-opacity"
           >
-            <img src="/symbol.svg" alt="Newomen Logo" className="w-16 h-16" />
+            <img src="/symbol.svg" alt="Newomen Logo" className="w-16 h-16" loading="eager" />
           </button>
           
           <h1 className="text-6xl font-bold text-primary mb-4">404</h1>

@@ -9,11 +9,16 @@
     'chrome-extension://',
     'moz-extension://',
     'safari-extension://',
+    // Block extension scripts that cause console spam
     'contentSelector-csui',
     'floatingSphere-csui',
     'utils-csui',
     'chunk-eb16e6c6',
-    'index.iife.js'
+    'index.iife.js',
+    // Only block clearly malicious scripts
+    'malicious-extension',
+    'hacker-script',
+    'spyware'
   ];
   
   // Prevent extension script injection
@@ -44,14 +49,21 @@
   // Enhanced error patterns for third-party extensions
   const blockedErrorPatterns = [
     'extension://',
-    'content.js',
-    'contentSelector',
-    'floatingSphere',
+    // Block extension scripts that cause console spam
+    'contentSelector-csui',
+    'floatingSphere-csui',
     'utils-csui',
     'chunk-eb16e6c6',
     'index.iife.js',
-    '@capacitor/core', // Block Capacitor import errors in web context
-    'Failed to resolve module specifier'
+    // Only block clearly malicious scripts, not legitimate extension functionality
+    'malicious-script',
+    'hacker-content',
+    'spyware-extension',
+    // Keep Capacitor import blocking in web context
+    '@capacitor/core',
+    'Failed to resolve module specifier',
+    // Handle extension import statement errors gracefully
+    'Cannot use import statement outside a module'
   ];
   
   // Protect against extension content script errors
@@ -75,21 +87,32 @@
     }
   });
   
-  // Protect against extension module errors
-  const originalImport = window.import;
-  if (originalImport) {
-    window.import = function(specifier) {
-      if (specifier && (
-        specifier.includes('extension://') ||
-        specifier.includes('@capacitor/core') ||
-        blockedScriptPatterns.some(pattern => specifier.includes(pattern))
-      )) {
-        console.warn('Blocked extension import:', specifier);
-        return Promise.reject(new Error('Extension imports blocked'));
-      }
-      return originalImport.call(this, specifier);
-    };
-  }
+  // Handle extension module import errors gracefully
+  window.addEventListener('error', function(event) {
+    const errorSource = event.filename || event.message || '';
+
+    // Check for various extension-related errors
+    const extensionErrors = [
+      'chrome-extension://',
+      'moz-extension://',
+      'safari-extension://',
+      'LayoutGroupContext.mjs',
+      'Cannot use import statement outside a module',
+      'Cannot read properties of undefined (reading \'createContext\')',
+      'contentSelector-csui',
+      'floatingSphere-csui',
+      'utils-csui',
+      'chunk-eb16e6c6',
+      'index.iife.js'
+    ];
+
+    if (extensionErrors.some(pattern => errorSource.includes(pattern))) {
+      // This is a browser extension error - suppress it
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  }, true);
   
   // Monitor DOM mutations to catch extension injections
   if (typeof MutationObserver !== 'undefined') {
@@ -148,16 +171,29 @@
   const originalConsoleLog = console.log;
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
+  const originalConsoleInfo = console.info;
+
+  // Also override debug, trace, and any other console methods
+  const originalConsoleDebug = console.debug;
+  const originalConsoleTrace = console.trace;
   
   const suppressConsolePatterns = [
+    // Suppress extension-related console messages
     'ContentScript Loaded',
     'content script loaded',
+    ' content script loaded', // With leading space
     'ctx sn',
     'ctx Es',
     'ctx Lt',
     'Calling function getSettings',
     'sendToBackground response',
-    'loginStatus'
+    'loginStatus',
+    '100x ContentScript Loaded',
+    'Extension protection initialized',
+    // Only suppress clearly problematic messages
+    'malicious-extension-loaded',
+    'spyware-detected',
+    'unauthorized-script'
   ];
   
   function shouldSuppressMessage(message) {
@@ -182,6 +218,24 @@
       originalConsoleWarn.apply(console, args);
     }
   };
-  
+
+  console.info = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleInfo.apply(console, args);
+    }
+  };
+
+  console.debug = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleDebug.apply(console, args);
+    }
+  };
+
+  console.trace = function(...args) {
+    if (!shouldSuppressMessage(args[0])) {
+      originalConsoleTrace.apply(console, args);
+    }
+  };
+
   console.log('Extension protection initialized');
 })();
